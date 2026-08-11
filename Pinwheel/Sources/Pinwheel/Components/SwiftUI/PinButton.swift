@@ -26,6 +26,7 @@ public struct PinButton: SwiftUI.View {
     private var isLoading: Bool = false
 
     @SwiftUI.State private var tapCount = 0
+    @Environment(\.pinwheelTheme) private var theme
 
     public init(
         _ title: String? = nil,
@@ -71,14 +72,14 @@ public struct PinButton: SwiftUI.View {
         HStack(spacing: .spacingS) {
             if let title {
                 Text(title)
-                    .font(typography.font)
+                    .font(typography.font(in: theme))
                     .underline(style.isTertiary)
                     .lineLimit(1)
             }
 
             if let systemImage {
                 Image(systemName: systemImage)
-                    .font(typography.font)
+                    .font(typography.font(in: theme))
             }
 
             if isLoading {

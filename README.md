@@ -62,6 +62,37 @@ struct DesignSystemDemoApp: App {
 
 Sections and items derive a stable id from their title — an item also folds in its `tags` (see [Tags](#tags)). Pinwheel persists the selected section, item, and simulated device by that id, so selection survives reordering. Titles must be unique within a section; two takes on the same component are disambiguated by their tags.
 
+## Theming
+
+Every Pinwheel surface resolves its colors and fonts from a `PinwheelTheme` — a named pairing of a
+`ColorProvider` and a `FontProvider`. Supply your own and the catalog, the floating controls, and every
+`Pin*` component render in it:
+
+```swift
+extension PinwheelTheme {
+    static let marine = PinwheelTheme(name: "Marine", colors: MarineColors(), fonts: MarineFonts())
+}
+
+PinwheelCatalog(themes: [.marine]) {
+    PinwheelSection("Components") { /* ... */ }
+}
+```
+
+Hand it more than one and a palette picker appears in the toolbar, so a design system with several brands
+switches between them live. The choice persists across launches, and falls back to the first theme when a
+persisted name is gone.
+
+```swift
+PinwheelCatalog(themes: [.marine, .ember]) { /* ... */ }
+```
+
+The theme reaches UIKit as well as SwiftUI: it is an `EnvironmentValues.pinwheelTheme` bridged to a
+`PinwheelThemeTrait`, so a `UIColor` token resolves the selected theme wherever it is read — including
+inside a `PinwheelItem(_:view:)` and inside the floating-controls window, which sits outside the SwiftUI
+tree. `UIFont` has no dynamic counterpart, so a UIKit view that caches a font re-reads it on a trait change.
+
+Omit `themes:` and everything resolves `PinwheelTheme.standard`, which wraps Apple's system colors and fonts.
+
 ## Tweaks
 
 Attach actions and toggles to any SwiftUI demo with `pinwheelTweaks`. They appear in Pinwheel's floating settings sheet.
@@ -179,6 +210,9 @@ WindowGroup {
 ```sh
 xcrun simctl launch <booted-device> com.example.app -PinwheelPreview primary-button
 ```
+
+Add `-PinwheelPreviewTheme <name>` to land that preview in a specific theme, which is how a sweep captures
+one component across every brand.
 
 ## UIKit Compatibility
 

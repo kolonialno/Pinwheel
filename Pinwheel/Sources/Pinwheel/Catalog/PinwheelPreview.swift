@@ -6,12 +6,18 @@ import SwiftUI
 public struct PinwheelPreview: SwiftUI.View {
     private let sections: [PinwheelSection]
     private let id: String
+    private let themes: [PinwheelTheme]
 
     @SwiftUI.State private var chrome = PinwheelChrome()
 
     public init(_ id: String, sections: [PinwheelSection]) {
+        self.init(id, sections: sections, themes: [.standard])
+    }
+
+    public init(_ id: String, sections: [PinwheelSection], themes: [PinwheelTheme]) {
         self.id = id
         self.sections = sections
+        self.themes = themes
     }
 
     public init(_ id: String, @PinwheelSectionBuilder sections: () -> [PinwheelSection]) {
@@ -28,13 +34,20 @@ public struct PinwheelPreview: SwiftUI.View {
                 autoApplyTweak: Self.requestedTweak
             )
             .environment(chrome)
+            .environment(\.pinwheelTheme, chrome.theme)
             .background(
                 PinwheelFloatingControlsHost(
                     chrome: chrome,
                     tweakCount: chrome.tweakCount,
-                    fabVisible: chrome.isFloatingControlsVisible
+                    fabVisible: chrome.isFloatingControlsVisible,
+                    theme: chrome.theme
                 )
             )
+            .onAppear {
+                chrome.themes = themes
+                chrome.selectedThemeName = Self.requestedTheme
+                chrome.normalizeTheme()
+            }
         } else {
             PinwheelPreviewNotFound(requestedID: id, sections: sections)
         }
@@ -78,6 +91,22 @@ public extension PinwheelPreview {
         }
 
         if let environment = ProcessInfo.processInfo.environment["PINWHEEL_PREVIEW"],
+           !environment.isEmpty {
+            return environment
+        }
+
+        return nil
+    }
+
+    /// The theme to render a preview launch in: the `-PinwheelPreviewTheme <name>` launch
+    /// argument or `PINWHEEL_PREVIEW_THEME`, else nil. A sweep varies this to capture each brand.
+    static var requestedTheme: String? {
+        if let argument = UserDefaults.standard.string(forKey: "PinwheelPreviewTheme"),
+           !argument.isEmpty {
+            return argument
+        }
+
+        if let environment = ProcessInfo.processInfo.environment["PINWHEEL_PREVIEW_THEME"],
            !environment.isEmpty {
             return environment
         }

@@ -84,7 +84,7 @@ public extension PinList {
 
         private func iconView(_ image: Image, enabled: Bool) -> some SwiftUI.View {
             image
-                .foregroundStyle(enabled ? PinwheelTheme.Colors.actionText : PinwheelTheme.Colors.secondaryText)
+                .foregroundStyle(enabled ? Color.actionText : Color.secondaryText)
                 .frame(width: .spacingXL)
         }
 

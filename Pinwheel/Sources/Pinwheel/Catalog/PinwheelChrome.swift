@@ -15,8 +15,26 @@ final class PinwheelChrome {
     var componentID: String?
     var componentVariant: String?
     var colorScheme: ColorScheme?
+    var themes: [PinwheelTheme] = [.standard]
+    var selectedThemeName: String?
 
     var tweakCount: Int { tweaks.count }
+
+    var theme: PinwheelTheme {
+        themes.first { $0.name == selectedThemeName } ?? themes.first ?? .standard
+    }
+
+    var isThemePickerVisible: Bool { themes.count > 1 }
+
+    func selectTheme(_ theme: PinwheelTheme) {
+        selectedThemeName = theme.name
+        PinwheelStateStore.selectedThemeName = theme.name
+    }
+
+    func normalizeTheme() {
+        if let selectedThemeName, themes.contains(where: { $0.name == selectedThemeName }) { return }
+        selectedThemeName = themes.first?.name
+    }
 
     var isFloatingControlsVisible: Bool {
         isPresentingItem && !showsSettings

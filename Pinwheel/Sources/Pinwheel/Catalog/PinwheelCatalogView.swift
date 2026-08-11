@@ -3,6 +3,7 @@ import SwiftUI
 struct PinwheelCatalogView: SwiftUI.View {
     let sections: [PinwheelSection]
     let usesEmbeddedNavigation: Bool
+    let themes: [PinwheelTheme]
 
     @State private var selectedSectionID: String?
     @State private var showsSectionPicker = false
@@ -11,9 +12,10 @@ struct PinwheelCatalogView: SwiftUI.View {
     @State private var restoredSelection = false
     @State private var chrome = PinwheelChrome()
 
-    init(sections: [PinwheelSection], usesEmbeddedNavigation: Bool) {
+    init(sections: [PinwheelSection], usesEmbeddedNavigation: Bool, themes: [PinwheelTheme]) {
         self.sections = sections
         self.usesEmbeddedNavigation = usesEmbeddedNavigation
+        self.themes = themes
         self._selectedSectionID = State(initialValue: PinwheelStateStore.selectedSectionID)
     }
 
@@ -28,16 +30,19 @@ struct PinwheelCatalogView: SwiftUI.View {
             }
         }
         .environment(chrome)
+        .environment(\.pinwheelTheme, chrome.theme)
         .preferredColorScheme(chrome.colorScheme)
         .background(
             PinwheelFloatingControlsHost(
                 chrome: chrome,
                 tweakCount: chrome.tweakCount,
                 fabVisible: chrome.isFloatingControlsVisible,
-                colorScheme: chrome.colorScheme
+                colorScheme: chrome.colorScheme,
+                theme: chrome.theme
             )
         )
         .onAppear {
+            restoreThemes()
             normalizeSelection()
             restorePresentedItemIfNeeded()
         }
@@ -54,6 +59,7 @@ struct PinwheelCatalogView: SwiftUI.View {
                 closePresentedItem()
             }
             .environment(chrome)
+            .environment(\.pinwheelTheme, chrome.theme)
             .preferredColorScheme(chrome.colorScheme)
             .presentationDetents(detents(for: item.item.presentation))
         }
@@ -62,6 +68,7 @@ struct PinwheelCatalogView: SwiftUI.View {
                 closePresentedItem()
             }
             .environment(chrome)
+            .environment(\.pinwheelTheme, chrome.theme)
             .preferredColorScheme(chrome.colorScheme)
         }
     }
@@ -78,12 +85,31 @@ struct PinwheelCatalogView: SwiftUI.View {
                         HStack(spacing: 4) {
                             PinLabel(selectedSection?.title ?? "Pinwheel").color(.action)
                             Image(systemName: "chevron.down")
-                                .font(PinwheelTheme.Typography.footnote.weight(.medium))
+                                .font(PinTextStyle.footnote.font(in: chrome.theme).weight(.medium))
                         }
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(.actionText)
                     .accessibilityIdentifier("pinwheel.sectionPicker")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    if chrome.isThemePickerVisible {
+                        Menu {
+                            ForEach(chrome.themes) { theme in
+                                Button { chrome.selectTheme(theme) } label: {
+                                    if theme == chrome.theme {
+                                        Label(theme.name, systemImage: "checkmark")
+                                    } else {
+                                        SwiftUI.Text(theme.name)
+                                    }
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "paintpalette")
+                        }
+                        .tint(.actionText)
+                        .accessibilityIdentifier("pinwheel.theme")
+                    }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
@@ -166,6 +192,12 @@ struct PinwheelCatalogView: SwiftUI.View {
         PinwheelStateStore.clearSelectedItem()
     }
 
+    private func restoreThemes() {
+        chrome.themes = themes
+        chrome.selectedThemeName = PinwheelStateStore.selectedThemeName
+        chrome.normalizeTheme()
+    }
+
     private func normalizeSelection() {
         guard !sections.isEmpty else {
             selectedSectionID = nil
@@ -212,6 +244,7 @@ private struct PinwheelIndexView: SwiftUI.View {
 
     @State private var selectedTag: PinTag?
     @State private var scrolledDistance: CGFloat = 0
+    @Environment(\.pinwheelTheme) private var theme
 
     var body: some SwiftUI.View {
         ScrollViewReader { proxy in
@@ -268,7 +301,7 @@ private struct PinwheelIndexView: SwiftUI.View {
                                 proxy.scrollTo(group.letter, anchor: .top)
                             }
                         }
-                        .font(PinwheelTheme.Typography.caption)
+                        .font(PinTextStyle.caption.font(in: theme))
                         .foregroundStyle(.actionText)
                     }
                 }
