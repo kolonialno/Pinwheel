@@ -3,6 +3,7 @@ import UIKit
 
 public nonisolated struct PinwheelThemeTrait: UITraitDefinition {
     public static let defaultValue = PinwheelTheme.standard
+    public static let affectsColorAppearance = true
 }
 
 nonisolated struct PinwheelThemeKey: EnvironmentKey {

@@ -141,6 +141,15 @@ final class PinwheelThemeTests: XCTestCase {
         }
     }
 
+    func testSwitchingThemeCountsAsAColorAppearanceChange() {
+        let marine = UITraitCollection { $0[PinwheelThemeTrait.self] = theme(named: "Marine", color: .red, fontSize: 10) }
+        let ember = UITraitCollection { $0[PinwheelThemeTrait.self] = theme(named: "Ember", color: .blue, fontSize: 10) }
+        XCTAssertTrue(
+            marine.hasDifferentColorAppearance(comparedTo: ember),
+            "UIKit re-resolves a dynamic UIColor only for a trait that declares it changes color appearance — without it a tint stays on the theme it was assigned under"
+        )
+    }
+
     func testThemePickerStaysHiddenForASingleTheme() {
         let chrome = PinwheelChrome()
         chrome.themes = [theme(named: "Marine", color: .red, fontSize: 10)]
