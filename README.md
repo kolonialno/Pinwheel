@@ -78,9 +78,9 @@ PinwheelCatalog(themes: [.marine]) {
 }
 ```
 
-Hand it more than one and a palette picker appears in the toolbar, so a design system with several brands
-switches between them live. The choice persists across launches, and falls back to the first theme when a
-persisted name is gone.
+Hand it more than one and a Theme row appears in the floating settings sheet, so a design system with
+several brands switches between them live — including while a component is open. The choice persists across
+launches, and falls back to the first theme when a persisted name is gone.
 
 ```swift
 PinwheelCatalog(themes: [.marine, .ember]) { /* ... */ }

@@ -39,14 +39,17 @@ final class TweakableUITests: XCTestCase {
     private func openCatalogItem(_ component: Catalog, _ tag: PinTag, in section: CatalogSection) {
         // -UITesting resets state, so the catalog always launches to the list —
         // no restored item to dismiss first.
-        XCTAssertTrue(app.buttons["pinwheel.sectionPicker"].waitForExistence(timeout: defaultTimeout),
-                      "section picker should exist")
+        XCTAssertTrue(app.buttons["pinwheel.settings"].waitForExistence(timeout: defaultTimeout),
+                      "the floating settings control should exist on the index")
 
         let itemID = component.id(tag)
         let item = app.buttons[itemID]
         if !item.exists {
-            app.buttons["pinwheel.sectionPicker"].tap()
-            let sectionButton = app.buttons[section.rawValue]
+            app.buttons["pinwheel.settings"].tap()
+            let sectionRow = app.buttons["pinwheel.sectionPicker"]
+            XCTAssertTrue(sectionRow.waitForExistence(timeout: defaultTimeout), "the Section row should be listed in settings")
+            sectionRow.tap()
+            let sectionButton = app.buttons[section.rawValue].firstMatch
             XCTAssertTrue(sectionButton.waitForExistence(timeout: defaultTimeout), "\(section.rawValue) section should be listed")
             sectionButton.tap()
             // The catalog list is lazy — a row far down isn't in the accessibility
@@ -123,9 +126,9 @@ final class TweakableUITests: XCTestCase {
         launchPreview(.tweakable, .swiftUI)
         openSettings()
 
-        let deviceButton = app.buttons["iphone.gen3"]
-        XCTAssertTrue(deviceButton.waitForExistence(timeout: defaultTimeout), "device nav button should exist")
-        deviceButton.tap()
+        let deviceRow = app.buttons["pinwheel.device"]
+        XCTAssertTrue(deviceRow.waitForExistence(timeout: defaultTimeout), "the Device row should be listed in settings")
+        deviceRow.tap()
 
         let device = app.buttons["iPhone XS/11 Pro"]
         XCTAssertTrue(device.waitForExistence(timeout: defaultTimeout), "iPhone XS/11 Pro should be listed")

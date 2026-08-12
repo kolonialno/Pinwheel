@@ -6,9 +6,6 @@ struct PinwheelCatalogView: SwiftUI.View {
     let themes: [PinwheelTheme]
 
     @State private var selectedSectionID: String?
-    @State private var showsSectionPicker = false
-    @State private var showsThemePicker = false
-    @State private var showsAppearancePicker = false
     @State private var fullscreenItem: PresentedPinwheelItem?
     @State private var sheetItem: PresentedPinwheelItem?
     @State private var restoredSelection = false
@@ -41,7 +38,8 @@ struct PinwheelCatalogView: SwiftUI.View {
                 tweakCount: chrome.tweakCount,
                 fabVisible: chrome.isFloatingControlsVisible,
                 colorScheme: chrome.colorScheme,
-                theme: chrome.theme
+                theme: chrome.theme,
+                closeVisible: chrome.isCloseVisible
             )
         )
         .onAppear {
@@ -52,23 +50,15 @@ struct PinwheelCatalogView: SwiftUI.View {
         .onChange(of: sections.map(\.id)) { _, _ in
             normalizeSelection()
         }
-        .sheet(isPresented: $showsSectionPicker) {
-            sectionPicker
-                .pinwheelPresented(chrome)
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
-        }
-        .sheet(isPresented: $showsThemePicker) {
-            themePicker
-                .pinwheelPresented(chrome)
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
-        }
-        .sheet(isPresented: $showsAppearancePicker) {
-            appearancePicker
-                .pinwheelPresented(chrome)
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
+        .sheet(isPresented: settingsBinding) {
+            PinwheelSettingsView(
+                sections: sections,
+                selectedSectionID: $selectedSectionID,
+                tweaks: [],
+                selectedDeviceIndex: $chrome.selectedDeviceIndex
+            )
+            .pinwheelPresented(chrome)
+            .presentationDetents([.medium, .large])
         }
         .sheet(item: $sheetItem) { item in
             PinwheelPlayground(item: item.item, selection: item.selection) {
@@ -93,114 +83,19 @@ struct PinwheelCatalogView: SwiftUI.View {
                 ToolbarItem(placement: .principal) {
                     PinLabel(selectedSection?.title ?? "Pinwheel").font(.subtitleSemibold)
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    SwiftUI.Button {
-                        showsSectionPicker = true
-                    } label: {
-                        Image(systemName: "square.stack.3d.up")
-                    }
-                    .tint(.actionText)
-                    .accessibilityIdentifier("pinwheel.sectionPicker")
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    if chrome.isThemePickerVisible {
-                        SwiftUI.Button {
-                            showsThemePicker = true
-                        } label: {
-                            Image(systemName: "paintpalette")
-                        }
-                        .tint(.actionText)
-                        .accessibilityIdentifier("pinwheel.theme")
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    SwiftUI.Button {
-                        showsAppearancePicker = true
-                    } label: {
-                        Image(systemName: appearanceIcon)
-                    }
-                    .tint(.actionText)
-                    .accessibilityIdentifier("pinwheel.appearance")
-                }
             }
             .background(.primaryBackground)
     }
 
-    private var appearanceIcon: String {
-        switch chrome.colorScheme {
-        case .light: return "sun.max"
-        case .dark: return "moon.fill"
-        default: return "circle.lefthalf.filled"
-        }
+    // A presented item hosts its own settings sheet, since a sheet must come from the topmost
+    // presentation to appear above it.
+    private var settingsBinding: SwiftUI.Binding<Bool> {
+        SwiftUI.Binding(
+            get: { chrome.showsSettings && !chrome.isPresentingItem },
+            set: { chrome.showsSettings = $0 }
+        )
     }
 
-    private var sectionPicker: some SwiftUI.View {
-        NavigationStack {
-            List(sections) { section in
-                PickerRow(title: section.title, isSelected: section.id == selectedSection?.id) {
-                    selectedSectionID = section.id
-                    PinwheelStateStore.selectedSectionID = section.id
-                    showsSectionPicker = false
-                }
-                .listRowSeparatorTint(.secondaryBackground)
-                .listRowBackground(Color.primaryBackground)
-            }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
-            .background(.primaryBackground)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    PinLabel("Sections").font(.subtitleSemibold)
-                }
-            }
-        }
-    }
-
-    private var themePicker: some SwiftUI.View {
-        NavigationStack {
-            List(chrome.themes) { theme in
-                ThemeSampleRow(theme: theme, isSelected: theme == chrome.theme) {
-                    chrome.selectTheme(theme)
-                    showsThemePicker = false
-                }
-                .listRowSeparatorTint(.secondaryBackground)
-                .listRowBackground(Color.primaryBackground)
-            }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
-            .background(.primaryBackground)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    PinLabel("Themes").font(.subtitleSemibold)
-                }
-            }
-        }
-    }
-
-    private var appearancePicker: some SwiftUI.View {
-        NavigationStack {
-            List(PinwheelAppearance.allCases) { appearance in
-                PickerRow(title: appearance.title, isSelected: appearance.colorScheme == chrome.colorScheme) {
-                    chrome.colorScheme = appearance.colorScheme
-                    showsAppearancePicker = false
-                }
-                .accessibilityIdentifier("pinwheel.appearance.\(appearance.rawValue)")
-                .listRowSeparatorTint(.secondaryBackground)
-                .listRowBackground(Color.primaryBackground)
-            }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
-            .background(.primaryBackground)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    PinLabel("Appearance").font(.subtitleSemibold)
-                }
-            }
-        }
-    }
 
     private var selectedSection: PinwheelSection? {
         if let selectedSectionID, let section = sections.first(where: { $0.id == selectedSectionID }) {
@@ -391,55 +286,8 @@ private struct PinwheelIndexView: SwiftUI.View {
     }
 }
 
-private enum PinwheelAppearance: String, CaseIterable, Identifiable {
-    case system
-    case light
-    case dark
 
-    var id: String { rawValue }
-    var title: String { rawValue.capitalizingFirstLetter }
 
-    var colorScheme: ColorScheme? {
-        switch self {
-        case .system: return nil
-        case .light: return .light
-        case .dark: return .dark
-        }
-    }
-}
-
-private struct PickerRow: SwiftUI.View {
-    let title: String
-    let isSelected: Bool
-    let select: () -> Void
-
-    var body: some SwiftUI.View {
-        SwiftUI.Button(action: select) {
-            HStack {
-                PinLabel(title).color(isSelected ? .action : .primary)
-                Spacer()
-                if isSelected {
-                    Image(systemName: "checkmark").foregroundStyle(.actionText)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-private struct ThemeSampleRow: SwiftUI.View {
-    let theme: PinwheelTheme
-    let isSelected: Bool
-    let select: () -> Void
-
-    var body: some SwiftUI.View {
-        PickerRow(title: theme.name, isSelected: isSelected, select: select)
-            .environment(\.pinwheelTheme, theme)
-            .accessibilityIdentifier("pinwheel.theme.\(theme.id)")
-    }
-}
 
 private struct PresentedPinwheelItem: Identifiable {
     let selection: PinwheelSelection
