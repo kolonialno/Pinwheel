@@ -8,7 +8,6 @@ struct PinwheelFloatingControlsHost: UIViewRepresentable {
     // The FAB lives in its own window, which neither `.preferredColorScheme` nor the bridged theme trait reaches.
     var colorScheme: ColorScheme?
     var theme: PinwheelTheme
-    var closeVisible: Bool
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -26,8 +25,7 @@ struct PinwheelFloatingControlsHost: UIViewRepresentable {
                 fabVisible: chrome.isFloatingControlsVisible,
                 tweakCount: chrome.tweakCount,
                 colorScheme: chrome.colorScheme,
-                theme: chrome.theme,
-                closeVisible: chrome.isCloseVisible
+                theme: chrome.theme
             )
         }
         return probe
@@ -37,13 +35,7 @@ struct PinwheelFloatingControlsHost: UIViewRepresentable {
         if let scene = uiView.window?.windowScene {
             context.coordinator.attach(scene: scene, chrome: chrome)
         }
-        context.coordinator.update(
-            fabVisible: fabVisible,
-            tweakCount: tweakCount,
-            colorScheme: colorScheme,
-            theme: theme,
-            closeVisible: closeVisible
-        )
+        context.coordinator.update(fabVisible: fabVisible, tweakCount: tweakCount, colorScheme: colorScheme, theme: theme)
     }
 
     static func dismantleUIView(_ uiView: ProbeView, coordinator: Coordinator) {
@@ -75,10 +67,9 @@ struct PinwheelFloatingControlsHost: UIViewRepresentable {
             self.window = window
         }
 
-        func update(fabVisible: Bool, tweakCount: Int, colorScheme: ColorScheme?, theme: PinwheelTheme, closeVisible: Bool) {
+        func update(fabVisible: Bool, tweakCount: Int, colorScheme: ColorScheme?, theme: PinwheelTheme) {
             guard let window else { return }
             window.controller.itemsCount = tweakCount
-            window.controller.isCloseVisible = closeVisible
             window.traitOverrides[PinwheelThemeTrait.self] = theme
             switch colorScheme {
             case .light: window.overrideUserInterfaceStyle = .light
@@ -137,11 +128,6 @@ final class PinwheelFloatingControlsViewController: UIViewController, CornerAnch
     var itemsCount: Int {
         get { anchoringView.itemsCount }
         set { anchoringView.itemsCount = newValue }
-    }
-
-    var isCloseVisible: Bool {
-        get { anchoringView.isCloseVisible }
-        set { anchoringView.isCloseVisible = newValue }
     }
 
     override func loadView() {

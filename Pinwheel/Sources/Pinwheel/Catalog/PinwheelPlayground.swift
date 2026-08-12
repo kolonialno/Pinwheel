@@ -58,8 +58,6 @@ struct PinwheelPlayground: SwiftUI.View {
             }
             .sheet(isPresented: $chrome.showsSettings) {
                 PinwheelSettingsView(
-                    sections: [],
-                    selectedSectionID: .constant(nil),
                     tweaks: chrome.tweaks,
                     selectedDeviceIndex: $chrome.selectedDeviceIndex
                 )

@@ -48,8 +48,7 @@ public struct PinwheelPreview: SwiftUI.View {
                     chrome: chrome,
                     tweakCount: chrome.tweakCount,
                     fabVisible: chrome.isFloatingControlsVisible,
-                    theme: chrome.theme,
-                    closeVisible: chrome.isCloseVisible
+                    theme: chrome.theme
                 )
             )
         } else {

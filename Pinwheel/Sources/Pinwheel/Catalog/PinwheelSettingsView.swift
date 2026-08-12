@@ -1,8 +1,6 @@
 import SwiftUI
 
 struct PinwheelSettingsView: SwiftUI.View {
-    let sections: [PinwheelSection]
-    @SwiftUI.Binding var selectedSectionID: String?
     let tweaks: [PinwheelTweak]
     @SwiftUI.Binding var selectedDeviceIndex: Int?
 
@@ -27,7 +25,6 @@ struct PinwheelSettingsView: SwiftUI.View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .background(.primaryBackground)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
@@ -40,12 +37,6 @@ struct PinwheelSettingsView: SwiftUI.View {
 
     @ViewBuilder
     private var displayRows: some SwiftUI.View {
-        if sections.count > 1 {
-            SettingsRow(title: "Section", value: selectedSection?.title ?? "") {
-                sectionPicker
-            }
-            .accessibilityIdentifier("pinwheel.sectionPicker")
-        }
         if chrome.themes.count > 1 {
             SettingsRow(title: "Theme", value: chrome.theme.name) {
                 themePicker
@@ -62,10 +53,6 @@ struct PinwheelSettingsView: SwiftUI.View {
         .accessibilityIdentifier("pinwheel.device")
     }
 
-    private var selectedSection: PinwheelSection? {
-        sections.first { $0.id == selectedSectionID } ?? sections.first
-    }
-
     private var selectedAppearance: PinwheelAppearance {
         PinwheelAppearance.allCases.first { $0.colorScheme == chrome.colorScheme } ?? .system
     }
@@ -74,19 +61,6 @@ struct PinwheelSettingsView: SwiftUI.View {
         chrome.simulatedDevice?.title ?? "This device"
     }
 
-    private var sectionPicker: some SwiftUI.View {
-        PickerList(title: "Section") {
-            ForEach(sections) { section in
-                PickerRow(title: section.title, isSelected: section.id == selectedSection?.id) {
-                    selectedSectionID = section.id
-                    PinwheelStateStore.selectedSectionID = section.id
-                    dismiss()
-                }
-                .listRowSeparatorTint(.secondaryBackground)
-                .listRowBackground(Color.primaryBackground)
-            }
-        }
-    }
 
     private var themePicker: some SwiftUI.View {
         PickerList(title: "Theme") {
@@ -162,22 +136,58 @@ private struct SettingsRow<Destination: SwiftUI.View>: SwiftUI.View {
     }
 }
 
-private struct PickerList<Content: SwiftUI.View>: SwiftUI.View {
+// Not a `List`: a scroll view takes all the height it is offered, so measuring one reports the
+// sheet's height back to itself and the fitted detent silently does nothing.
+struct PickerList<Content: SwiftUI.View>: SwiftUI.View {
     let title: String
     @ViewBuilder let content: () -> Content
 
+    @SwiftUI.State private var contentHeight: CGFloat = 0
+    @Environment(\.dismiss) private var dismiss
+
     var body: some SwiftUI.View {
-        List(content: content)
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
-            .background(.primaryBackground)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    PinLabel(title).font(.subtitleSemibold)
-                }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                header
+                Rectangle()
+                    .fill(Color.secondaryBackground)
+                    .frame(height: 1)
+                    .padding(.horizontal, .spacingL)
+                    .padding(.bottom, .spacingXS)
+                content()
+                PinButton("Done") { dismiss() }
+                    .style(.primary)
+                    .fullWidth()
+                    .padding(.horizontal, .spacingL)
+                    .padding(.top, .spacingL)
             }
+            .padding(.bottom, .spacingL)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .presentationDragIndicator(.hidden)
+        .presentationDetents([.height(contentHeight), .large])
     }
+
+    private var header: some SwiftUI.View {
+        HStack {
+            PinLabel(title).font(.titleSemibold)
+            Spacer()
+            SwiftUI.Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(PinTextStyle.subtitleSemibold.font(in: theme))
+            }
+            .tint(.primaryText)
+            .accessibilityLabel("Close")
+        }
+        .padding(.horizontal, .spacingL)
+        .padding(.top, .spacingL)
+        .padding(.bottom, .spacingM)
+    }
+
+    @Environment(\.pinwheelTheme) private var theme
 }
 
 enum PinwheelAppearance: String, CaseIterable, Identifiable {
@@ -195,6 +205,14 @@ enum PinwheelAppearance: String, CaseIterable, Identifiable {
         case .dark: return .dark
         }
     }
+
+    var icon: String {
+        switch self {
+        case .system: return "circle.lefthalf.filled"
+        case .light: return "sun.max"
+        case .dark: return "moon.fill"
+        }
+    }
 }
 
 struct PickerRow: SwiftUI.View {
@@ -207,11 +225,11 @@ struct PickerRow: SwiftUI.View {
             HStack {
                 PinLabel(title).color(isSelected ? .action : .primary)
                 Spacer()
-                if isSelected {
-                    Image(systemName: "checkmark").foregroundStyle(.actionText)
-                }
+                PickerRadio(isSelected: isSelected)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, .spacingL)
+            .padding(.vertical, .spacingM)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -251,5 +269,22 @@ struct PinwheelDeviceList: SwiftUI.View {
     private func isSelected(_ index: Int, _ device: Device) -> Bool {
         if let selectedIndex { return selectedIndex == index }
         return device.isCurrent
+    }
+}
+
+private struct PickerRadio: SwiftUI.View {
+    let isSelected: Bool
+
+    var body: some SwiftUI.View {
+        ZStack {
+            Circle()
+                .strokeBorder(isSelected ? Color.actionText : Color.tertiaryText, lineWidth: 2)
+            if isSelected {
+                Circle()
+                    .fill(Color.actionText)
+                    .padding(5)
+            }
+        }
+        .frame(width: .spacingXL, height: .spacingXL)
     }
 }

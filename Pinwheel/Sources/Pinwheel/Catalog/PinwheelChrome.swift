@@ -47,10 +47,8 @@ final class PinwheelChrome {
     }
 
     var isFloatingControlsVisible: Bool {
-        !showsSettings
+        isPresentingItem && !showsSettings
     }
-
-    var isCloseVisible: Bool { isPresentingItem }
 
     var simulatedDevice: Device? {
         guard let selectedDeviceIndex, let device = Device.all[safe: selectedDeviceIndex], !device.isCurrent else {

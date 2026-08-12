@@ -39,17 +39,14 @@ final class TweakableUITests: XCTestCase {
     private func openCatalogItem(_ component: Catalog, _ tag: PinTag, in section: CatalogSection) {
         // -UITesting resets state, so the catalog always launches to the list —
         // no restored item to dismiss first.
-        XCTAssertTrue(app.buttons["pinwheel.settings"].waitForExistence(timeout: defaultTimeout),
-                      "the floating settings control should exist on the index")
+        XCTAssertTrue(app.buttons["pinwheel.sectionPicker"].waitForExistence(timeout: defaultTimeout),
+                      "section picker should exist")
 
         let itemID = component.id(tag)
         let item = app.buttons[itemID]
         if !item.exists {
-            app.buttons["pinwheel.settings"].tap()
-            let sectionRow = app.buttons["pinwheel.sectionPicker"]
-            XCTAssertTrue(sectionRow.waitForExistence(timeout: defaultTimeout), "the Section row should be listed in settings")
-            sectionRow.tap()
-            let sectionButton = app.buttons[section.rawValue].firstMatch
+            app.buttons["pinwheel.sectionPicker"].tap()
+            let sectionButton = app.buttons[section.rawValue]
             XCTAssertTrue(sectionButton.waitForExistence(timeout: defaultTimeout), "\(section.rawValue) section should be listed")
             sectionButton.tap()
             // The catalog list is lazy — a row far down isn't in the accessibility

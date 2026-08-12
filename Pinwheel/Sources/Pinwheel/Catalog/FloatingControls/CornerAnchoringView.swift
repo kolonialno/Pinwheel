@@ -37,6 +37,8 @@ final class CornerAnchoringView: UIView {
         views.addSubview(closeButton)
         views.addSubview(settingsButton)
 
+        let halfButtonSize = buttonSize / 2.0
+
         NSLayoutConstraint.activate([
             settingsButton.leadingAnchor.constraint(equalTo: views.leadingAnchor),
             settingsButton.trailingAnchor.constraint(equalTo: views.trailingAnchor),
@@ -45,35 +47,17 @@ final class CornerAnchoringView: UIView {
             settingsButton.heightAnchor.constraint(equalToConstant: buttonSize),
         ])
 
-        // Built here rather than in their own lazy properties: referencing `buttonsView`
-        // from those would re-enter this initializer.
-        withCloseButton = [
+        NSLayoutConstraint.activate([
             settingsButton.bottomAnchor.constraint(equalTo: closeButton.topAnchor, constant: -.spacingS),
             closeButton.leadingAnchor.constraint(equalTo: views.leadingAnchor),
             closeButton.trailingAnchor.constraint(equalTo: views.trailingAnchor),
             closeButton.widthAnchor.constraint(equalToConstant: buttonSize),
             closeButton.heightAnchor.constraint(equalToConstant: buttonSize),
             closeButton.bottomAnchor.constraint(equalTo: views.bottomAnchor)
-        ]
-        withoutCloseButton = [settingsButton.bottomAnchor.constraint(equalTo: views.bottomAnchor)]
-        NSLayoutConstraint.activate(isCloseVisible ? withCloseButton : withoutCloseButton)
-        closeButton.isHidden = !isCloseVisible
+        ])
 
         return views
     }()
-
-    private var withCloseButton: [NSLayoutConstraint] = []
-    private var withoutCloseButton: [NSLayoutConstraint] = []
-
-    var isCloseVisible: Bool = true {
-        didSet {
-            guard isCloseVisible != oldValue, !withCloseButton.isEmpty else { return }
-            closeButton.isHidden = !isCloseVisible
-            // Both chains pin the stack's bottom, so only one may hold at a time.
-            NSLayoutConstraint.deactivate(isCloseVisible ? withoutCloseButton : withCloseButton)
-            NSLayoutConstraint.activate(isCloseVisible ? withCloseButton : withoutCloseButton)
-        }
-    }
 
     private var anchorAreaViews = [UIView]()
     private let panRecognizer = UIPanGestureRecognizer()

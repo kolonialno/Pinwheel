@@ -24,6 +24,7 @@ public struct PinButton: SwiftUI.View {
     private var style: Style = .primary
     private var typography: PinTextStyle = .subtitleSemibold
     private var isLoading: Bool = false
+    private var isFullWidth: Bool = false
 
     @SwiftUI.State private var tapCount = 0
     @Environment(\.pinwheelTheme) private var theme
@@ -50,6 +51,12 @@ public struct PinButton: SwiftUI.View {
         return copy
     }
 
+    public func fullWidth(_ isFullWidth: Bool = true) -> PinButton {
+        var copy = self
+        copy.isFullWidth = isFullWidth
+        return copy
+    }
+
     public func loading(_ isLoading: Bool = true) -> PinButton {
         var copy = self
         copy.isLoading = isLoading
@@ -63,7 +70,7 @@ public struct PinButton: SwiftUI.View {
         } label: {
             label
         }
-        .buttonStyle(PinButtonStyle(style: style, hasTitle: title != nil))
+        .buttonStyle(PinButtonStyle(style: style, hasTitle: title != nil, isFullWidth: isFullWidth))
         .sensoryFeedback(.impact(weight: style.isPrimary ? .medium : .light), trigger: tapCount)
     }
 
@@ -93,15 +100,17 @@ public struct PinButton: SwiftUI.View {
 private struct PinButtonStyle: SwiftUI.ButtonStyle {
     let style: PinButton.Style
     let hasTitle: Bool
+    let isFullWidth: Bool
 
     func makeBody(configuration: Configuration) -> some SwiftUI.View {
-        Container(configuration: configuration, style: style, hasTitle: hasTitle)
+        Container(configuration: configuration, style: style, hasTitle: hasTitle, isFullWidth: isFullWidth)
     }
 
     private struct Container: SwiftUI.View {
         let configuration: Configuration
         let style: PinButton.Style
         let hasTitle: Bool
+        let isFullWidth: Bool
 
         @Environment(\.isEnabled) private var isEnabled
         @Environment(\.pinwheelTheme) private var theme
@@ -113,6 +122,7 @@ private struct PinButtonStyle: SwiftUI.ButtonStyle {
                 .padding(.vertical, .spacingM)
                 .padding(.horizontal, .spacingL)
                 .frame(minWidth: hasTitle ? 100 : nil)
+                .frame(maxWidth: isFullWidth ? .infinity : nil)
                 .background {
                     if let background {
                         theme.buttonShape.shape.fill(background)
