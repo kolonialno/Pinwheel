@@ -37,6 +37,7 @@ open class UIPinTableViewCell: UITableViewCell {
 
     open lazy var switchControl: UISwitch = {
         let aSwitch = UISwitch(withAutoLayout: true)
+        aSwitch.onTintColor = .actionText
         aSwitch.addTarget(self, action: #selector(switchChanged), for: .valueChanged)
         return aSwitch
     }()

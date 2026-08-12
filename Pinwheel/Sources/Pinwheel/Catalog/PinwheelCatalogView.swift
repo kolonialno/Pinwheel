@@ -91,17 +91,15 @@ struct PinwheelCatalogView: SwiftUI.View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
+                    PinLabel(selectedSection?.title ?? "Pinwheel").font(.subtitleSemibold)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     SwiftUI.Button {
                         showsSectionPicker = true
                     } label: {
-                        HStack(spacing: 4) {
-                            PinLabel(selectedSection?.title ?? "Pinwheel").color(.action)
-                            Image(systemName: "chevron.down")
-                                .font(PinTextStyle.footnote.font(in: chrome.theme).weight(.medium))
-                        }
+                        Image(systemName: "square.stack.3d.up")
                     }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.actionText)
+                    .tint(.actionText)
                     .accessibilityIdentifier("pinwheel.sectionPicker")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -139,17 +137,11 @@ struct PinwheelCatalogView: SwiftUI.View {
     private var sectionPicker: some SwiftUI.View {
         NavigationStack {
             List(sections) { section in
-                let isSelected = section.id == selectedSection?.id
-                SwiftUI.Button {
+                PickerRow(title: section.title, isSelected: section.id == selectedSection?.id) {
                     selectedSectionID = section.id
                     PinwheelStateStore.selectedSectionID = section.id
                     showsSectionPicker = false
-                } label: {
-                    PinLabel(section.title).color(isSelected ? .action : .primary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(isSelected ? .actionText : .primaryText)
                 .listRowSeparatorTint(.secondaryBackground)
                 .listRowBackground(Color.primaryBackground)
             }

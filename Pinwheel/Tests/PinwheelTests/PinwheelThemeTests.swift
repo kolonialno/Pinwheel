@@ -141,6 +141,18 @@ final class PinwheelThemeTests: XCTestCase {
         }
     }
 
+    func testATableViewCellSwitchTakesTheThemesActionColorNotAppleGreen() {
+        let cell = UIPinTableViewCell(style: .default, reuseIdentifier: nil)
+        let window = windowShowing(cell, in: theme(named: "Red", color: .red, fontSize: 17))
+        withExtendedLifetime(window) {
+            XCTAssertEqual(
+                cell.switchControl.onTintColor?.resolvedColor(with: cell.traitCollection),
+                UIColor.red,
+                "a switch inside one of our components is ours to theme — Apple's green is not in any brand's palette"
+            )
+        }
+    }
+
     func testSwitchingThemeCountsAsAColorAppearanceChange() {
         let marine = UITraitCollection { $0[PinwheelThemeTrait.self] = theme(named: "Marine", color: .red, fontSize: 10) }
         let ember = UITraitCollection { $0[PinwheelThemeTrait.self] = theme(named: "Ember", color: .blue, fontSize: 10) }
