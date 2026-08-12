@@ -7,6 +7,7 @@ struct PinwheelCatalogView: SwiftUI.View {
 
     @State private var selectedSectionID: String?
     @State private var showsSectionPicker = false
+    @State private var showsThemePicker = false
     @State private var fullscreenItem: PresentedPinwheelItem?
     @State private var sheetItem: PresentedPinwheelItem?
     @State private var restoredSelection = false
@@ -54,6 +55,12 @@ struct PinwheelCatalogView: SwiftUI.View {
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: $showsThemePicker) {
+            themePicker
+                .environment(\.pinwheelTheme, chrome.theme)
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+        }
         .sheet(item: $sheetItem) { item in
             PinwheelPlayground(item: item.item, selection: item.selection) {
                 closePresentedItem()
@@ -94,16 +101,8 @@ struct PinwheelCatalogView: SwiftUI.View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     if chrome.isThemePickerVisible {
-                        Menu {
-                            ForEach(chrome.themes) { theme in
-                                Button { chrome.selectTheme(theme) } label: {
-                                    if theme == chrome.theme {
-                                        Label(theme.name, systemImage: "checkmark")
-                                    } else {
-                                        SwiftUI.Text(theme.name)
-                                    }
-                                }
-                            }
+                        SwiftUI.Button {
+                            showsThemePicker = true
                         } label: {
                             Image(systemName: "paintpalette")
                         }
@@ -155,6 +154,39 @@ struct PinwheelCatalogView: SwiftUI.View {
             .scrollContentBackground(.hidden)
             .background(.primaryBackground)
             .navigationTitle("Sections")
+            .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+
+    private var themePicker: some SwiftUI.View {
+        NavigationStack {
+            List(chrome.themes) { theme in
+                let isSelected = theme == chrome.theme
+                SwiftUI.Button {
+                    chrome.selectTheme(theme)
+                    showsThemePicker = false
+                } label: {
+                    HStack {
+                        // Each row renders in the theme it offers, so the list previews the switch.
+                        PinLabel(theme.name).color(isSelected ? .action : .primary)
+                        Spacer()
+                        if isSelected {
+                            Image(systemName: "checkmark").foregroundStyle(.actionText)
+                        }
+                    }
+                    .environment(\.pinwheelTheme, theme)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("pinwheel.theme.\(theme.id)")
+                .listRowSeparatorTint(.secondaryBackground)
+                .listRowBackground(Color.primaryBackground)
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(.primaryBackground)
+            .navigationTitle("Themes")
             .navigationBarTitleDisplayMode(.inline)
         }
     }
