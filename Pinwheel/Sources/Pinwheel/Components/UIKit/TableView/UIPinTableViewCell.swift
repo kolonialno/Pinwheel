@@ -11,26 +11,19 @@ open class UIPinTableViewCell: UITableViewCell {
     open var isEnabled: Bool = true
 
     open lazy var titleLabel: UILabel = {
-        let label = UILabel(withAutoLayout: true)
-        label.font = .body
-        label.textColor = .primaryText
+        let label = UIPinLabel(font: .body, textColor: .primaryText)
         label.numberOfLines = 0
         return label
     }()
 
     open lazy var subtitleLabel: UILabel = {
-        let label = UILabel(withAutoLayout: true)
-        label.font = .footnote
-        label.textColor = .primaryText
+        let label = UIPinLabel(font: .footnote, textColor: .primaryText)
         label.numberOfLines = 0
         return label
     }()
 
     open lazy var detailLabel: UILabel = {
-        let label = UILabel(withAutoLayout: true)
-        label.font = .body
-        label.textColor = .secondaryText
-        return label
+        UIPinLabel(font: .body, textColor: .secondaryText)
     }()
 
     open lazy var iconImageView: UIImageView = {

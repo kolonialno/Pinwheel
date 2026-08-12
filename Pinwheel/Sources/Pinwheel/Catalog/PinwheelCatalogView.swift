@@ -52,12 +52,13 @@ struct PinwheelCatalogView: SwiftUI.View {
         }
         .sheet(isPresented: $showsSectionPicker) {
             sectionPicker
+                .pinwheelPresented(chrome)
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showsThemePicker) {
             themePicker
-                .environment(\.pinwheelTheme, chrome.theme)
+                .pinwheelPresented(chrome)
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
         }
@@ -65,18 +66,14 @@ struct PinwheelCatalogView: SwiftUI.View {
             PinwheelPlayground(item: item.item, selection: item.selection) {
                 closePresentedItem()
             }
-            .environment(chrome)
-            .environment(\.pinwheelTheme, chrome.theme)
-            .preferredColorScheme(chrome.colorScheme)
+            .pinwheelPresented(chrome)
             .presentationDetents(detents(for: item.item.presentation))
         }
         .fullScreenCover(item: $fullscreenItem) { item in
             PinwheelPlayground(item: item.item, selection: item.selection) {
                 closePresentedItem()
             }
-            .environment(chrome)
-            .environment(\.pinwheelTheme, chrome.theme)
-            .preferredColorScheme(chrome.colorScheme)
+            .pinwheelPresented(chrome)
         }
     }
 
@@ -153,8 +150,12 @@ struct PinwheelCatalogView: SwiftUI.View {
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
             .background(.primaryBackground)
-            .navigationTitle("Sections")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    PinLabel("Sections").font(.subtitleSemibold)
+                }
+            }
         }
     }
 
@@ -171,8 +172,12 @@ struct PinwheelCatalogView: SwiftUI.View {
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
             .background(.primaryBackground)
-            .navigationTitle("Themes")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    PinLabel("Themes").font(.subtitleSemibold)
+                }
+            }
         }
     }
 
@@ -362,6 +367,16 @@ private struct PinwheelIndexView: SwiftUI.View {
         return groups.keys.sorted().map { key in
             (letter: key, items: groups[key] ?? [])
         }
+    }
+}
+
+private extension SwiftUI.View {
+    // A presentation is a new SwiftUI root: it inherits neither the chrome, the theme nor the
+    // color scheme from the view it is attached to.
+    func pinwheelPresented(_ chrome: PinwheelChrome) -> some SwiftUI.View {
+        environment(chrome)
+            .environment(\.pinwheelTheme, chrome.theme)
+            .preferredColorScheme(chrome.colorScheme)
     }
 }
 

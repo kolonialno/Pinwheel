@@ -98,6 +98,49 @@ final class PinwheelThemeTests: XCTestCase {
         XCTAssertEqual(capsuled.buttonShape, .capsule, "a capsule is half the button's height, so it cannot be carried as a radius")
     }
 
+    // A detached view never recomputes its trait collection, so a themed window is the only
+    // place a UIKit token resolves at all.
+    private func windowShowing(_ view: UIView, in theme: PinwheelTheme) -> UIWindow {
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 320, height: 200))
+        window.traitOverrides[PinwheelThemeTrait.self] = theme
+        view.frame = window.bounds
+        window.addSubview(view)
+        window.isHidden = false
+        window.layoutIfNeeded()
+        return window
+    }
+
+    func testAUIKitLabelTakesItsFontFromTheThemeItIsShownIn() {
+        let label = UIPinLabel(font: .body)
+        let window = windowShowing(label, in: theme(named: "Large", color: .red, fontSize: 29))
+        withExtendedLifetime(window) {
+            XCTAssertEqual(
+                label.font.pointSize,
+                29,
+                "a UIKit label must resolve its font against the theme it is shown in, not the one current when it was built"
+            )
+        }
+    }
+
+    func testAUIKitLabelFollowsALaterThemeChange() {
+        let label = UIPinLabel(font: .body)
+        let window = windowShowing(label, in: theme(named: "Small", color: .red, fontSize: 11))
+        withExtendedLifetime(window) {
+            XCTAssertEqual(label.font.pointSize, 11)
+            window.traitOverrides[PinwheelThemeTrait.self] = theme(named: "Large", color: .red, fontSize: 29)
+            window.layoutIfNeeded()
+            XCTAssertEqual(label.font.pointSize, 29, "switching theme must restyle a label already on screen")
+        }
+    }
+
+    func testATableViewCellLabelTakesItsFontFromTheThemeItIsShownIn() {
+        let cell = UIPinTableViewCell(style: .default, reuseIdentifier: nil)
+        let window = windowShowing(cell, in: theme(named: "Large", color: .red, fontSize: 29))
+        withExtendedLifetime(window) {
+            XCTAssertEqual(cell.titleLabel.font.pointSize, 29, "a cell's labels are themed like any other")
+        }
+    }
+
     func testThemePickerStaysHiddenForASingleTheme() {
         let chrome = PinwheelChrome()
         chrome.themes = [theme(named: "Marine", color: .red, fontSize: 10)]
