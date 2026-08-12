@@ -340,8 +340,6 @@ public struct PinwheelCatalog: SwiftUI.View {
         self.init(themes: [.standard], usesEmbeddedNavigation: usesEmbeddedNavigation, sections: sections)
     }
 
-    /// Offers the themes in the toolbar and renders every item in the chosen one. Supply more
-    /// than one where a design system ships several brands.
     public init(
         themes: [PinwheelTheme],
         usesEmbeddedNavigation: Bool = true,

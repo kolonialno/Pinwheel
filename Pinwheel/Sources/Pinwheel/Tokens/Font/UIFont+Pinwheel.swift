@@ -17,8 +17,7 @@ public nonisolated extension UIFont {
         return fontMetrics.scaledFont(for: self)
     }
 
-    // UIFont has no dynamic-provider counterpart to UIColor's, so a token resolves once
-    // against whichever traits are current at the point of the read.
+    // UIFont has no dynamic-provider counterpart to UIColor's, so this resolves once at the read.
     private static func themed(_ token: (FontProvider) -> UIFont) -> UIFont {
         token(UITraitCollection.current[PinwheelThemeTrait.self].fonts)
     }

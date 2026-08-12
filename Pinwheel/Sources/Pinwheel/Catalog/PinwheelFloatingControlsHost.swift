@@ -5,8 +5,7 @@ struct PinwheelFloatingControlsHost: UIViewRepresentable {
     let chrome: PinwheelChrome
     let tweakCount: Int
     let fabVisible: Bool
-    // The FAB lives in its own window, which neither `.preferredColorScheme` nor the bridged
-    // theme trait reaches, so it carries its own style and theme overrides.
+    // The FAB lives in its own window, which neither `.preferredColorScheme` nor the bridged theme trait reaches.
     var colorScheme: ColorScheme?
     var theme: PinwheelTheme
 

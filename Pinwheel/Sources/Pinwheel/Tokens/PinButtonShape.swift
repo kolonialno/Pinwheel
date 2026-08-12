@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// The silhouette a theme gives its buttons. A capsule is half the button's height rather than a
-/// fixed radius, so it stays a shape here instead of collapsing to a `CGFloat`.
 public enum PinButtonShape: Sendable, Equatable {
     case rounded
     case capsule

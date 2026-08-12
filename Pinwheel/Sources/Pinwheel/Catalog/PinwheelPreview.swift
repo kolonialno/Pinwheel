@@ -98,8 +98,6 @@ public extension PinwheelPreview {
         return nil
     }
 
-    /// The theme to render a preview launch in: the `-PinwheelPreviewTheme <name>` launch
-    /// argument or `PINWHEEL_PREVIEW_THEME`, else nil. A sweep varies this to capture each brand.
     static var requestedTheme: String? {
         if let argument = UserDefaults.standard.string(forKey: "PinwheelPreviewTheme"),
            !argument.isEmpty {

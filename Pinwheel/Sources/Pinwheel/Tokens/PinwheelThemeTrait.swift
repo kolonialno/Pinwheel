@@ -1,8 +1,6 @@
 import SwiftUI
 import UIKit
 
-/// The UIKit trait carrier for ``PinwheelTheme``: set once at a hosting root and every view
-/// beneath resolves it, so a themed `UIColor` and a bridged SwiftUI read agree.
 public nonisolated struct PinwheelThemeTrait: UITraitDefinition {
     public static let defaultValue = PinwheelTheme.standard
 }

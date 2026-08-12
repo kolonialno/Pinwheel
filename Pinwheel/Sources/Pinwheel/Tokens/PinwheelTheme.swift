@@ -34,7 +34,6 @@ public enum PinTextStyle {
     }
 }
 
-/// A named pairing of the two token providers, resolved through the environment.
 public nonisolated struct PinwheelTheme: Sendable {
     public let name: String
     public let colors: ColorProvider

@@ -161,25 +161,10 @@ struct PinwheelCatalogView: SwiftUI.View {
     private var themePicker: some SwiftUI.View {
         NavigationStack {
             List(chrome.themes) { theme in
-                let isSelected = theme == chrome.theme
-                SwiftUI.Button {
+                ThemeSampleRow(theme: theme, isSelected: theme == chrome.theme) {
                     chrome.selectTheme(theme)
                     showsThemePicker = false
-                } label: {
-                    HStack {
-                        // Each row renders in the theme it offers, so the list previews the switch.
-                        PinLabel(theme.name).color(isSelected ? .action : .primary)
-                        Spacer()
-                        if isSelected {
-                            Image(systemName: "checkmark").foregroundStyle(.actionText)
-                        }
-                    }
-                    .environment(\.pinwheelTheme, theme)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("pinwheel.theme.\(theme.id)")
                 .listRowSeparatorTint(.secondaryBackground)
                 .listRowBackground(Color.primaryBackground)
             }
@@ -377,6 +362,29 @@ private struct PinwheelIndexView: SwiftUI.View {
         return groups.keys.sorted().map { key in
             (letter: key, items: groups[key] ?? [])
         }
+    }
+}
+
+private struct ThemeSampleRow: SwiftUI.View {
+    let theme: PinwheelTheme
+    let isSelected: Bool
+    let select: () -> Void
+
+    var body: some SwiftUI.View {
+        SwiftUI.Button(action: select) {
+            HStack {
+                PinLabel(theme.name).color(isSelected ? .action : .primary)
+                Spacer()
+                if isSelected {
+                    Image(systemName: "checkmark").foregroundStyle(.actionText)
+                }
+            }
+            .environment(\.pinwheelTheme, theme)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("pinwheel.theme.\(theme.id)")
     }
 }
 
