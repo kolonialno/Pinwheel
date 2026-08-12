@@ -104,6 +104,7 @@ private struct PinButtonStyle: SwiftUI.ButtonStyle {
         let hasTitle: Bool
 
         @Environment(\.isEnabled) private var isEnabled
+        @Environment(\.pinwheelTheme) private var theme
 
         var body: some SwiftUI.View {
             configuration.label
@@ -114,11 +115,10 @@ private struct PinButtonStyle: SwiftUI.ButtonStyle {
                 .frame(minWidth: hasTitle ? 100 : nil)
                 .background {
                     if let background {
-                        RoundedRectangle(cornerRadius: .spacingM, style: .continuous)
-                            .fill(background)
+                        theme.buttonShape.shape.fill(background)
                     }
                 }
-                .contentShape(RoundedRectangle(cornerRadius: .spacingM, style: .continuous))
+                .contentShape(theme.buttonShape.shape)
                 .scaleEffect(configuration.isPressed ? 0.95 : 1)
                 .animation(.easeOut(duration: 0.2), value: configuration.isPressed)
         }

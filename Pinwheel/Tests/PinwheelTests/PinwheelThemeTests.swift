@@ -84,6 +84,20 @@ final class PinwheelThemeTests: XCTestCase {
         XCTAssertEqual(chrome.selectedThemeName, "Marine", "a persisted name for a theme no longer supplied must fall back rather than resolve nothing")
     }
 
+    func testAThemeKeepsRoundedButtonsUnlessItAsksForAnotherShape() {
+        XCTAssertEqual(theme(named: "Marine", color: .red, fontSize: 10).buttonShape, .rounded)
+    }
+
+    func testAThemeCanGiveItsButtonsACapsule() {
+        let capsuled = PinwheelTheme(
+            name: "Ember",
+            colors: FlatColorProvider(color: .red),
+            fonts: FixedSizeFontProvider(size: 10),
+            buttonShape: .capsule
+        )
+        XCTAssertEqual(capsuled.buttonShape, .capsule, "a capsule is half the button's height, so it cannot be carried as a radius")
+    }
+
     func testThemePickerStaysHiddenForASingleTheme() {
         let chrome = PinwheelChrome()
         chrome.themes = [theme(named: "Marine", color: .red, fontSize: 10)]

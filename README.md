@@ -91,6 +91,15 @@ The theme reaches UIKit as well as SwiftUI: it is an `EnvironmentValues.pinwheel
 inside a `PinwheelItem(_:view:)` and inside the floating-controls window, which sits outside the SwiftUI
 tree. `UIFont` has no dynamic counterpart, so a UIKit view that caches a font re-reads it on a trait change.
 
+A theme also decides its buttons' silhouette, since that is a brand's signature as much as its palette:
+
+```swift
+PinwheelTheme(name: "Ember", colors: EmberColors(), fonts: EmberFonts(), buttonShape: .capsule)
+```
+
+`buttonShape` is `.rounded` unless you say otherwise. A capsule is half the button's height rather than a
+fixed radius, so it stays a shape rather than collapsing to a `CGFloat`.
+
 Omit `themes:` and everything resolves `PinwheelTheme.standard`, which wraps Apple's system colors and fonts.
 
 ## Tweaks

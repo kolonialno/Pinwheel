@@ -141,6 +141,7 @@ extension PinwheelTheme {
     static let ember = PinwheelTheme(
         name: "Ember",
         colors: EmberColorProvider(),
-        fonts: EmberFontProvider()
+        fonts: EmberFontProvider(),
+        buttonShape: .capsule
     )
 }
