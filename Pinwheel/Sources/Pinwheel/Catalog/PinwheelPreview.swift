@@ -18,6 +18,13 @@ public struct PinwheelPreview: SwiftUI.View {
         self.id = id
         self.sections = sections
         self.themes = themes
+
+        // Resolved before the first render, so the window override never lands on a stale theme.
+        let chrome = PinwheelChrome()
+        chrome.themes = themes
+        chrome.selectedThemeName = Self.requestedTheme
+        chrome.normalizeTheme()
+        _chrome = SwiftUI.State(initialValue: chrome)
     }
 
     public init(_ id: String, @PinwheelSectionBuilder sections: () -> [PinwheelSection]) {
@@ -35,6 +42,7 @@ public struct PinwheelPreview: SwiftUI.View {
             )
             .environment(chrome)
             .environment(\.pinwheelTheme, chrome.theme)
+            .background(PinwheelThemedWindow(theme: chrome.theme))
             .background(
                 PinwheelFloatingControlsHost(
                     chrome: chrome,
@@ -43,11 +51,6 @@ public struct PinwheelPreview: SwiftUI.View {
                     theme: chrome.theme
                 )
             )
-            .onAppear {
-                chrome.themes = themes
-                chrome.selectedThemeName = Self.requestedTheme
-                chrome.normalizeTheme()
-            }
         } else {
             PinwheelPreviewNotFound(requestedID: id, sections: sections)
         }

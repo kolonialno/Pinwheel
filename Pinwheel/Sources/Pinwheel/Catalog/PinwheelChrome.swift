@@ -1,5 +1,15 @@
 import SwiftUI
 
+extension SwiftUI.View {
+    // A presentation is a new SwiftUI root: it inherits neither the chrome, the theme nor the
+    // color scheme from the view it is attached to.
+    func pinwheelPresented(_ chrome: PinwheelChrome) -> some SwiftUI.View {
+        environment(chrome)
+            .environment(\.pinwheelTheme, chrome.theme)
+            .preferredColorScheme(chrome.colorScheme)
+    }
+}
+
 @MainActor
 @Observable
 final class PinwheelChrome {

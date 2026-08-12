@@ -61,6 +61,7 @@ struct PinwheelPlayground: SwiftUI.View {
                     tweaks: chrome.tweaks,
                     selectedDeviceIndex: $chrome.selectedDeviceIndex
                 )
+                .pinwheelPresented(chrome)
                 .presentationDetents([.medium, .large])
             }
     }
@@ -216,6 +217,7 @@ private struct PinwheelHostedItem: SwiftUI.View {
 }
 
 private struct PinwheelSettingsView: SwiftUI.View {
+    @Environment(\.pinwheelTheme) private var theme
     let tweaks: [PinwheelTweak]
     @SwiftUI.Binding var selectedDeviceIndex: Int?
 
@@ -228,6 +230,7 @@ private struct PinwheelSettingsView: SwiftUI.View {
                 .toolbar {
                     ToolbarItem(placement: .principal) {
                         PinLabel("Options").font(.subtitleSemibold)
+                            .accessibilityIdentifier("pinwheel.settings.theme.\(theme.name)")
                     }
                     ToolbarItem(placement: .topBarTrailing) {
                         NavigationLink {
