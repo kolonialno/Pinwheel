@@ -102,6 +102,46 @@ fixed radius, so it stays a shape rather than collapsing to a `CGFloat`.
 
 Omit `themes:` and everything resolves `PinwheelTheme.standard`, which wraps Apple's system colors and fonts.
 
+## Trays
+
+A tray is a short, focused surface that stands as tall as its own content. Present a sequence of them
+with `pinwheelTray(path:)` — the array is the stack, so appending pushes and removing pops.
+
+```swift
+struct BoostView: View {
+    private enum Route: Hashable { case boost, howItWorks }
+
+    @State private var path: [Route] = []
+
+    var body: some View {
+        PinButton("Boost Post") { path = [.boost] }
+            .pinwheelTray(path: $path) { route in
+                switch route {
+                case .boost:
+                    PinTray("Boost Post") {
+                        TierRows()
+                    } accessory: {
+                        Button { path.append(.howItWorks) } label: { Image(systemName: "questionmark.circle") }
+                    }
+                    .commit("Boost Post") { path.removeAll() }
+
+                case .howItWorks:
+                    PinTray("How it works") { Explanation() }
+                        .commit("Got It") { path.removeLast() }
+                }
+            }
+    }
+}
+```
+
+Each tray carries a centred title and one leading control, which the stack derives: a cross at the root
+that dismisses, a back chevron once pushed that pops. Pass `accessory:` for a trailing control, and
+`.commit(_:action:)` for flows that end in a button — leave it off where a tap already takes effect.
+
+Moving between trays springs the height and cross-dissolves the content in place as one motion, so a
+sequence reads as one surface changing rather than a stack of separate sheets. The tray is dismissed by
+its cross, by a downward drag, or by tapping outside it.
+
 ## Tweaks
 
 Attach actions and toggles to any SwiftUI demo with `pinwheelTweaks`. They appear in Pinwheel's floating settings sheet.

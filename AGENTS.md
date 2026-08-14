@@ -39,6 +39,17 @@ Pinwheel-specific guidance: how we work here, testing, and the decisions log. Th
   - **`PinwheelTests` cannot be given a test host.** It is a SwiftPM test target, and a host is an Xcode project setting (`TEST_HOST`/`BUNDLE_LOADER`) — `DemoTests` is the answer, not a setting on the package. Keeping it hostless is also a design gate: 123 tests passing with no app is the proof the library stands alone, and the day one of them needs `Demo.app` something has leaked out of the library. Hosting costs ~2.2s a run, so speed is not the reason either way.
   - **`DemoTests` must not link the package products.** `Demo.app` already links `Pinwheel` and `DemoCatalog`, and a test bundle that re-declares them as `packageProductDependencies` breaks *`DemoUITests`* with undefined `PinTag` symbols. The bundle loads them from its host; `@testable import Pinwheel` needs no product dependency.
   - `DemoTests/HostedView.swift` is the harness (ported from tienda-ios). `window(showing:)` flips `_AXSSetAutomationEnabled` so SwiftUI fills its accessibility tree, which is what makes labels, frames and `accessibilityActivate()` readable at all; `presentation(in:)` waits for the presented view to **join the window** before you read traits; `settledPresentation(in:)` waits for a measured detent to stop moving.
+- **A UI probe cannot measure motion while it passes `-UITesting`.** `Demo/AppDelegate.swift` calls
+  `UIView.setAnimationsEnabled(false)` under that flag, so every animation reads as an instant snap and a
+  measurement blames the code for what the harness did. Three separate "the height doesn't animate"
+  conclusions came from this, including one that sent a whole chassis to be rewritten. Drop the flag when
+  filming, and confirm an animation exists by asking the layer (`layer.animationKeys()`) rather than
+  inferring it from geometry.
+- **`simctl io recordVideo` drops frames badly enough to be useless for motion** — 39 frames over 10
+  seconds in one run, missing whole transitions. To measure a curve, sample from inside the app on a
+  `CADisplayLink`, reading `layer.presentation()` and writing to `NSTemporaryDirectory()`; read the file
+  out of the app container afterwards. That instrument named the fault in one run where video had failed
+  four times.
 - **Bugs require TDD, and only bugs do.** A bug is a failure, so reproduce the failure first: red before green, and run the red, since a test bolted on after can pass for the wrong reason. Pay the cost to reach a fiddly observable. Everywhere else, resist adding a test to prove a test could fail — the suite grows and then costs forever. Prefer making the mistake unrepresentable over asserting it is absent.
 - **A UI test earns a commit only by guarding Apple's frameworks.** A good implementation is reachable from a unit test, so needing the simulator to see a fact usually says the fact is trapped in a view — fix that instead.
     - **A probe never lands.** Driving the app to watch a change work is an instrument: red while the fix is absent, and that failure localizes the fault. The unit test for what it localized is what stays — write it while it is still red, fix, watch both go green, then delete the probe in the same change.
@@ -58,6 +69,41 @@ Durable design decisions and why they were made.
 - **Exception — theme footguns get a wrapper anyway.** `Label → PinLabel` because raw `Text(...).font(.body)` silently resolves to Apple's system style (see Theme below). The test is "does the raw primitive bypass the theme?", not just "does a primitive exist?".
 - **Switch → `Toggle`** (no standalone `PinSwitch`; the only switch lives inside the `UIPinTableView` family). **Tokens (Font/Color/Spacing)** are *tokens*, never components, in either world.
 - **`Stepper → PinStepper`** (a `−`/value/`+` pill). SwiftUI's `Stepper` renders a system `±` control that bypasses the theme and can't be the pill shape a design system wants — a theme footgun, same test as `PinLabel`. `PinStepper(value:)` + `.onDecrement/.onIncrement` modifiers; bordered capsule, SF-Symbol `±` (mirrors `PinButton`'s `systemImage:`), themed value. Migrated from tienda-ios's Kolibri `KStepper`. No `UIPinStepper` — no UIKit-hosting need yet.
+
+### Trays
+
+- **A tray is a short surface that stands as tall as its own content, and a sequence of them is one
+  surface changing.** `PinTray` is the content — centred title, one leading control, optional trailing
+  accessory, optional commit — and `View.pinwheelTray(path:)` is the stack, where the array *is* the
+  navigation: appending pushes, removing pops. The leading control is **derived from depth**, a cross at
+  the root and a back chevron once pushed, so a root tray showing "back" is unrepresentable. Modelled on
+  the tray system Benji Taylor built for Family and now X, whose published rules we follow: one piece of
+  content or one action per tray, every tray titled, consecutive trays differing in height, and the theme
+  taken from context.
+- **The chassis is hand-written UIKit hosting SwiftUI, because neither `presentationDetents` nor
+  `UIPresentationController` will give up the height.** A detent is a declared *set of stops* that UIKit
+  re-resolves with its own animation, so the sheet edge can't be put on the same timeline as the content;
+  and a presentation controller re-applies `frameOfPresentedViewInContainerView` on the next layout pass,
+  which cancels a spring started against it. `PinTrayOverlay` therefore owns everything: its own view in
+  the topmost controller's hierarchy, a height constraint, a dimming view, and one
+  `UIView.animate(springDuration:bounce:)` driving the height and the cross-dissolve together.
+- **The overlay hangs off the topmost view controller, never straight off the window.** A
+  `UIHostingController`'s view has to live inside its parent controller's own view tree; parenting the
+  hosting controllers to the presenter while adding their views to the window raises
+  `_associatedViewControllerForwardsAppearanceCallbacks` and kills the app on first present. Walking
+  `presentedViewController` to the top also puts the tray above whatever is currently presented.
+- **`UIHostingController` already applies the bottom safe-area inset, so the chassis sets
+  `safeAreaRegions = []` and adds it once.** Leaving both to apply it measures it twice and leaves a
+  second inset of dead space under the content — 67pt below the commit button where the reference has 32.
+- **The motion is measured, not guessed.** Frame-stepping a 60fps capture of X's tray: the height settles
+  a ~377pt move in ~0.23s and an ~87pt move in ~0.15s, with about 3pt of overshoot on the big one only.
+  Duration scaling with distance is a spring rather than a timed curve, hence `springDuration: 0.30,
+  bounce: 0.10`. The same capture fixes the spacing: a 64pt header band (which Pinwheel already had), a
+  48pt commit button inset 32pt horizontally, and its bottom flush against the home-indicator inset with
+  no padding of its own. Ours lands within 2pt on all four.
+- **Open follow-up: the catalog's own sheets still use `PinwheelSheet`.** Two chassis for one idea is one
+  too many — the catalog's Tweaks/Device sequence is the natural second consumer and should move onto
+  `PinTray`, retiring `PinwheelSheet` and its detent measuring.
 
 ### Bridging
 
