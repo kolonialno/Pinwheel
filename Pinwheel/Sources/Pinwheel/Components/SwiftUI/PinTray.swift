@@ -5,6 +5,7 @@ extension EnvironmentValues {
     @Entry var pinTrayExit: () -> Void = {}
     @Entry var pinTrayPhase: PinTrayPhase? = nil
     @Entry var pinTrayBottomInset: CGFloat = .spacingL
+    @Entry var pinTrayMediumHeight: CGFloat = 0
 }
 
 /// The zoom a tray's content carries through a transition. It rides the content alone — a title that
@@ -16,6 +17,14 @@ final class PinTrayPhase {
 }
 
 public struct PinTray<Content: SwiftUI.View, Accessory: SwiftUI.View>: SwiftUI.View {
+    /// How tall a tray stands. `.fitting` is the rule — as tall as what it holds. `.medium` is for a
+    /// surface you browse rather than read: it takes a standing height and scrolls inside it, so a
+    /// list that filters as you type does not move the tray on every keystroke.
+    public enum Detent {
+        case fitting
+        case medium
+    }
+
     private struct Commit {
         let title: String
         let action: () -> Void
@@ -25,12 +34,14 @@ public struct PinTray<Content: SwiftUI.View, Accessory: SwiftUI.View>: SwiftUI.V
     private let content: () -> Content
     private let accessory: () -> Accessory
     private var commit: Commit?
+    private var detent: Detent = .fitting
 
     @Environment(\.pinwheelTheme) private var theme
     @Environment(\.pinTrayDepth) private var depth
     @Environment(\.pinTrayExit) private var exit
     @Environment(\.pinTrayPhase) private var phase
     @Environment(\.pinTrayBottomInset) private var bottomInset
+    @Environment(\.pinTrayMediumHeight) private var mediumHeight
 
     public init(
         _ title: String,
@@ -40,6 +51,12 @@ public struct PinTray<Content: SwiftUI.View, Accessory: SwiftUI.View>: SwiftUI.V
         self.title = title
         self.content = content
         self.accessory = accessory
+    }
+
+    public func detent(_ detent: Detent) -> PinTray {
+        var copy = self
+        copy.detent = detent
+        return copy
     }
 
     public func commit(_ title: String, action: @escaping () -> Void) -> PinTray {
@@ -67,6 +84,11 @@ public struct PinTray<Content: SwiftUI.View, Accessory: SwiftUI.View>: SwiftUI.V
         }
         .padding(.bottom, bottomInset)
         .frame(maxWidth: .infinity)
+        .frame(height: standingHeight, alignment: .top)
+    }
+
+    private var standingHeight: CGFloat? {
+        detent == .medium && mediumHeight > 0 ? mediumHeight : nil
     }
 
     private var isRoot: Bool { depth == 0 }
