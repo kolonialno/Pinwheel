@@ -40,16 +40,34 @@ struct PinTrayMachine: Equatable {
         }
     }
 
+    /// Where the tray is in its life. One axis, so a tray cannot be leaving and arriving at once, and
+    /// "is a move still resolving" is a question about this rather than a second flag beside it.
     enum Phase: Equatable {
-        /// Standing, or on its way there.
-        case standing
-        /// A tray that will raise the keyboard has moved in, and is holding still until it does.
+        /// A move has started and has not resolved: what the arriving tray says about itself lands in
+        /// this window, and is recorded rather than drawn.
+        case arriving
+        /// Moved in, and holding still until the keyboard it will raise actually moves.
         case awaitingKeyboard
+        case standing
         case leaving
+
+        /// Whether a move is still resolving.
+        var isResolvingAMove: Bool {
+            switch self {
+            case .arriving, .awaitingKeyboard: return true
+            case .standing, .leaving: return false
+            }
+        }
     }
 
     /// How the keyboard moves, which it announces before moving. Borrowing these is what lets a tray
     /// leave beside it on one curve instead of handing off to a second animation.
+    /// What an arriving tray says about itself before the move that describes it resolves.
+    struct Arriving: Equatable {
+        var contentHeight: CGFloat
+        var fills: Bool
+    }
+
     struct KeyboardTiming: Equatable {
         var duration: TimeInterval
         var curve: Int
@@ -90,6 +108,8 @@ struct PinTrayMachine: Equatable {
         case dragged(CGFloat)
         case released(velocity: CGFloat, dismissBeyond: CGFloat)
         case dismissed
+        /// The room changed under it — rotation, a split view, a resized container.
+        case roomChanged(PinTrayGeometry.Room)
     }
 
     /// What the views should do: place `from` at once if given, then travel to `to` on `timeline`.
@@ -109,15 +129,13 @@ struct PinTrayMachine: Equatable {
     /// A tray waiting for the keyboard keeps the height it is standing at until the keyboard moves.
     /// Adopting the new one first is the dip: a shorter card with no keyboard under it yet sits on the
     /// floor, so the top falls there and has to climb back.
-    private var pendingContentHeight: CGFloat?
-    private var pendingFills: Bool?
+    /// What the arriving tray said about itself while the move was still resolving. One value, adopted
+    /// in one place: it grew a second field once and every branch that adopts had to be found again.
+    private var arriving: Arriving?
     /// Whether the standing tray is one that raises the keyboard, and so must let it lead.
     private(set) var edits = false
     private(set) var dragOffset: CGFloat = 0
-    /// Whether a move is still resolving. What an arriving tray says about itself lands before the move
-    /// that describes it, and only during that window does it have to wait.
-    private(set) var isSettlingAMove = false
-    var room: PinTrayGeometry.Room
+    private(set) var room: PinTrayGeometry.Room
     /// What the keyboard last said about how it moves. Not an event: it changes how a move is drawn,
     /// never where it goes.
     var keyboardTiming: KeyboardTiming?
@@ -158,14 +176,23 @@ struct PinTrayMachine: Equatable {
     private mutating func recordForTheArrivingTray(_ event: Event) -> Bool {
         switch event {
         case .fillsReported(let fills):
-            pendingFills = fills
+            arriving = Arriving(contentHeight: arriving?.contentHeight ?? contentHeight, fills: fills)
             return true
         case .contentResized(let height):
-            pendingContentHeight = height
+            arriving = Arriving(contentHeight: height, fills: arriving?.fills ?? fills)
             return true
         default:
             return false
         }
+    }
+
+    /// Takes up whatever the arriving tray said about itself. Every branch that finishes a move calls
+    /// this and nothing else, so a new thing an arriving tray can say is added in one place.
+    private mutating func adoptWhatArrived() {
+        guard let arriving else { return }
+        contentHeight = arriving.contentHeight
+        fills = arriving.fills
+        self.arriving = nil
     }
 
     mutating func handle(_ event: Event) -> Reaction {
@@ -182,14 +209,13 @@ struct PinTrayMachine: Equatable {
     }
 
     private mutating func resolve(_ event: Event) -> Reaction {
-        if isSettlingAMove, recordForTheArrivingTray(event) {
+        if phase.isResolvingAMove, recordForTheArrivingTray(event) {
             return Reaction(to: geometry(.resting), timeline: .carriedByKeyboard)
         }
         switch event {
         case .presented(let height):
-            contentHeight = height
-            pendingFills.map { fills = $0 }
-            pendingFills = nil
+            arriving = Arriving(contentHeight: height, fills: arriving?.fills ?? fills)
+            adoptWhatArrived()
             phase = .standing
             return Reaction(from: geometry(.arriving), to: geometry(.resting), timeline: .spring(bounce: trayResizeBounce))
 
@@ -197,24 +223,21 @@ struct PinTrayMachine: Equatable {
             let wasEditing = self.edits
             let wasStanding = contentHeight
             let wasFilling = fills
-            let arrivingFills = pendingFills ?? fills
+            let arrivingFills = arriving?.fills ?? fills
             contentHeight = height
             fills = arrivingFills
-            pendingContentHeight = nil
-            pendingFills = nil
+            arriving = nil
             self.edits = edits
             // A tray about to raise the keyboard holds still until it does: shrinking with no keyboard
             // under it sends the top down to the floor and back up again.
             if isPush, edits, keyboard == .closed {
                 contentHeight = wasStanding
                 fills = wasFilling
-                pendingContentHeight = height
-                pendingFills = arrivingFills
+                arriving = Arriving(contentHeight: height, fills: arrivingFills)
                 phase = .awaitingKeyboard
                 return Reaction(to: geometry(.resting), timeline: .carriedByKeyboard)
             }
             phase = .standing
-            isSettlingAMove = false
             // Leaving a tray that was editing, the keyboard has to be told to go, or it is torn away
             // without an animation for the tray to travel beside.
             let dismissesKeyboard = !isPush && wasEditing && keyboard != .closed
@@ -243,11 +266,7 @@ struct PinTrayMachine: Equatable {
             let waited = phase == .awaitingKeyboard
             if waited {
                 phase = .standing
-                isSettlingAMove = false
-                pendingContentHeight.map { contentHeight = $0 }
-                pendingFills.map { fills = $0 }
-                pendingContentHeight = nil
-                pendingFills = nil
+                adoptWhatArrived()
             }
             // Whenever the keyboard is moving it owns the timeline, whether the tray was waiting for
             // it or is simply standing in its way.
@@ -261,16 +280,18 @@ struct PinTrayMachine: Equatable {
                 return Reaction(to: geometry(.resting), timeline: .carriedByKeyboard)
             }
             phase = .standing
-            isSettlingAMove = false
-            pendingContentHeight.map { contentHeight = $0 }
-            pendingFills.map { fills = $0 }
-            pendingContentHeight = nil
-            pendingFills = nil
+            adoptWhatArrived()
             // Nothing else is moving now, so this one is ours to animate.
             return Reaction(to: geometry(.resting), timeline: .spring(bounce: trayResizeBounce))
 
+        case .roomChanged(let room):
+            self.room = room
+            return Reaction(to: geometry(phase == .leaving ? .leaving : .resting), timeline: .carriedByKeyboard)
+
         case .moveBegan:
-            isSettlingAMove = true
+            // A tray already on its way out is not arriving anywhere.
+            guard phase != .leaving else { return Reaction(to: geometry(.leaving), timeline: .carriedByKeyboard) }
+            phase = .arriving
             return Reaction(to: geometry(.resting), timeline: .carriedByKeyboard)
 
         case .fillsReported(let fills):

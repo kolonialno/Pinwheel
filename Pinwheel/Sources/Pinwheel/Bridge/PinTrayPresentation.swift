@@ -209,7 +209,7 @@ final class PinTrayOverlay: UIView {
     /// window onto nothing. Only a tray that has arrived and is sized by what it holds keeps its own
     /// height, which is what the chassis scroll is for.
     private func contentHeight(standingIn card: CGFloat) -> CGFloat {
-        machine.fills || machine.isSettlingAMove ? card : max(fittedHeight, card)
+        machine.fills || machine.phase.isResolvingAMove ? card : max(fittedHeight, card)
     }
 
     private func write(_ geometry: PinTrayGeometry) {
@@ -417,7 +417,7 @@ final class PinTrayOverlay: UIView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        machine.room = room
+        apply(machine.handle(.roomChanged(room)))
         let measured = measuredKeyboardHeight
         guard machine.keyboard(measuring: measured) != machine.keyboard else { return }
         apply(machine.handle(.keyboardMeasured(measured)))
