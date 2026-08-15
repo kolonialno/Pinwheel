@@ -118,6 +118,13 @@ Durable design decisions and why they were made.
   which keeps both animating natively with the height, where a `CAShapeLayer` mask would have to be
   animated by hand. Both set `cornerCurve = .continuous`, matching `ConcentricRounding`'s existing
   vocabulary; a circular corner reads as cut against the device's curve.
+- **A card standing clear of the bottom edge loses the display's radius.** With the keyboard up the
+  tray rides above it, is no longer nested in the display's corner, and its bottom pair drops to the
+  same radius as its top — measured on the reference, the two corners are then identical. The overlay
+  watches `keyboardWillChangeFrame`, lifts by the overlap, and animates the corner with the keyboard's
+  own duration and curve so the two move as one.
+- **The top radius is 32.** Measured against the reference's corner profile; `.radiusL` (24) and a
+  first guess of 28 were both visibly tighter at every depth. Not a radius token.
 - **Compare a corner by its profile, not by one number.** "How far along the edge until it goes
   straight" saturates and inverted the answer here — it said the reference corner was *smaller* than
   ours when it was larger. Sampling the edge inset at a series of depths (4, 8, 12, 16, 24, 32, 40,
