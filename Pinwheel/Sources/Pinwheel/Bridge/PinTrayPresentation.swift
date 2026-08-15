@@ -5,6 +5,8 @@ private let trayResizeDuration: TimeInterval = 0.30
 private let trayResizeBounce: CGFloat = 0.10
 private let trayDismissVelocity: CGFloat = 800
 private let trayDimming: CGFloat = 0.35
+private let trayMargin: CGFloat = .spacingL
+private let trayBottomMargin: CGFloat = .spacingS
 
 extension SwiftUI.View {
     public func pinwheelTray<Item: Hashable, TrayContent: SwiftUI.View>(
@@ -115,15 +117,14 @@ final class PinTrayOverlay: UIView {
         tray.translatesAutoresizingMaskIntoConstraints = false
         tray.backgroundColor = .primaryBackground
         tray.layer.cornerRadius = .radiusL
-        tray.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
         tray.clipsToBounds = true
         addSubview(tray)
 
         height = tray.heightAnchor.constraint(equalToConstant: 0)
-        offset = tray.bottomAnchor.constraint(equalTo: bottomAnchor)
+        offset = tray.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -trayBottomMargin)
         NSLayoutConstraint.activate([
-            tray.leadingAnchor.constraint(equalTo: leadingAnchor),
-            tray.trailingAnchor.constraint(equalTo: trailingAnchor),
+            tray.leadingAnchor.constraint(equalTo: leadingAnchor, constant: trayMargin),
+            tray.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -trayMargin),
             height,
             offset,
         ])
@@ -137,7 +138,7 @@ final class PinTrayOverlay: UIView {
         offset.constant = standingHeight
         layoutIfNeeded()
 
-        offset.constant = 0
+        offset.constant = -trayBottomMargin
         UIView.animate(springDuration: trayResizeDuration, bounce: trayResizeBounce) {
             self.dimming.alpha = 1
             self.layoutIfNeeded()
@@ -182,7 +183,7 @@ final class PinTrayOverlay: UIView {
         hosting.didMove(toParent: parent)
 
         let fitted = hosting.sizeThatFits(
-            in: CGSize(width: bounds.width, height: .greatestFiniteMagnitude)
+            in: CGSize(width: bounds.width - trayMargin * 2, height: .greatestFiniteMagnitude)
         ).height
 
         NSLayoutConstraint.activate([
@@ -193,8 +194,8 @@ final class PinTrayOverlay: UIView {
         ])
 
         current = hosting
-        let ceiling = bounds.height - safeAreaInsets.top - .spacingXXL
-        standingHeight = min(fitted + safeAreaInsets.bottom, ceiling)
+        let ceiling = bounds.height - safeAreaInsets.top - trayBottomMargin - .spacingXXL
+        standingHeight = min(fitted, ceiling)
     }
 
     private func unmount(_ hosting: UIHostingController<AnyView>) {
@@ -212,14 +213,14 @@ final class PinTrayOverlay: UIView {
 
         switch gesture.state {
         case .changed:
-            offset.constant = max(0, travelled)
-            dimming.alpha = 1 - (offset.constant / max(height.constant, 1)) * 0.6
+            offset.constant = -trayBottomMargin + max(0, travelled)
+            dimming.alpha = 1 - (max(0, travelled) / max(height.constant, 1)) * 0.6
         case .ended, .cancelled:
             let velocity = gesture.velocity(in: self).y
-            if velocity > trayDismissVelocity || offset.constant > height.constant / 3 {
+            if velocity > trayDismissVelocity || travelled > height.constant / 3 {
                 onBackgroundDismiss()
             } else {
-                offset.constant = 0
+                offset.constant = -trayBottomMargin
                 UIView.animate(springDuration: trayResizeDuration, bounce: trayResizeBounce) {
                     self.dimming.alpha = 1
                     self.layoutIfNeeded()
