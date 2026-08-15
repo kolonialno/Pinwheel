@@ -73,7 +73,7 @@ struct PinTrayDemo: View {
                     .color(.tertiary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, .spacingL)
-                    .padding(.vertical, .spacingL)
+                    .padding(.top, .spacingL)
             }
             .padding(.horizontal, .spacingXL)
         } accessory: {
@@ -97,7 +97,7 @@ struct PinTrayDemo: View {
                     .color(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, .spacingL)
-                    .padding(.vertical, .spacingXL)
+                    .padding(.top, .spacingXL)
             }
             .padding(.horizontal, .spacingXL)
         }
