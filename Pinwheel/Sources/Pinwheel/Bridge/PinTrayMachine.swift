@@ -6,6 +6,9 @@ import Foundation
 let trayResizeDuration: TimeInterval = 0.30
 let trayResizeBounce: CGFloat = 0.10
 let trayDismissVelocity: CGFloat = 800
+/// How long a tray holds still for a keyboard before deciding it is not coming. A software keyboard
+/// answers a focus within a frame or two; a hardware one never answers at all.
+let trayKeyboardGrace: TimeInterval = 0.25
 
 /// The tray as a machine. Every rule learned by filming the reference lives here as state, including
 /// the one that is easiest to get wrong: *which animation owns a change*.
@@ -75,6 +78,11 @@ struct PinTrayMachine: Equatable {
     enum Event: Equatable {
         case presented(contentHeight: CGFloat)
         case moved(contentHeight: CGFloat, edits: Bool, isPush: Bool)
+        /// A move has started. Sent the moment it does, because what the arriving tray says about
+        /// itself lands before the move that describes it resolves.
+        case moveBegan(isPush: Bool)
+        /// The wait is a bet that the keyboard is coming. A hardware keyboard means it never does.
+        case keyboardNeverCame
         /// The tray saying how it stands. It arrives from SwiftUI whenever SwiftUI gets round to it.
         case fillsReported(Bool)
         case contentResized(CGFloat)
@@ -106,6 +114,9 @@ struct PinTrayMachine: Equatable {
     /// Whether the standing tray is one that raises the keyboard, and so must let it lead.
     private(set) var edits = false
     private(set) var dragOffset: CGFloat = 0
+    /// Whether a move is still resolving. What an arriving tray says about itself lands before the move
+    /// that describes it, and only during that window does it have to wait.
+    private(set) var isSettlingAMove = false
     var room: PinTrayGeometry.Room
     /// What the keyboard last said about how it moves. Not an event: it changes how a move is drawn,
     /// never where it goes.
@@ -170,6 +181,7 @@ struct PinTrayMachine: Equatable {
                 return Reaction(to: geometry(.resting), timeline: .carriedByKeyboard)
             }
             phase = .standing
+            isSettlingAMove = false
             // Leaving a tray that was editing, the keyboard has to be told to go, or it is torn away
             // without an animation for the tray to travel beside.
             let dismissesKeyboard = !isPush && wasEditing && keyboard != .closed
@@ -198,6 +210,7 @@ struct PinTrayMachine: Equatable {
             let waited = phase == .awaitingKeyboard
             if waited {
                 phase = .standing
+                isSettlingAMove = false
                 pendingContentHeight.map { contentHeight = $0 }
                 pendingFills.map { fills = $0 }
                 pendingContentHeight = nil
@@ -210,10 +223,33 @@ struct PinTrayMachine: Equatable {
                 timeline: keyboard.ownsTheTimeline || waited ? .carriedByKeyboard : .spring(bounce: 0)
             )
 
+        case .keyboardNeverCame:
+            guard phase == .awaitingKeyboard else {
+                return Reaction(to: geometry(.resting), timeline: .carriedByKeyboard)
+            }
+            phase = .standing
+            isSettlingAMove = false
+            pendingContentHeight.map { contentHeight = $0 }
+            pendingFills.map { fills = $0 }
+            pendingContentHeight = nil
+            pendingFills = nil
+            // Nothing else is moving now, so this one is ours to animate.
+            return Reaction(to: geometry(.resting), timeline: .spring(bounce: trayResizeBounce))
+
+        case .moveBegan:
+            isSettlingAMove = true
+            return Reaction(to: geometry(.resting), timeline: .carriedByKeyboard)
+
         case .fillsReported(let fills):
-            // News, not an instruction to move. It arrives mid-transition — measured, 157ms before the
-            // move it describes — so standing the tray on it here draws the arriving tray's shape at the
-            // outgoing tray's position. The next event is what stands it there.
+            // Mid-move this is news rather than an instruction: it arrives before the move that
+            // describes it — measured, 157ms before — so standing the tray on it here would draw the
+            // arriving tray's shape at the outgoing tray's position.
+            guard isSettlingAMove else {
+                // Standing still, there may be no next event at all: with a hardware keyboard attached
+                // the software keyboard never appears, and the tray waited for a report never coming.
+                self.fills = fills
+                return Reaction(to: geometry(.resting), timeline: .spring(bounce: 0))
+            }
             pendingFills = fills
             return Reaction(to: geometry(.resting), timeline: .carriedByKeyboard)
 

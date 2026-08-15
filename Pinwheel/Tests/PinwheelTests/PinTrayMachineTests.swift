@@ -129,6 +129,7 @@ final class PinTrayMachineTests: XCTestCase {
     func testATrayLearningItFillsDrawsNothingUntilTheNextEventCarriesIt() {
         var machine = machine()
         let standing = machine.geometry
+        _ = machine.handle(.moveBegan(isPush: true))
 
         let reported = machine.handle(.fillsReported(true))
         XCTAssertEqual(reported.to, standing, "learning it fills moves nothing on its own")
@@ -136,6 +137,54 @@ final class PinTrayMachineTests: XCTestCase {
 
         let moved = machine.handle(.moved(contentHeight: 200, edits: false, isPush: true))
         XCTAssertGreaterThan(moved.to.height, 200, "the next event stands it in the room it has")
+    }
+
+    // Deferring it to the next event assumed one was coming. With a hardware keyboard attached none is
+    // — the software keyboard never appears — so the search tray stood at its content's height instead
+    // of filling the room, for as long as it was open.
+    func testATrayLearningItFillsAfterItHasArrivedStandsInTheRoomAtOnce() {
+        var machine = machine()
+        _ = machine.handle(.moveBegan(isPush: true))
+        _ = machine.handle(.moved(contentHeight: 200, edits: false, isPush: true))
+
+        let reaction = machine.handle(.fillsReported(true))
+        XCTAssertGreaterThan(reaction.to.height, 200, "a tray that has arrived stands up when it learns")
+    }
+
+    // SwiftUI hands the flag over whenever it gets round to it, which is sometimes before the move it
+    // describes and sometimes after. The tray ends up filling either way.
+    func testATrayFillsTheRoomWhicheverOrderItsFlagAndItsMoveArriveIn() {
+        for flagFirst in [true, false] {
+            var machine = machine()
+            _ = machine.handle(.moveBegan(isPush: true))
+            if flagFirst { _ = machine.handle(.fillsReported(true)) }
+            let moved = machine.handle(.moved(contentHeight: 200, edits: false, isPush: true))
+            let standing = flagFirst ? moved : machine.handle(.fillsReported(true))
+
+            XCTAssertGreaterThan(
+                standing.to.height,
+                500,
+                "flag \(flagFirst ? "before" : "after") the move: it stands in the room either way"
+            )
+        }
+    }
+
+    // Holding still until the keyboard moves is a bet that it is coming. With a hardware keyboard
+    // attached the field takes focus and the software keyboard never appears, so the bet never settles
+    // and the search tray sat at its content's height — 245 of a possible 834 — for as long as it was
+    // open.
+    func testATrayWaitingForAKeyboardThatNeverComesStandsUpAnyway() {
+        var machine = machine()
+        _ = machine.handle(.moveBegan(isPush: true))
+        _ = machine.handle(.fillsReported(true))
+        _ = machine.handle(.moved(contentHeight: 245, edits: true, isPush: true))
+        XCTAssertEqual(machine.phase, .awaitingKeyboard, "it is waiting")
+
+        let standing = machine.handle(.keyboardNeverCame)
+        XCTAssertEqual(machine.phase, .standing, "it gives up waiting")
+        XCTAssertTrue(machine.fills, "and takes up what the arriving tray said about itself")
+        XCTAssertEqual(standing.to.height, machine.geometry.height, accuracy: 0.5)
+        XCTAssertGreaterThan(standing.to.height, 800, "standing in the room it has, not at its content")
     }
 
     func testLeavingATrayThatWasNotEditingAsksNothingOfTheKeyboard() {

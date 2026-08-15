@@ -172,6 +172,13 @@ final class PinTrayOverlay: UIView {
         case .matching(let timing):
             place(reaction.to, matching: timing)
         }
+        // A wait needs a deadline: the keyboard is not ours to command and may never speak at all.
+        if machine.phase == .awaitingKeyboard {
+            DispatchQueue.main.asyncAfter(deadline: .now() + trayKeyboardGrace) { [weak self] in
+                guard let self, self.machine.phase == .awaitingKeyboard else { return }
+                self.apply(self.machine.handle(.keyboardNeverCame))
+            }
+        }
         if reaction.dismisses {
             let travel: TimeInterval
             switch reaction.timeline {
@@ -435,6 +442,8 @@ final class PinTrayOverlay: UIView {
     }
 
     func show(_ content: AnyView, isPush: Bool) {
+        // Sent now, synchronously: the arriving tray describes itself before this move resolves.
+        apply(machine.handle(.moveBegan(isPush: isPush)))
         // The tray it is leaving is detached from the scroll view and held at the frame it already
         // has, so it cannot re-lay itself out while it fades and cannot drive the scroll size.
         let leaving = current
