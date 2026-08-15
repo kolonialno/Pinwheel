@@ -179,12 +179,12 @@ Durable design decisions and why they were made.
   scale factor put the reference at ~19pt and would have picked the wrong token. Rendering `.radiusM` and
   `.radiusL` and measuring both the same way settled it: `.radiusL` reads 12.7 against the reference's
   13.0.
-- **`secondaryBackground` is the separator colour, and there is no other.** It draws the hairline in
-  `PinwheelSheet` and is `UIPinTableView`'s `separatorColor`, so a tray's hairline takes it too. It is
-  `#F2F2F7`, 242 on white, against the reference's 224 — fainter by a shade, which is a property of the
-  token rather than of any one component. If it should read stronger, the value moves once in the
-  provider and every rule in the library follows; reaching for a darker colour in a single component
-  splits the vocabulary for no gain.
+- **A rule is drawn in `tertiaryText`, the faintest foreground token — a separator is not its own
+  token.** The palette is nine role tokens and stays nine: adding a `divider` beside them would be a
+  token per use, which is a list of colours rather than a system. `secondaryBackground` (242 on white)
+  was too faint to read at 1pt, so the hairline in `PinTray`, the one in `PinwheelSheet` and
+  `UIPinTableView`'s `separatorColor` all take `tertiaryText`. One rule colour, already in the
+  vocabulary.
 - **Open follow-up: the catalog's own sheets still use `PinwheelSheet`.** Two chassis for one idea is one
   too many — the catalog's Tweaks/Device sequence is the natural second consumer and should move onto
   `PinTray`, retiring `PinwheelSheet` and its detent measuring.

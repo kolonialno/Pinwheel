@@ -53,7 +53,7 @@ struct PinwheelSheet<Content: SwiftUI.View, Trailing: SwiftUI.View>: SwiftUI.Vie
                 header
                 Divider()
                     .frame(height: 1)
-                    .overlay(Color.secondaryBackground)
+                    .overlay(Color.tertiaryText)
                     .padding(.horizontal, .spacingXL)
                 content()
                 if let commit = model.commit {
