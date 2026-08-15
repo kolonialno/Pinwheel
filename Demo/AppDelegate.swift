@@ -13,6 +13,8 @@ struct DemoApp: App {
             UIView.setAnimationsEnabled(false)
         }
 
+        PinwheelRecorder.start()
+
         if FigmaCatalog.isManifestDump {
             FigmaCatalog.dumpManifest()
         }

@@ -160,6 +160,14 @@ final class PinTrayOverlay: UIView {
             }
         }
         reaction.from.map { place($0, animated: false) }
+        PinwheelRecorder.note(
+            "tray",
+            "\(reaction.timeline)  card=\(Int(reaction.to.height)) inset=\(Int(reaction.to.bottomInset)) "
+                + "translation=\(Int(reaction.to.translation))  phase=\(machine.phase) fills=\(machine.fills) "
+                + "edits=\(machine.edits) keyboard=\(machine.keyboard)"
+                + (reaction.effects.isEmpty ? "" : "  effects=\(reaction.effects)")
+                + (reaction.dismisses ? "  dismisses" : "")
+        )
         switch reaction.timeline {
         case .immediate:
             place(reaction.to, animated: false)
@@ -188,6 +196,7 @@ final class PinTrayOverlay: UIView {
             DispatchQueue.main.asyncAfter(deadline: .now() + travel) {
                 self.current.map(self.unmount)
                 self.removeFromSuperview()
+                PinwheelRecorder.stopFollowing()
             }
         }
     }
@@ -286,6 +295,23 @@ final class PinTrayOverlay: UIView {
                 name: name,
                 object: nil
             )
+        }
+
+        PinwheelRecorder.follow { [weak self] in
+            guard let self else { return [] }
+            let card = self.tray.layer.presentation()
+            let top = (card?.frame.minY ?? self.tray.frame.minY) + (card?.transform.m42 ?? 0)
+            let content = self.current?.view.layer.presentation()?.bounds.height
+                ?? self.current?.view.bounds.height ?? 0
+            return [
+                ("cardTop", top),
+                ("cardHeight", card?.bounds.height ?? 0),
+                ("contentHeight", content),
+                ("contentBottom", top + content),
+                ("keyboard", self.measuredKeyboardHeight),
+                ("scrollOffset", self.scroll.contentOffset.y),
+                ("scrollContent", self.scroll.contentSize.height),
+            ]
         }
 
         let screen = controller.view.window?.screen ?? UIScreen.main
@@ -405,6 +431,7 @@ final class PinTrayOverlay: UIView {
     }
 
     func present(_ content: AnyView) {
+        PinwheelRecorder.note("navigation", "present")
         mount(content)
         apply(machine.handle(.presented(contentHeight: fittedHeight)))
     }
@@ -416,6 +443,7 @@ final class PinTrayOverlay: UIView {
     }
 
     func show(_ content: AnyView, isPush: Bool) {
+        PinwheelRecorder.note("navigation", isPush ? "push" : "pop")
         // Sent now, synchronously: the arriving tray describes itself before this move resolves.
         apply(machine.handle(.moveBegan(isPush: isPush)))
         // The tray it is leaving is detached from the scroll view and held at the frame it already
@@ -458,10 +486,12 @@ final class PinTrayOverlay: UIView {
     }
 
     func trayFills(_ fills: Bool) {
+        PinwheelRecorder.note("reported", "fills=\(fills)")
         apply(machine.handle(.fillsReported(fills)))
     }
 
     func dismiss() {
+        PinwheelRecorder.note("navigation", "dismiss")
         apply(machine.handle(.dismissed))
     }
 
@@ -474,6 +504,7 @@ final class PinTrayOverlay: UIView {
     }
 
     private func mount(_ content: AnyView, entering: CGFloat = 1) {
+        defer { PinwheelRecorder.note("tray", "mounted, measuring \(Int(fittedHeight))") }
         let phase = PinTrayPhase()
         phase.contentZoom = entering
         lastContent = content
@@ -523,11 +554,13 @@ final class PinTrayOverlay: UIView {
     /// Content changing inside a standing tray resizes it, clamped to the room there is. This is not
     /// navigation, so it moves without bounce — an overshoot here reverses direction under the reader.
     func settle(to content: CGFloat) {
+        PinwheelRecorder.note("reported", "content measures \(Int(content))  standing=\(Int(standingHeight))")
         guard content > 0, current != nil, abs(content - standingHeight) > 0.5 else { return }
         apply(machine.handle(.contentResized(content)))
     }
 
     @objc private func dismissFromBackground() {
+        PinwheelRecorder.note("navigation", "backdrop tapped")
         onBackgroundDismiss()
     }
 
