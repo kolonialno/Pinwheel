@@ -144,20 +144,7 @@ struct PinTrayDemo: View {
     private var region: some View {
         PinTray("Region") {
             VStack(spacing: .spacingXL) {
-                HStack(spacing: .spacingS) {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundStyle(.secondaryText)
-                    TextField("Search Country, City, or Region", text: $query)
-                        .font(PinTextStyle.body.font(in: theme))
-                        .foregroundStyle(.primaryText)
-                        .accessibilityIdentifier("pinwheel.tray.search")
-                }
-                .padding(.horizontal, .spacingL)
-                .frame(minHeight: .minimumControlHeight)
-                .background(
-                    RoundedRectangle(cornerRadius: .radiusL)
-                        .fill(Color.secondaryBackground)
-                )
+                SearchField(text: $query)
 
                 VStack(spacing: .spacingL) {
                     PinLabel("Search for a location or boost globally")
@@ -176,10 +163,10 @@ struct PinTrayDemo: View {
                     }
                     .buttonStyle(.plain)
                 }
-                .padding(.bottom, .spacingXXL * 3)
             }
             .padding(.horizontal, .spacingXL)
             .padding(.top, .spacingXL)
+            .frame(maxHeight: .infinity, alignment: .top)
         }
     }
 
@@ -237,5 +224,33 @@ struct PinTrayDemo: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("pinwheel.tray.pill.\(title)")
+    }
+}
+
+/// Focus belongs to the SwiftUI graph it is declared in, and a tray's content is hosted in its own
+/// controller — so the field has to own its `@FocusState` to come up with the keyboard.
+private struct SearchField: SwiftUI.View {
+    @Binding var text: String
+
+    @Environment(\.pinwheelTheme) private var theme
+    @FocusState private var focused: Bool
+
+    var body: some SwiftUI.View {
+        HStack(spacing: .spacingS) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondaryText)
+            TextField("Search Country, City, or Region", text: $text)
+                .font(PinTextStyle.body.font(in: theme))
+                .foregroundStyle(.primaryText)
+                .focused($focused)
+                .accessibilityIdentifier("pinwheel.tray.search")
+        }
+        .padding(.horizontal, .spacingL)
+        .frame(minHeight: .minimumControlHeight)
+        .background(
+            RoundedRectangle(cornerRadius: .radiusL)
+                .fill(Color.secondaryBackground)
+        )
+        .onAppear { focused = true }
     }
 }
