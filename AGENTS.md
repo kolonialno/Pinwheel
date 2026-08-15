@@ -123,6 +123,17 @@ Durable design decisions and why they were made.
   same radius as its top — measured on the reference, the two corners are then identical. The overlay
   watches `keyboardWillChangeFrame`, lifts by the overlap, and animates the corner with the keyboard's
   own duration and curve so the two move as one.
+- **The spacing in the reference is 8 between things and 24 around them — there is no 20, and 24 is
+  never a gap.** Measured across 433 unique frames of X's tray: adjacent boxes are 8pt apart (159
+  occurrences, plus 29 at 9 and 3 at 7, and *nothing* at any other value), content is inset 24pt from
+  the card edge (603 occurrences), and a control is 48pt tall (447). The large separations between
+  sections are 70-100pt and are not spacing at all — they are content sitting in the gap. So a middle
+  step between `.spacingL` and `.spacingXL` has no support: the scale in evidence is 8 / 16 / 24 / 48.
+- **The tray's bottom clearance is the home indicator's, not a spacing token.** It reads as 24pt on an
+  iPhone Air, which is the bottom safe area less the margin the card already stands off the screen by —
+  so the tray derives it (`safeAreaInsets.bottom - trayBottomMargin`, floored at `.spacingL`) and the
+  content's bottom lands exactly on the safe-area boundary on any device. Lifted onto the keyboard
+  there is no indicator to clear, so it drops to the floor. Hardcoding 24 would be right on one phone.
 - **A tray clears the keyboard by more than it clears the screen edge.** `.spacingL` above the
   keyboard against `.spacingS` above the bottom of the display — the reference measures 20pt there, and
   the token is taken over the exact number. The overlay carries both, and

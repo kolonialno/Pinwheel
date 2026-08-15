@@ -140,6 +140,12 @@ final class PinTrayOverlay: UIView {
         keyboardInset > 0 ? keyboardInset + trayKeyboardMargin : trayBottomMargin
     }
 
+    /// What the content keeps clear below itself: the home indicator's own strip, less the margin the
+    /// card already stands off the screen by. Lifted onto the keyboard there is no indicator to clear.
+    private var contentBottomInset: CGFloat {
+        keyboardInset > 0 ? .spacingL : max(safeAreaInsets.bottom - trayBottomMargin, .spacingL)
+    }
+
     private var ceiling: CGFloat {
         bounds.height - safeAreaInsets.top - trayMargin - bottomInset
     }
@@ -294,7 +300,11 @@ final class PinTrayOverlay: UIView {
     private func mount(_ content: AnyView, entering: CGFloat = 1) {
         let phase = PinTrayPhase()
         phase.contentZoom = entering
-        let hosting = UIHostingController(rootView: AnyView(content.environment(\.pinTrayPhase, phase)))
+        let hosting = UIHostingController(rootView: AnyView(
+            content
+                .environment(\.pinTrayPhase, phase)
+                .environment(\.pinTrayBottomInset, contentBottomInset)
+        ))
         // The tray adds the home-indicator inset itself, and SwiftUI applying it too measures it twice.
         hosting.safeAreaRegions = []
         hosting.view.backgroundColor = .clear

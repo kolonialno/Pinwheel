@@ -4,6 +4,7 @@ extension EnvironmentValues {
     @Entry var pinTrayDepth: Int = 0
     @Entry var pinTrayExit: () -> Void = {}
     @Entry var pinTrayPhase: PinTrayPhase? = nil
+    @Entry var pinTrayBottomInset: CGFloat = .spacingL
 }
 
 /// The zoom a tray's content carries through a transition. It rides the content alone — a title that
@@ -29,6 +30,7 @@ public struct PinTray<Content: SwiftUI.View, Accessory: SwiftUI.View>: SwiftUI.V
     @Environment(\.pinTrayDepth) private var depth
     @Environment(\.pinTrayExit) private var exit
     @Environment(\.pinTrayPhase) private var phase
+    @Environment(\.pinTrayBottomInset) private var bottomInset
 
     public init(
         _ title: String,
@@ -63,7 +65,7 @@ public struct PinTray<Content: SwiftUI.View, Accessory: SwiftUI.View>: SwiftUI.V
                     .padding(.top, .spacingXL)
             }
         }
-        .padding(.bottom, .spacingXL)
+        .padding(.bottom, bottomInset)
         .frame(maxWidth: .infinity)
     }
 
