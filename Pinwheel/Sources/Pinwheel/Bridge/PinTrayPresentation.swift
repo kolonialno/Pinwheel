@@ -5,13 +5,9 @@ private let trayResizeDuration: TimeInterval = 0.30
 private let trayResizeBounce: CGFloat = 0.10
 private let trayDismissVelocity: CGFloat = 800
 private let trayDimming: CGFloat = 0.35
-private let trayMargin: CGFloat = .spacingS
-private let trayBottomMargin: CGFloat = .spacingS
-private let trayKeyboardMargin: CGFloat = .spacingL
 // Going deeper, the tray being left grows as it fades; coming back, the one arriving shrinks into
 // place. The shallower of the two always carries the zoom, so a sequence reads as depth.
 private let trayZoom: CGFloat = 1.08
-private let trayTopRadius: CGFloat = 32
 
 extension UIScreen {
     /// The display's own corner radius, which a bottom-anchored card has to nest inside to look
@@ -142,7 +138,7 @@ final class PinTrayOverlay: UIView {
     /// What the content keeps clear below itself: the home indicator's own strip, less the margin the
     /// card already stands off the screen by. Lifted onto the keyboard there is no indicator to clear.
     private var contentBottomInset: CGFloat {
-        max(safeAreaInsets.bottom - trayBottomMargin, .spacingL)
+        geometry(.resting).contentBottomInset
     }
 
     /// A tray standing at medium keeps that height whether or not the keyboard is up, so a list that
@@ -244,8 +240,8 @@ final class PinTrayOverlay: UIView {
     // express, so it is read where the guide has already been laid out.
     override func layoutSubviews() {
         super.layoutSubviews()
-        let lifted = keyboardLayoutGuide.layoutFrame.minY < bounds.maxY - safeAreaInsets.bottom - 1
-        let radius = lifted ? trayTopRadius : displayRadius
+        keyboardInset = max(0, bounds.maxY - keyboardLayoutGuide.layoutFrame.minY - safeAreaInsets.bottom)
+        let radius = geometry(.resting).bottomCornerRadius
         if tray.layer.cornerRadius != radius {
             tray.layer.cornerRadius = radius
         }
@@ -255,35 +251,52 @@ final class PinTrayOverlay: UIView {
     /// corner that depends on whether it is still nested in the display's own. Every trigger re-targets
     /// this one spring rather than starting a second animation over the first: two curves running on
     /// the same constraint is what made leaving a tray with the keyboard up read as two steps.
+    /// The one place a tray's rules are evaluated. Everything below is a projection of this value, so
+    /// the rules themselves are unit tests rather than screen recordings.
+    private func geometry(_ phase: PinTrayGeometry.Phase) -> PinTrayGeometry {
+        PinTrayGeometry(
+            contentHeight: fittedHeight,
+            room: PinTrayGeometry.Room(
+                containerHeight: bounds.height,
+                safeAreaTop: safeAreaInsets.top,
+                safeAreaBottom: safeAreaInsets.bottom,
+                displayCornerRadius: displayRadius
+            ),
+            keyboardInset: keyboardInset,
+            dragOffset: dragOffset,
+            phase: phase,
+            standsOnKeyboard: rest?.isActive != true
+        )
+    }
+
     private func settleGeometry(
         animated: Bool,
+        phase: PinTrayGeometry.Phase = .resting,
         bounce: CGFloat = trayResizeBounce,
         alongside: (() -> Void)? = nil,
         completion: (() -> Void)? = nil
     ) {
-        standingHeight = fittedHeight
-        height.constant = standingHeight
+        let geometry = geometry(phase)
+        standingHeight = geometry.height
+        height.constant = geometry.height
         currentHeight?.constant = fittedHeight
-        // Where the tray lives is layout, and the keyboard guide owns it; entering, leaving and
-        // dragging are a transform over that, so a gesture never fights the guide's constraints. The
-        // transform belongs *inside* the animation — assigned before it, the tray arrives already
-        // there and nothing animates.
-        let transform = dragOffset > 0 ? CGAffineTransform(translationX: 0, y: dragOffset) : .identity
-        let radius = keyboardInset > 0 ? trayTopRadius : displayRadius
+
+        // Applied together and only here, so nothing can be assigned outside the animation and arrive
+        // already in place.
+        let apply = {
+            self.tray.transform = CGAffineTransform(translationX: 0, y: geometry.translation)
+            self.tray.layer.cornerRadius = geometry.bottomCornerRadius
+            alongside?()
+            self.layoutIfNeeded()
+        }
 
         guard animated else {
-            tray.transform = transform
-            tray.layer.cornerRadius = radius
-            alongside?()
-            layoutIfNeeded()
+            apply()
             completion?()
             return
         }
         UIView.animate(springDuration: trayResizeDuration, bounce: bounce) {
-            self.tray.transform = transform
-            self.tray.layer.cornerRadius = radius
-            alongside?()
-            self.layoutIfNeeded()
+            apply()
         } completion: { _ in
             completion?()
         }
@@ -291,9 +304,7 @@ final class PinTrayOverlay: UIView {
 
     func present(_ content: AnyView) {
         mount(content)
-        height.constant = standingHeight
-        layoutIfNeeded()
-        tray.transform = CGAffineTransform(translationX: 0, y: standingHeight + trayBottomMargin)
+        settleGeometry(animated: false, phase: .arriving)
         settleGeometry(animated: true) { self.dimming.alpha = 1 }
     }
 
@@ -334,8 +345,7 @@ final class PinTrayOverlay: UIView {
     }
 
     func dismiss() {
-        dragOffset = standingHeight + trayBottomMargin
-        settleGeometry(animated: true, bounce: 0) {
+        settleGeometry(animated: true, phase: .leaving, bounce: 0) {
             self.dimming.alpha = 0
         } completion: {
             self.current.map(self.unmount)
