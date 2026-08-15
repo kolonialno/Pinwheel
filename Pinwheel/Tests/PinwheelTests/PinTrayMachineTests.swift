@@ -155,6 +155,44 @@ final class PinTrayMachineTests: XCTestCase {
         XCTAssertTrue(machine.handle(.released(velocity: 2_000, dismissBeyond: 200)).dismisses)
     }
 
+    // Tapping the backdrop over an editing tray lurched the card two thirds of the way down and then
+    // deleted it off the screen. Three reactions had fought over the same property inside 24ms, and the
+    // last one to land told the leaving tray to stay where it was.
+    func testATrayThatIsLeavingIsNeverPutBack() {
+        var machine = machine(edits: true)
+        let leaving = machine.handle(.dismissed)
+        XCTAssertGreaterThan(leaving.to.translation, 0)
+
+        let afterKeyboard = machine.handle(.keyboardMeasured(0))
+        XCTAssertGreaterThan(
+            afterKeyboard.to.translation, 0,
+            "the keyboard reporting in cannot put a leaving tray back"
+        )
+    }
+
+    // Its exit was measured against a keyboard it had just sent away, so the card was told to travel
+    // from a place it was no longer going to be.
+    func testATrayLeavingBesideTheKeyboardIsMeasuredFromWhereItWillBe() {
+        var machine = machine(edits: true)
+        let leaving = machine.handle(.dismissed)
+        XCTAssertEqual(leaving.to.bottomInset, trayBottomMargin, "measured with the keyboard gone")
+    }
+
+    // Two animations back to back is what a stall is. The keyboard says how long it takes and on what
+    // curve before it moves, so the tray leaves on that same clock and there is no handoff at all.
+    func testATrayLeavingBesideTheKeyboardBorrowsItsClock() {
+        var machine = machine(edits: true)
+        let timing = PinTrayMachine.KeyboardTiming(duration: 0.25, curve: 7)
+        machine.keyboardTiming = timing
+        XCTAssertEqual(machine.handle(.dismissed).timeline, .matching(timing))
+    }
+
+    func testATrayLeavingWithNoKeyboardUsesOurOwnSpring() {
+        var machine = machine()
+        machine.keyboardTiming = PinTrayMachine.KeyboardTiming(duration: 0.25, curve: 7)
+        XCTAssertEqual(machine.handle(.dismissed).timeline, .spring(bounce: 0))
+    }
+
     func testDismissingWhileEditingTakesTheKeyboardWithIt() {
         var machine = machine(edits: true)
         let gone = machine.handle(.dismissed)

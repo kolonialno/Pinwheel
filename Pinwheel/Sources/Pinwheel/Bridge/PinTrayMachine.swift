@@ -45,6 +45,13 @@ struct PinTrayMachine: Equatable {
         case leaving
     }
 
+    /// How the keyboard moves, which it announces before moving. Borrowing these is what lets a tray
+    /// leave beside it on one curve instead of handing off to a second animation.
+    struct KeyboardTiming: Equatable {
+        var duration: TimeInterval
+        var curve: Int
+    }
+
     /// Who moves the tray. A change may only ever belong to one of them.
     enum Timeline: Equatable {
         /// Applied with no animation at all — an entry position, or a drag tracking a finger.
@@ -53,6 +60,9 @@ struct PinTrayMachine: Equatable {
         case spring(bounce: CGFloat)
         /// The keyboard's. We set the value and let its animation carry it.
         case carriedByKeyboard
+        /// Ours, on the keyboard's own clock and curve — for a move that has to travel further than the
+        /// keyboard does while still reading as the same motion.
+        case matching(KeyboardTiming)
     }
 
     /// Something only the outside world can do.
@@ -92,6 +102,9 @@ struct PinTrayMachine: Equatable {
     private(set) var edits = false
     private(set) var dragOffset: CGFloat = 0
     var room: PinTrayGeometry.Room
+    /// What the keyboard last said about how it moves. Not an event: it changes how a move is drawn,
+    /// never where it goes.
+    var keyboardTiming: KeyboardTiming?
 
     init(room: PinTrayGeometry.Room) {
         self.room = room
@@ -163,6 +176,11 @@ struct PinTrayMachine: Equatable {
 
         case .keyboardMeasured(let height):
             keyboard = keyboard(measuring: height)
+            // A tray on its way out stays on its way out. The keyboard leaves at the same moment, and
+            // answering its report with a resting position is what cancelled the exit half way down.
+            guard phase != .leaving else {
+                return Reaction(to: geometry(.leaving), timeline: .carriedByKeyboard)
+            }
             let waited = phase == .awaitingKeyboard
             if waited {
                 phase = .standing
@@ -197,8 +215,25 @@ struct PinTrayMachine: Equatable {
 
         case .dismissed:
             phase = .leaving
-            let effects: [Effect] = keyboard == .closed ? [] : [.dismissKeyboard]
-            return Reaction(to: geometry(.leaving), timeline: .spring(bounce: 0), effects: effects, dismisses: true)
+            let takesTheKeyboardWithIt = keyboard != .closed
+            if takesTheKeyboardWithIt {
+                // Same rule as leaving a tray: ordered away counts as gone, so the exit is measured
+                // from where the card is going to be rather than from where the keyboard had it.
+                keyboard = .closing
+                edits = false
+            }
+            // Travelling further than the keyboard does, but starting together and on its curve, is one
+            // motion. Our own spring after it would be a second one, and the seam between them is the
+            // stall.
+            let timeline: Timeline = takesTheKeyboardWithIt
+                ? keyboardTiming.map(Timeline.matching) ?? .spring(bounce: 0)
+                : .spring(bounce: 0)
+            return Reaction(
+                to: geometry(.leaving),
+                timeline: timeline,
+                effects: takesTheKeyboardWithIt ? [.dismissKeyboard] : [],
+                dismisses: true
+            )
         }
     }
 }
