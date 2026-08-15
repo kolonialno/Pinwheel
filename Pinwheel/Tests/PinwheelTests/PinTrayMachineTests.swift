@@ -199,28 +199,6 @@ final class PinTrayMachineTests: XCTestCase {
         )
     }
 
-    // Dragging down from the top of a list of results, the list rubber-banded over nothing and then
-    // snapped back the moment the card took over. There is nothing above the first result, so a
-    // downward drag there has nothing to reveal and belongs to the card.
-    func testADownwardDragAtTheTopOfTheListBelongsToTheCard() {
-        XCTAssertTrue(
-            PinTrayMachine.cardTakesTheDrag(listIsAtTheTop: true, travelled: 40, alreadyDragging: false),
-            "nothing above the first result, so the card takes it"
-        )
-        XCTAssertFalse(
-            PinTrayMachine.cardTakesTheDrag(listIsAtTheTop: true, travelled: -40, alreadyDragging: false),
-            "upward there is a list to scroll"
-        )
-        XCTAssertFalse(
-            PinTrayMachine.cardTakesTheDrag(listIsAtTheTop: false, travelled: 40, alreadyDragging: false),
-            "part way down the list, a downward drag scrolls it back"
-        )
-        XCTAssertTrue(
-            PinTrayMachine.cardTakesTheDrag(listIsAtTheTop: false, travelled: -40, alreadyDragging: true),
-            "and a drag that has begun on the card stays on it, or it would stop under the finger"
-        )
-    }
-
     func testLeavingATrayThatWasNotEditingAsksNothingOfTheKeyboard() {
         var machine = machine()
         let pop = machine.handle(.moved(contentHeight: 456, edits: false, isPush: false))

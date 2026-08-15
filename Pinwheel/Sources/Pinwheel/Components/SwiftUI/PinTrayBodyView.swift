@@ -34,6 +34,7 @@ final class PinTrayBodyView: UIView {
 
         hosting.view.backgroundColor = .clear
         hosting.safeAreaRegions = []
+        hosting.sizingOptions = .intrinsicContentSize
         hosting.view.translatesAutoresizingMaskIntoConstraints = false
         parent.addChild(hosting)
         scroll.addSubview(hosting.view)
@@ -59,6 +60,22 @@ final class PinTrayBodyView: UIView {
 
     func show(_ content: AnyView) {
         hosting.rootView = content
+    }
+
+    /// How tall the rows draw at this width, before any clearance. What a tray sized by its content is
+    /// sized by.
+    func contentHeight(fitting width: CGFloat) -> CGFloat {
+        hosting.sizeThatFits(in: CGSize(width: width, height: .greatestFiniteMagnitude)).height
+    }
+
+    /// How much there is to scroll. Zero means the rows never sized, and nothing can be pulled past a
+    /// top that is also the bottom.
+    var scrollableHeight: CGFloat { scroll.contentSize.height }
+
+    /// Fades with the tray it belongs to.
+    var fade: CGFloat {
+        get { alpha }
+        set { alpha = newValue }
     }
 
     func detach() {

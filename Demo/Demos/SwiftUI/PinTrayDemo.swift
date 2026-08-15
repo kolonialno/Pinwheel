@@ -1,6 +1,7 @@
 import SwiftUI
 import Pinwheel
 
+/// Boost Post, mocked: a flow of four trays built from data the screen already holds.
 struct PinTrayDemo: View {
     private enum Route: Hashable {
         case boost
@@ -22,21 +23,12 @@ struct PinTrayDemo: View {
         Tier(reach: "60K – 119K impressions", price: "$100"),
     ]
 
-    private let views = [
-        Tier(reach: "8K – 15K views", price: "$50"),
-        Tier(reach: "15K – 30K views", price: "$100"),
-        Tier(reach: "30K – 80K views", price: "$250"),
-        Tier(reach: "80K – 150K views", price: "$500"),
-        Tier(reach: "150K – 300K views", price: "$1,000"),
-    ]
+    private let methods = ["Pay with Apple", "Pay with X Money"]
 
-    private let methods = [("applelogo", "Pay with Apple"), ("xmark.square", "Pay with X Money")]
-
-    @Environment(\.pinwheelTheme) private var theme
     @State private var path: [Route] = []
-    @State private var selectedTier = 2
-    @State private var selectedMethod = 0
-    @State private var selectedRegion = "United Kingdom"
+    @State private var tier = 2
+    @State private var method = 0
+    @State private var region = "United Kingdom"
     @State private var query = ""
 
     var body: some View {
@@ -45,7 +37,6 @@ struct PinTrayDemo: View {
                 .color(.secondary)
                 .multilineTextAlignment(.center)
             PinButton("Boost Post") { path = [.boost] }
-                .style(.primary)
         }
         .padding(.spacingXL)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -54,261 +45,94 @@ struct PinTrayDemo: View {
             case .boost: boost
             case .howItWorks: howItWorks
             case .payWith: payWith
-            case .region: region
+            case .region: regions
             }
         }
     }
 
-    private var boost: some View {
+    private var boost: PinTray {
         PinTray("Boost Post") {
             VStack(spacing: 0) {
-                PinLabel("Get up to 3x more likes. Learn more")
-                    .color(.secondary)
-                    .padding(.vertical, .spacingXL)
-
-                wheel(tiers, selected: selectedTier) { selectedTier = $0 }
-
-                pill("Region", value: selectedRegion) { path.append(.region) }
-                    .padding(.top, .spacingXL)
-                pill("Pay with", value: methods[selectedMethod].1) { path.append(.payWith) }
-                    .padding(.top, .spacingS)
-
-                PinLabel("By clicking the Boost Post button below, you agree to our Terms and Conditions")
-                    .font(.caption)
-                    .color(.tertiary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, .spacingL)
-                    .padding(.top, .spacingL)
+                PinTrayLink("Get up to 3x more likes.", phrase: "Learn more") {}
+                PinTraySection("Reach") {
+                    ForEach(Array(tiers.enumerated()), id: \.offset) { index, offer in
+                        PinTrayChoice(offer.reach, detail: offer.price, isChosen: index == tier) {
+                            tier = index
+                        }
+                    }
+                }
+                PinTrayValue("Region", value: region) { path.append(.region) }
+                PinTrayValue("Pay with", value: methods[method]) { path.append(.payWith) }
+                PinTrayText("By clicking Boost Post below you agree to our Terms and Conditions.")
+                    .centred()
             }
-            .padding(.horizontal, .spacingXL)
-        } accessory: {
-            Button { path.append(.howItWorks) } label: {
-                Image(systemName: "questionmark.circle")
-                    .imageScale(.large)
+        }
+        .titleAccessory {
+            SwiftUI.Button { path.append(.howItWorks) } label: {
+                Image(systemName: "questionmark.circle").imageScale(.large)
             }
             .accessibilityLabel("How it works")
         }
         .commit("Boost Post") { path.removeAll() }
     }
 
-    private var howItWorks: some View {
+    private var howItWorks: PinTray {
         PinTray("How it works") {
-            VStack(spacing: 0) {
-                wheel(views, selected: 2) { _ in }
-                    .padding(.top, .spacingL)
-                    .allowsHitTesting(false)
-
-                PinLabel("Select your boost tier and watch your post go viral. Boosted posts will be labelled as boosted.")
-                    .color(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, .spacingL)
-                    .padding(.top, .spacingXL)
-            }
-            .padding(.horizontal, .spacingXL)
+            PinTrayText(
+                "Select your boost tier and watch your post go viral. Boosted posts are labelled as boosted."
+            )
         }
-        .commit("Got It") { path.removeLast() }
     }
 
-    private var payWith: some View {
+    private var payWith: PinTray {
         PinTray("Pay with") {
             VStack(spacing: 0) {
-                ForEach(Array(methods.enumerated()), id: \.offset) { index, method in
-                    Button {
-                        selectedMethod = index
+                ForEach(Array(methods.enumerated()), id: \.offset) { index, name in
+                    PinTrayChoice(name, isChosen: index == method) {
+                        method = index
                         path.removeLast()
-                    } label: {
-                        HStack(spacing: .spacingM) {
-                            Image(systemName: method.0)
-                                .imageScale(.large)
-                                .frame(width: .spacingXXL)
-                            PinLabel(method.1).font(.bodySemibold)
-                            Spacer()
-                            if index == selectedMethod {
-                                Image(systemName: "checkmark")
-                            }
-                        }
-                        .foregroundStyle(.primaryText)
-                        .frame(minHeight: .minimumControlHeight)
-                        .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("pinwheel.tray.method.\(index)")
                 }
             }
-            .padding(.horizontal, .spacingXL)
-            .padding(.vertical, .spacingM)
         }
     }
 
-
-    private var region: some View {
+    private var regions: PinTray {
         PinTray("Region") {
-            ScrollView {
+            VStack(spacing: 0) {
                 if matches.isEmpty {
-                    VStack(spacing: .spacingL) {
-                        PinLabel(query.isEmpty ? "Search for a location or boost globally" : "No regions match \u{201C}\(query)\u{201D}")
-                            .color(.secondary)
-                            .multilineTextAlignment(.center)
-                        if query.isEmpty {
-                            Button {
-                                selectedRegion = "Global"
-                                path.removeLast()
-                            } label: {
-                                PinLabel("Boost Global")
-                                    .padding(.horizontal, .spacingL)
-                                    .frame(minHeight: .minimumControlHeight)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: .radiusL)
-                                            .strokeBorder(Color.tertiaryText, lineWidth: 1)
-                                    )
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
+                    PinTrayText("No regions match “\(query)”").centred()
                 } else {
-                    VStack(spacing: 0) {
-                        ForEach(matches, id: \.self) { country in
-                            Button {
-                                selectedRegion = country
-                                path.removeLast()
-                            } label: {
-                                HStack {
-                                    PinLabel(country)
-                                    Spacer()
-                                    if country == selectedRegion {
-                                        Image(systemName: "checkmark").foregroundStyle(.primaryText)
-                                    }
-                                }
-                                .frame(minHeight: .minimumControlHeight)
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityIdentifier("pinwheel.tray.country.\(country)")
+                    ForEach(matches, id: \.self) { name in
+                        PinTrayChoice(name, isChosen: name == region) {
+                            region = name
+                            path.removeLast()
                         }
+                        .accessibilityIdentifier("pinwheel.tray.country.\(name)")
                     }
                 }
             }
-            // A scroll view runs edge to edge and spaces its content with insets, so the rows pass
-            // under the rule and under the search field instead of stopping short of them. The bottom
-            // clears the field's own height and the gaps either side of it.
-            .contentMargins(.horizontal, .spacingXL, for: .scrollContent)
-            .contentMargins(.top, .spacingL, for: .scrollContent)
-            .contentMargins(.bottom, .minimumControlHeight + .spacingL * 2, for: .scrollContent)
-            .scrollDismissesKeyboard(.interactively)
-            .overlay(alignment: .bottom) {
-                SearchField(text: $query)
-                    .padding(.horizontal, .spacingXL)
-                    .padding(.bottom, .spacingL)
-            }
-            .animation(.trayContent, value: matches)
         }
         .detent(.filling)
+        .floating { PinTraySearchField("Search Country, City, or Region", text: $query) }
     }
 
     /// Ranked so a typed prefix wins.
     private var matches: [String] {
-        let needle = query.trimmingCharacters(in: .whitespaces).lowercased()
-        guard !needle.isEmpty else { return [] }
-        let hits = Self.countries.filter { $0.lowercased().contains(needle) }
-        return (
-            hits.sorted { first, second in
-                let firstLeads = first.lowercased().hasPrefix(needle)
-                let secondLeads = second.lowercased().hasPrefix(needle)
-                if firstLeads != secondLeads { return firstLeads }
-                return first < second
+        guard !query.isEmpty else { return Self.countries }
+        let needle = query.lowercased()
+        return Self.countries
+            .filter { $0.lowercased().contains(needle) }
+            .sorted { first, second in
+                let firstStarts = first.lowercased().hasPrefix(needle)
+                let secondStarts = second.lowercased().hasPrefix(needle)
+                return firstStarts == secondStarts ? first < second : firstStarts
             }
-        )
     }
 
-    // Two letters is ISO 3166-1 alpha-2, which is a country; the numeric identifiers are groupings
-    // like Europe, and a country's own subRegions are its states, so those cannot filter it out.
+    // A region's own subRegions are its states, so those cannot filter it out.
     private static let countries: [String] = Locale.Region.isoRegions
-        .filter { $0.identifier.count == 2 }
+        .filter { $0.subRegions.isEmpty }
         .compactMap { Locale.current.localizedString(forRegionCode: $0.identifier) }
         .sorted()
-
-    /// The reference shows five rows with the edges faded out, so the list reads as a wheel that
-    /// runs past the tray rather than a list that ends there.
-    private func wheel(_ rows: [Tier], selected: Int, select: @escaping (Int) -> Void) -> some View {
-        VStack(spacing: 0) {
-            ForEach(Array(rows.enumerated()), id: \.element) { index, tier in
-                Button { select(index) } label: {
-                    HStack {
-                        PinLabel(tier.reach)
-                            .color(index == selected ? .primary : .secondary)
-                        Spacer()
-                        PinLabel(tier.price)
-                            .font(.titleSemibold)
-                            .color(index == selected ? .primary : .secondary)
-                    }
-                    .padding(.horizontal, .spacingL)
-                    .frame(minHeight: .minimumControlHeight)
-                    .contentShape(Rectangle())
-                    .background(
-                        RoundedRectangle(cornerRadius: .radiusM)
-                            .fill(index == selected ? Color.secondaryBackground : .clear)
-                    )
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .mask(
-            LinearGradient(
-                colors: [.clear, .black, .black, .clear],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        )
-    }
-
-    private func pill(_ title: String, value: String, tap: @escaping () -> Void) -> some View {
-        Button(action: tap) {
-            HStack {
-                PinLabel(title).color(.secondary)
-                Spacer()
-                PinLabel(value).font(.bodySemibold)
-                Image(systemName: "chevron.right")
-                    .imageScale(.small)
-                    .foregroundStyle(.tertiaryText)
-            }
-            .padding(.horizontal, .spacingL)
-            .frame(minHeight: .minimumControlHeight)
-            .contentShape(Rectangle())
-            .background(
-                RoundedRectangle(cornerRadius: .radiusM)
-                    .fill(Color.secondaryBackground)
-            )
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("pinwheel.tray.pill.\(title)")
-    }
-}
-
-/// Focus belongs to the SwiftUI graph it is declared in, and a tray's content is hosted in its own
-/// controller — so the field has to own its `@FocusState` to come up with the keyboard.
-private struct SearchField: SwiftUI.View {
-    @Binding var text: String
-
-    @Environment(\.pinwheelTheme) private var theme
-    @FocusState private var focused: Bool
-
-    var body: some SwiftUI.View {
-        HStack(spacing: .spacingS) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondaryText)
-            TextField("Search Country, City, or Region", text: $text)
-                .font(PinTextStyle.body.font(in: theme))
-                .foregroundStyle(.primaryText)
-                .focused($focused)
-                .accessibilityIdentifier("pinwheel.tray.search")
-        }
-        .padding(.horizontal, .spacingL)
-        .frame(minHeight: .minimumControlHeight)
-        .background(
-            RoundedRectangle(cornerRadius: .radiusL)
-                .fill(Color.secondaryBackground)
-        )
-        .onAppear { focused = true }
-    }
 }

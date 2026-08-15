@@ -1,0 +1,36 @@
+import SwiftUI
+
+/// The tray's title row, drawn: the way out on the leading edge, the title centred, an optional control
+/// trailing. A leaf — it holds nothing and reports its taps to whoever handed it the closures.
+struct PinTrayTitleBar: SwiftUI.View {
+    let title: String
+    let isRoot: Bool
+    let accessory: AnyView?
+    let exit: () -> Void
+
+    @Environment(\.pinwheelTheme) private var theme
+
+    var body: some SwiftUI.View {
+        ZStack {
+            PinLabel(title)
+                .font(.subtitleSemibold)
+                .accessibilityIdentifier("pinwheel.tray.\(title).theme.\(theme.name)")
+            HStack {
+                SwiftUI.Button(action: exit) {
+                    Image(systemName: isRoot ? "xmark" : "chevron.backward")
+                        .font(PinTextStyle.body.font(in: theme))
+                        .symbolRenderingMode(.monochrome)
+                        .imageScale(.large)
+                }
+                .tint(.primaryText)
+                .accessibilityLabel(isRoot ? "Close" : "Back")
+                Spacer()
+                accessory
+                    .tint(.primaryText)
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: .minimumControlHeight)
+        .padding(.horizontal, .spacingXL)
+        .padding(.vertical, .spacingS)
+    }
+}
