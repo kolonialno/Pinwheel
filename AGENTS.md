@@ -39,7 +39,7 @@ Pinwheel-specific guidance: how we work here, testing, and the decisions log. Th
   - **`PinwheelTests` cannot be given a test host.** It is a SwiftPM test target, and a host is an Xcode project setting (`TEST_HOST`/`BUNDLE_LOADER`) — `DemoTests` is the answer, not a setting on the package. Keeping it hostless is also a design gate: 123 tests passing with no app is the proof the library stands alone, and the day one of them needs `Demo.app` something has leaked out of the library. Hosting costs ~2.2s a run, so speed is not the reason either way.
   - **`DemoTests` must not link the package products.** `Demo.app` already links `Pinwheel` and `DemoCatalog`, and a test bundle that re-declares them as `packageProductDependencies` breaks *`DemoUITests`* with undefined `PinTag` symbols. The bundle loads them from its host; `@testable import Pinwheel` needs no product dependency.
   - `DemoTests/HostedView.swift` is the harness (ported from tienda-ios). `window(showing:)` flips `_AXSSetAutomationEnabled` so SwiftUI fills its accessibility tree, which is what makes labels, frames and `accessibilityActivate()` readable at all; `presentation(in:)` waits for the presented view to **join the window** before you read traits; `settledPresentation(in:)` waits for a measured detent to stop moving.
-- **A UI probe cannot measure motion while it passes `-UITesting`.** `Demo/AppDelegate.swift` calls
+- **A UI probe cannot measure motion while it passes `-UITestingNoAnimations`.** `Demo/AppDelegate.swift` calls
   `UIView.setAnimationsEnabled(false)` under that flag, so every animation reads as an instant snap and a
   measurement blames the code for what the harness did. Three separate "the height doesn't animate"
   conclusions came from this, including one that sent a whole chassis to be rewritten. Drop the flag when
@@ -95,12 +95,24 @@ Durable design decisions and why they were made.
 - **`UIHostingController` already applies the bottom safe-area inset, so the chassis sets
   `safeAreaRegions = []` and adds it once.** Leaving both to apply it measures it twice and leaves a
   second inset of dead space under the content — 67pt below the commit button where the reference has 32.
-- **The motion is measured, not guessed.** Frame-stepping a 60fps capture of X's tray: the height settles
-  a ~377pt move in ~0.23s and an ~87pt move in ~0.15s, with about 3pt of overshoot on the big one only.
-  Duration scaling with distance is a spring rather than a timed curve, hence `springDuration: 0.30,
-  bounce: 0.10`. The same capture fixes the spacing: a 64pt header band (which Pinwheel already had), a
-  48pt commit button inset 32pt horizontally, and its bottom flush against the home-indicator inset with
-  no padding of its own. Ours lands within 2pt on all four.
+- **The motion and the metrics are measured, not guessed.** Frame-stepping a 60fps capture of X's tray:
+  the height settles a ~377pt move in ~0.23s and an ~87pt move in ~0.15s, with about 3pt of overshoot on
+  the big one only. Duration scaling with distance is a spring rather than a timed curve, hence
+  `springDuration: 0.30, bounce: 0.10`. The same capture gives the geometry, and the tray is a **floating
+  card**, not an edge-to-edge sheet: inset `.spacingL` horizontally, standing `.spacingS` off the bottom,
+  `.radiusL` on all four corners, everything inside inset `.spacingL`, a 64pt header band (which Pinwheel
+  already had), a 1pt hairline, and a 48pt commit button whose bottom lands 32pt off the screen. Ours
+  matches every one of those.
+- **Read a radius by A/B against a known value, never by extrapolating one.** Edge detection on an
+  antialiased corner under-reads it — a known 12pt corner measured 8.3pt — so a single reading plus a
+  scale factor put the reference at ~19pt and would have picked the wrong token. Rendering `.radiusM` and
+  `.radiusL` and measuring both the same way settled it: `.radiusL` reads 12.7 against the reference's
+  13.0.
+- **The hairline needs a separator colour the palette does not have.** `secondaryBackground` is
+  `#F2F2F7` (242 on white) against the reference's 224, which at 1pt is the difference between a visible
+  rule and none — the tray uses `tertiaryText` to be visible at all, which overshoots to ~178. A
+  dedicated `separator` token would land it, but `ColorProvider` is public API, so that is a decision
+  rather than a fix.
 - **Open follow-up: the catalog's own sheets still use `PinwheelSheet`.** Two chassis for one idea is one
   too many — the catalog's Tweaks/Device sequence is the natural second consumer and should move onto
   `PinTray`, retiring `PinwheelSheet` and its detent measuring.

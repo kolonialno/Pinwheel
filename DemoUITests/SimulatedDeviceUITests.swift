@@ -11,7 +11,7 @@ final class SimulatedDeviceUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
         app = XCUIApplication()
-        app.launchArguments = ["-UITesting"]
+        app.launchArguments = ["-UITestingNoAnimations"]
     }
 
     override func tearDownWithError() throws {
