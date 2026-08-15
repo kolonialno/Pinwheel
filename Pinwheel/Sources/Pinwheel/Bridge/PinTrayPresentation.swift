@@ -7,7 +7,7 @@ private let trayDismissVelocity: CGFloat = 800
 private let trayDimming: CGFloat = 0.35
 private let trayMargin: CGFloat = .spacingS
 private let trayBottomMargin: CGFloat = .spacingS
-private let trayKeyboardMargin: CGFloat = 20
+private let trayKeyboardMargin: CGFloat = .spacingL
 // Going deeper, the tray being left grows as it fades; coming back, the one arriving shrinks into
 // place. The shallower of the two always carries the zoom, so a sequence reads as depth.
 private let trayZoom: CGFloat = 1.08
