@@ -191,6 +191,21 @@ Durable design decisions and why they were made.
   One moving object rather than two is what makes it read as a single motion. A required `rest`
   constraint pinned to the view's bottom, activated on a pop and released when the transition ends,
   outranks the guide's own (priority 999) for exactly that span.
+- **An effect the machine commands counts as having happened, that same turn.** Coming back from the
+  search tray landed the card at 509pt — a height belonging to neither tray. The reaction was computed
+  while the keyboard was still up and applied *after* `endEditing` had already re-laid the screen, so the
+  keyboard's own reports landed first and the stale answer overwrote them. Dismissing is therefore a
+  change to the machine's own state (`keyboard = .closing`) at the moment it is ordered, not when the
+  keyboard gets around to confirming it — which makes the outside world's confirmation agree with what we
+  already drew, so arrival order stops mattering. Two tests hold it, one for the height and one for the
+  ordering.
+- **The view measures the keyboard; the machine decides what the measurement means.** The overlay used to
+  keep its own `keyboardInset` and derive opening/open/closing from it, updating it only when the machine's
+  view of the keyboard changed — so a *commanded* dismissal left the copy stuck at 311 forever. The next
+  push then read a rising keyboard as already settled, ran our spring against its animation, and the card
+  sagged 40pt before climbing (measured: one reversal on the second push, none on the first). The copy was
+  the bug, so it is gone: the view reports a height and `PinTrayMachine.keyboard(measuring:)` draws the
+  conclusion. Structural, not asserted — there is no second copy left to go stale.
 - **The tray is a machine, and the keyboard is an actor it does not own.** `PinTrayMachine` holds the
   state — what the tray holds, what the keyboard is doing, whether the standing tray edits, a drag —
   and answers each event with where the tray goes *and who moves it there*. That last part is the one
