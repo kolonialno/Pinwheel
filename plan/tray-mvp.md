@@ -15,6 +15,31 @@ Three nouns, and everything below is one of them:
 - **Tray** — one screen. A title, a body, an optional floating accessory, an optional commit.
 - **Row** — what a body is made of.
 
+## Principles
+
+**Everything is data, and the UI is a representation of state.** A tray draws state; it never holds it.
+Every rule about where the card goes lives in `PinTrayGeometry` and `PinTrayMachine` as pure values, and
+every view is a projection of them — which is why those rules are unit tests rather than screen
+recordings. The same applies upward: rows are the caller's data rendered, not views placed by hand, so
+"what is on this tray" is answerable by reading a model. If a fact cannot be read off state, it is in the
+wrong place, and the bug that follows will be a second copy of it disagreeing with the first.
+
+**The UI rides the keyboard; it does not race it.** The keyboard is an actor we do not own, so it enters
+as measurements and it owns the timeline whenever it is moving. While it moves we set values and start
+nothing — its animation carries them, and any spring of ours beside it is the second motion that reads as
+a stall. When something has to travel further than the keyboard does, as a tray leaving does, it borrows
+the keyboard's **announced duration and curve** so the two are one motion on one clock rather than a
+handoff. Never assume that duration: it measured 0.3833s, not the 0.25 that gets hardcoded everywhere.
+
+**The card is laid out by `keyboardLayoutGuide`, not by notifications.** The keyboard runs out of process
+and posts asynchronously, so anything driven off `keyboardWillShow` is racing the animation it is trying
+to match. A constraint to the guide is carried *by* that animation, and it brings interactive dismissal
+along for free — the card follows the finger because the guide does. Two rules come with it: the guide
+uses no bottom safe area, and the keyboard is measured from **the guide's own top edge**, the same edge
+the card's bottom is pinned to. Measuring it any other way is how the machine came to believe a 345pt
+keyboard was 311 and hung the card 26pt too high. Notifications are read for one thing only — the
+duration and curve the keyboard announces before it moves.
+
 ## The four trays we are building
 
 Boost Post is the reference, mocked. It is worth listing what each one actually needs, because the row
