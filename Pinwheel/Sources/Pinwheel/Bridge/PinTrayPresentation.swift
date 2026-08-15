@@ -106,13 +106,13 @@ final class PinTrayCoordinator<Item: Hashable> {
             return
         }
 
-        guard var top = presenter.view.window?.rootViewController else { return }
-        while let presented = top.presentedViewController { top = presented }
+        // Finding the container is the coordinator's job: it is the one holding the presenter, and the
+        // overlay should be handed where it lives rather than climbing to find it.
+        guard var container = presenter.view.window?.rootViewController else { return }
+        while let presented = container.presentedViewController { container = presented }
 
-        let created = PinTrayOverlay()
+        let created = PinTrayOverlay(in: container, clock: PinTrayMainClock(), showing: content)
         created.onBackgroundDismiss = { [weak self] in self?.dismissAll() }
-        created.install(over: top)
-        created.present(content)
         overlay = created
     }
 }
@@ -124,15 +124,38 @@ final class PinTrayOverlay: UIView {
     private let scroll = UIScrollView()
     private var height = NSLayoutConstraint()
     private var offset = NSLayoutConstraint()
-    private var current: UIHostingController<AnyView>?
-    private weak var parent: UIViewController?
+    private var rest = NSLayoutConstraint()
     private var displayRadius: CGFloat = .radiusL
     private var fittedHeight: CGFloat = 0
-    private var currentHeight: NSLayoutConstraint?
-    private var currentPhase: PinTrayPhase?
-    private var lastContent: AnyView?
-    private var rest: NSLayoutConstraint?
     private lazy var machine = PinTrayMachine(room: room)
+
+    /// What is on screen right now. One value, because a hosting controller, the constraint holding it
+    /// and the phase driving it are only ever meaningful together.
+    private struct Mounted {
+        let hosting: UIHostingController<AnyView>
+        let height: NSLayoutConstraint
+        let phase: PinTrayPhase
+    }
+
+    private var mounted: Mounted?
+
+    /// Given, not hunted. The overlay used to climb from its own window to the root view controller and
+    /// on through whatever it had presented, looking for somewhere to live.
+    private unowned let container: UIViewController
+    /// Later, injectable: a wait for a keyboard that may never speak, and the pause before a leaving
+    /// tray is torn down.
+    private let clock: PinTrayClock
+
+    init(in container: UIViewController, clock: PinTrayClock, showing content: AnyView) {
+        self.container = container
+        self.clock = clock
+        super.init(frame: container.view.bounds)
+        build()
+        present(content)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("PinTrayOverlay is made in code") }
 
     private var room: PinTrayGeometry.Room {
         PinTrayGeometry.Room(
@@ -185,7 +208,7 @@ final class PinTrayOverlay: UIView {
         }
         // A wait needs a deadline: the keyboard is not ours to command and may never speak at all.
         if machine.phase == .awaitingKeyboard {
-            DispatchQueue.main.asyncAfter(deadline: .now() + trayKeyboardGrace) { [weak self] in
+            clock.after(trayKeyboardGrace) { [weak self] in
                 guard let self, self.machine.phase == .awaitingKeyboard else { return }
                 self.apply(self.machine.handle(.keyboardNeverCame))
             }
@@ -196,8 +219,8 @@ final class PinTrayOverlay: UIView {
             case .matching(let timing): travel = timing.duration
             default: travel = trayResizeDuration
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + travel) {
-                self.current.map(self.unmount)
+            clock.after(travel) {
+                self.mounted.map { self.unmount($0.hosting) }
                 self.removeFromSuperview()
                 PinwheelRecorder.stopFollowing()
             }
@@ -224,8 +247,8 @@ final class PinTrayOverlay: UIView {
         // The chassis scrolls only to rescue a tray taller than its card. A filling tray is exactly as
         // tall as its card, so leaving it enabled hands it the drag meant for the content.
         scroll.isScrollEnabled = !machine.fills
-        currentHeight?.constant = contentHeight(standingIn: geometry.height)
-        currentPhase?.standingRoom = geometry.height
+        mounted?.height.constant = contentHeight(standingIn: geometry.height)
+        mounted?.phase.standingRoom = geometry.height
     }
 
     /// Drawn on the keyboard's own clock and curve, started in the same turn the keyboard was asked to
@@ -261,7 +284,7 @@ final class PinTrayOverlay: UIView {
 
     /// The card, and the content laid out inside it. Read by tests asserting the two agree.
     var cardHeight: CGFloat { tray.bounds.height }
-    var contentHeight: CGFloat { current?.view.bounds.height ?? 0 }
+    var contentHeight: CGFloat { mounted?.hosting.view.bounds.height ?? 0 }
 
     var onBackgroundDismiss: () -> Void = {}
 
@@ -284,12 +307,10 @@ final class PinTrayOverlay: UIView {
     }
 
     // A hosting controller's view has to live inside its parent controller's own view tree, so the
-    // overlay hangs off the topmost controller rather than straight off the window.
-    func install(over controller: UIViewController) {
-        parent = controller
-        frame = controller.view.bounds
+    // overlay hangs off the container it was given.
+    private func build() {
         autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        controller.view.addSubview(self)
+        container.view.addSubview(self)
 
         dimming.frame = bounds
         dimming.autoresizingMask = [.flexibleWidth, .flexibleHeight]
@@ -313,8 +334,8 @@ final class PinTrayOverlay: UIView {
             guard let self else { return [] }
             let card = self.tray.layer.presentation()
             let top = (card?.frame.minY ?? self.tray.frame.minY) + (card?.transform.m42 ?? 0)
-            let content = self.current?.view.layer.presentation()?.bounds.height
-                ?? self.current?.view.bounds.height ?? 0
+            let content = self.mounted?.hosting.view.layer.presentation()?.bounds.height
+                ?? self.mounted?.hosting.view.bounds.height ?? 0
             return [
                 ("cardTop", top),
                 ("cardHeight", card?.bounds.height ?? 0),
@@ -326,7 +347,7 @@ final class PinTrayOverlay: UIView {
             ]
         }
 
-        let screen = controller.view.window?.screen ?? UIScreen.main
+        let screen = container.view.window?.screen ?? UIScreen.main
         displayRadius = screen.pinDisplayCornerRadius
         tray.translatesAutoresizingMaskIntoConstraints = false
         tray.layer.cornerRadius = displayRadius
@@ -423,16 +444,15 @@ final class PinTrayOverlay: UIView {
         apply(machine.handle(.keyboardMeasured(measured)))
     }
 
-    func present(_ content: AnyView) {
+    private func present(_ content: AnyView) {
         PinwheelRecorder.note("navigation", "present")
         mount(content)
         apply(machine.handle(.presented(contentHeight: fittedHeight)))
     }
 
     func refresh(_ content: AnyView) {
-        guard let phase = currentPhase else { return }
-        lastContent = content
-        current?.rootView = wrap(content, phase: phase)
+        guard let mounted else { return }
+        mounted.hosting.rootView = wrap(content, phase: mounted.phase)
     }
 
     func show(_ content: AnyView, isPush: Bool) {
@@ -441,30 +461,29 @@ final class PinTrayOverlay: UIView {
         apply(machine.handle(.moveBegan(isPush: isPush)))
         // The tray it is leaving is detached from the scroll view and held at the frame it already
         // has, so it cannot re-lay itself out while it fades and cannot drive the scroll size.
-        let leaving = current
-        let leavingPhase = currentPhase
+        let leaving = mounted
         if let leaving {
-            let size = leaving.view.bounds.size
-            leaving.view.translatesAutoresizingMaskIntoConstraints = true
-            card.addSubview(leaving.view)
-            leaving.view.frame = CGRect(origin: .zero, size: size)
+            let size = leaving.hosting.view.bounds.size
+            leaving.hosting.view.translatesAutoresizingMaskIntoConstraints = true
+            card.addSubview(leaving.hosting.view)
+            leaving.hosting.view.frame = CGRect(origin: .zero, size: size)
         }
 
         mount(content, entering: isPush ? 1 : trayZoom)
-        current?.view.alpha = 0
+        mounted?.hosting.view.alpha = 0
         layoutIfNeeded()
 
         // The dissolve is the content changing rather than the card moving, so it runs at once and on
         // its own timeline, never waiting on a keyboard.
         withAnimation(.trayContent) {
-            leavingPhase?.contentZoom = isPush ? trayZoom : 1
-            self.currentPhase?.contentZoom = 1
+            leaving?.phase.contentZoom = isPush ? trayZoom : 1
+            self.mounted?.phase.contentZoom = 1
         }
         UIView.animate(springDuration: trayResizeDuration, bounce: trayResizeBounce) {
-            self.current?.view.alpha = 1
-            leaving?.view.alpha = 0
+            self.mounted?.hosting.view.alpha = 1
+            leaving?.hosting.view.alpha = 0
         } completion: { _ in
-            leaving.map(self.unmount)
+            leaving.map { self.unmount($0.hosting) }
         }
 
         // Whether the arriving tray raises the keyboard is only knowable once it has mounted, and it
@@ -500,15 +519,14 @@ final class PinTrayOverlay: UIView {
         defer { PinwheelRecorder.note("tray", "mounted, measuring \(Int(fittedHeight))") }
         let phase = PinTrayPhase()
         phase.contentZoom = entering
-        lastContent = content
         let hosting = UIHostingController(rootView: wrap(content, phase: phase))
         // The tray adds the home-indicator inset itself, and SwiftUI applying it too measures it twice.
         hosting.safeAreaRegions = []
         hosting.view.backgroundColor = .clear
         hosting.view.translatesAutoresizingMaskIntoConstraints = false
-        parent?.addChild(hosting)
+        container.addChild(hosting)
         scroll.addSubview(hosting.view)
-        hosting.didMove(toParent: parent)
+        hosting.didMove(toParent: container)
 
         let fitted = hosting.sizeThatFits(
             in: CGSize(width: bounds.width - trayMargin * 2, height: .greatestFiniteMagnitude)
@@ -534,9 +552,7 @@ final class PinTrayOverlay: UIView {
             contentHeight,
         ])
 
-        current = hosting
-        currentHeight = contentHeight
-        currentPhase = phase
+        mounted = Mounted(hosting: hosting, height: contentHeight, phase: phase)
     }
 
     private func unmount(_ hosting: UIHostingController<AnyView>) {
@@ -550,7 +566,7 @@ final class PinTrayOverlay: UIView {
     func settle(to content: CGFloat) {
         let standing = machine.geometry.height
         PinwheelRecorder.note("reported", "content measures \(Int(content))  standing=\(Int(standing))")
-        guard content > 0, current != nil, abs(content - standing) > 0.5 else { return }
+        guard content > 0, mounted != nil, abs(content - standing) > 0.5 else { return }
         apply(machine.handle(.contentResized(content)))
     }
 

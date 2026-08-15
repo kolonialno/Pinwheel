@@ -6,15 +6,17 @@ import XCTest
 /// own geometry: the card was right the whole time and the content inside it was not.
 @MainActor
 final class PinTrayChassisTests: XCTestCase {
-    private func standing() -> (PinTrayOverlay, UIWindow) {
+    private func standing(clock: PinTrayClock = PinTrayHeldClock()) -> (PinTrayOverlay, UIWindow) {
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 420, height: 912))
         let root = UIViewController()
         window.rootViewController = root
         window.isHidden = false
 
-        let overlay = PinTrayOverlay()
-        overlay.install(over: root)
-        overlay.present(AnyView(Color.clear.frame(height: 600).fixedSize(horizontal: false, vertical: true)))
+        let overlay = PinTrayOverlay(
+            in: root,
+            clock: clock,
+            showing: AnyView(Color.clear.frame(height: 600).fixedSize(horizontal: false, vertical: true))
+        )
         window.layoutIfNeeded()
         return (overlay, window)
     }
@@ -59,5 +61,19 @@ final class PinTrayChassisTests: XCTestCase {
             accuracy: 0.5,
             "and after it reports on itself, so nothing anchored to its bottom jumps"
         )
+    }
+
+    // The tear-down waits for the travel it started, which is a delay nobody could assert on while it
+    // was a queue: the tray had to still be there for the length of its own exit, and gone after.
+    func testALeavingTrayIsTornDownOnlyOnceItHasTravelled() {
+        let clock = PinTrayHeldClock()
+        let (overlay, window) = standing(clock: clock)
+
+        overlay.dismiss()
+        window.layoutIfNeeded()
+        XCTAssertNotNil(overlay.superview, "still on screen for as long as it is travelling")
+
+        clock.advance()
+        XCTAssertNil(overlay.superview, "and gone once it has arrived")
     }
 }

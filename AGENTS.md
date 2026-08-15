@@ -16,6 +16,13 @@ to change, add to it as you learn, and keep *this* file to what a session needs 
 - **Verify before claiming done**, and report what you actually observed, failures included.
 - **Adding or moving a file needs no `project.pbxproj` edit** — both targets are file-system-synchronized
   groups, so the folder layout *is* the project structure and a new folder is a real decision.
+- **Linear ownership.** Nothing reaches more than one level up or down. Downward is direct; upward is a
+  closure or a protocol. A parent coordinates and its children have one job each and are pure where they
+  can be — the tray's geometry and its machine are pure values, and the chassis that draws them owns
+  nothing else.
+- **Dependencies arrive through `init`** — no optionals, no defaults, no two-phase setup. If a thing
+  cannot exist without a container, a clock and something to show, it takes all three at birth. Every
+  protocol ships a real implementation and a stub, so the seam is usable from a test the day it is made.
 - **One place draws, one place decides.** Most bugs here have been the same shape: a second copy of some
   state, or a second path that animates. Delete the copy rather than syncing it.
 
