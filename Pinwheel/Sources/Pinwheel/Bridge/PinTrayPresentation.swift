@@ -131,6 +131,7 @@ final class PinTrayOverlay: UIView {
     private var dragOffset: CGFloat = 0
     private var lastContent: AnyView?
     private var rest: NSLayoutConstraint?
+    private var awaitsKeyboard = false
 
 
     var onBackgroundDismiss: () -> Void = {}
@@ -238,9 +239,25 @@ final class PinTrayOverlay: UIView {
 
     // Whether the card is still nested in the display's corner is the one thing no constraint can
     // express, so it is read where the guide has already been laid out.
+    private var holdsFirstResponder: Bool {
+        func search(_ view: UIView) -> Bool {
+            view.isFirstResponder || view.subviews.contains(where: search)
+        }
+        return search(self)
+    }
+
     override func layoutSubviews() {
         super.layoutSubviews()
         keyboardInset = max(0, bounds.maxY - keyboardLayoutGuide.layoutFrame.minY - safeAreaInsets.bottom)
+        // The keyboard is moving and owns this frame: the height rides its animation rather than
+        // starting a second one beside it.
+        if awaitsKeyboard, keyboardInset > 0 {
+            awaitsKeyboard = false
+            let resolved = geometry(.resting)
+            standingHeight = resolved.height
+            height.constant = resolved.height
+            currentHeight?.constant = fittedHeight
+        }
         let radius = geometry(.resting).bottomCornerRadius
         if tray.layer.cornerRadius != radius {
             tray.layer.cornerRadius = radius
@@ -315,6 +332,10 @@ final class PinTrayOverlay: UIView {
     }
 
     func show(_ content: AnyView, isPush: Bool) {
+        // Leaving an editing tray, the keyboard has to be dismissed deliberately: unmounting the tray
+        // destroys its field, and a responder torn out from under the keyboard takes it away without
+        // an animation to travel with.
+        if !isPush { endEditing(true) }
         // The tray it is leaving is detached from the scroll view and held at the frame it already
         // has, so it cannot re-lay itself out while it fades and cannot drive the scroll size.
         let leaving = current
@@ -326,21 +347,33 @@ final class PinTrayOverlay: UIView {
             leaving.view.frame = CGRect(origin: .zero, size: size)
         }
 
-        if !isPush { rest?.isActive = true }
         mount(content, entering: isPush ? 1 : trayZoom)
         current?.view.alpha = 0
         layoutIfNeeded()
 
+        // The dissolve starts at once and on its own timeline: it is the content changing, not the
+        // card moving, so it never waits on a keyboard.
         withAnimation(.trayContent) {
             leavingPhase?.contentZoom = isPush ? trayZoom : 1
             self.currentPhase?.contentZoom = 1
         }
-        settleGeometry(animated: true) {
+        UIView.animate(springDuration: trayResizeDuration, bounce: trayResizeBounce) {
             self.current?.view.alpha = 1
             leaving?.view.alpha = 0
-        } completion: {
+        } completion: { _ in
             leaving.map(self.unmount)
-            self.rest?.isActive = false
+        }
+
+        // The card's own move waits a turn to learn whether a keyboard is coming. A tray about to edit
+        // hands its timeline to the keyboard, because shrinking before the keyboard is under it sends
+        // the top the wrong way — down to the floor, then back up.
+        DispatchQueue.main.async {
+            if self.holdsFirstResponder {
+                self.awaitsKeyboard = true
+                self.setNeedsLayout()
+            } else {
+                self.settleGeometry(animated: true)
+            }
         }
     }
 

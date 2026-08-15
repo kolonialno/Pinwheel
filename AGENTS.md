@@ -154,6 +154,25 @@ Durable design decisions and why they were made.
   tray to it. Watching the hosted view's `intrinsicContentSize` from `layoutSubviews` does **not**
   work — a required height constraint means nothing in the overlay's own layout is dirtied, so it
   fires only at mount.
+- **A tray about to edit hands its timeline to the keyboard; one that is leaving dismisses it
+  deliberately.** Two faults with one cause — geometry resolved at a moment when the keyboard's state
+  was not yet true. Pushing to a tray that edits, the card shrank to its new height with no keyboard
+  under it yet, so its top fell 184pt to the floor and climbed back once the keyboard arrived. So the
+  push now waits a turn, asks whether anything in the tray became first responder, and if so leaves the
+  height for the keyboard to carry: the constant is set from `layoutSubviews` when the guide moves, so
+  it resolves inside the keyboard's animation. Measured, the top then runs 262 -> 103 without ever
+  reversing. Popping, unmounting the tray tore the field out from under the keyboard and it vanished
+  with no animation to travel with, so the card descended alone; `endEditing(true)` before the
+  transition gives the keyboard its own dismissal to ride, and the card goes 103 -> 262 beside it.
+  The dissolve stays on its own timeline in both directions — it is the content changing, not the card
+  moving, and it should never wait on a keyboard.
+- **Measure a transition from inside the app, not from a recording.** A `CADisplayLink` writing the
+  tray's presentation-layer frame and the guide's frame to a file each frame answered in one run what
+  four rounds of pixel-detectors on `simctl` video could not: the detectors kept latching onto the
+  keyboard's edge or the content behind the tray, and `simctl io recordVideo` drops the very frames a
+  transition lives in. Read the file out of the app container afterwards. Note the guide reports its
+  *model* value, so it shows the keyboard's target rather than where it is drawn — for that, look at
+  frames.
 - **The keyboard lays the tray out; the tray does not react to the keyboard.** On iOS 17+ the keyboard
   runs in its own process and "will *asynchronously* initialize the keyboard UI and then
   *asynchronously* post the notifications and perform the animations" (WWDC23, *Keep up with the
