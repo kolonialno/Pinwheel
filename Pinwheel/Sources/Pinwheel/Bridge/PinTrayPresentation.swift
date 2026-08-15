@@ -54,6 +54,9 @@ private struct PinTrayPresenter<Item: Hashable, TrayContent: SwiftUI.View>: UIVi
                         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
                             coordinator.contentHeightChanged(height)
                         }
+                        .onPreferenceChange(PinTrayFillsKey.self) { fills in
+                            coordinator.trayFillsChanged(fills)
+                        }
                 )
             }
         )
@@ -68,6 +71,10 @@ final class PinTrayCoordinator<Item: Hashable> {
 
     func contentHeightChanged(_ height: CGFloat) {
         overlay?.settle(to: height)
+    }
+
+    func trayFillsChanged(_ fills: Bool) {
+        overlay?.fills = fills
     }
 
     func sync(
@@ -128,6 +135,17 @@ final class PinTrayOverlay: UIView {
     private var lastContent: AnyView?
     private var rest: NSLayoutConstraint?
     private lazy var machine = PinTrayMachine(room: room)
+    /// Whether the standing tray takes the room rather than its content's height. The tray says so.
+    var fills = false {
+        didSet {
+            guard fills != oldValue else { return }
+            // The chassis scrolls only to rescue a tray taller than its card. A filling tray is exactly
+            // as tall as its card, so leaving it enabled hands it the drag meant for the content and
+            // carries the header off the top.
+            scroll.isScrollEnabled = !fills
+            settleGeometry(animated: true)
+        }
+    }
 
     private var room: PinTrayGeometry.Room {
         PinTrayGeometry.Room(
@@ -181,7 +199,10 @@ final class PinTrayOverlay: UIView {
     private func write(_ geometry: PinTrayGeometry) {
         standingHeight = geometry.height
         height.constant = geometry.height
-        currentHeight?.constant = fittedHeight
+        // A filling tray is as tall as the card; a fitting one keeps its own height and scrolls when
+        // the card is smaller than it.
+        currentHeight?.constant = fills ? geometry.height : fittedHeight
+        currentPhase?.standingRoom = geometry.height
     }
 
     /// Drawn on the keyboard's own clock and curve, started in the same turn the keyboard was asked to
@@ -223,10 +244,16 @@ final class PinTrayOverlay: UIView {
         geometry(.resting).contentBottomInset
     }
 
-    /// A tray standing at medium keeps that height whether or not the keyboard is up, so a list that
-    /// filters as you type does not move the card. The room still wins where there is less of it.
-    private var mediumHeight: CGFloat {
-        bounds.height * 0.5
+    /// How tall a filling tray stands: all the room there is. Read off the same geometry everything
+    /// else is drawn from, so the content and the card can never disagree about it.
+    private var standingRoom: CGFloat {
+        PinTrayGeometry(
+            contentHeight: 0,
+            fills: true,
+            room: room,
+            keyboardInset: machine.keyboard.height,
+            standsOnKeyboard: machine.edits
+        ).height
     }
 
     // A hosting controller's view has to live inside its parent controller's own view tree, so the
@@ -357,6 +384,7 @@ final class PinTrayOverlay: UIView {
     private func geometry(_ phase: PinTrayGeometry.Phase) -> PinTrayGeometry {
         PinTrayGeometry(
             contentHeight: fittedHeight,
+            fills: fills,
             room: PinTrayGeometry.Room(
                 containerHeight: bounds.height,
                 safeAreaTop: safeAreaInsets.top,
@@ -405,7 +433,7 @@ final class PinTrayOverlay: UIView {
 
     func present(_ content: AnyView) {
         mount(content)
-        apply(machine.handle(.presented(contentHeight: fittedHeight)))
+        apply(machine.handle(.presented(contentHeight: fittedHeight, fills: fills)))
     }
 
     func refresh(_ content: AnyView) {
@@ -448,6 +476,7 @@ final class PinTrayOverlay: UIView {
         DispatchQueue.main.async {
             self.apply(self.machine.handle(.moved(
                 contentHeight: self.fittedHeight,
+                fills: self.fills,
                 edits: self.holdsFirstResponder,
                 isPush: isPush
             )))
@@ -463,7 +492,6 @@ final class PinTrayOverlay: UIView {
             content
                 .environment(\.pinTrayPhase, phase)
                 .environment(\.pinTrayBottomInset, contentBottomInset)
-                .environment(\.pinTrayMediumHeight, mediumHeight)
         )
     }
 

@@ -191,6 +191,25 @@ Durable design decisions and why they were made.
   One moving object rather than two is what makes it read as a single motion. A required `rest`
   constraint pinned to the view's bottom, activated on a pop and released when the transition ends,
   outranks the guide's own (priority 999) for exactly that span.
+- **A tray is as tall as what it holds, or as tall as the room there is — `.fitting` or `.filling`.**
+  `.medium` was a lie once it stopped being half of anything, so the pair now says what it means. A
+  filling tray is anchored by its **top**, which makes that top a constant (`safeAreaTop + trayMargin`)
+  no keyboard can move: only the bottom travels, riding the keyboard down and clamping at the floor
+  while the keyboard carries on past it. That is what stops the card shooting when the search field is
+  tapped again — it is structural, not arranged. Guarded by
+  `testAFillingTrayKeepsItsTopWhereverTheKeyboardIs`, which sweeps the keyboard 311 → 0 → 311 and asserts
+  one distinct top; with the anchor removed it walks 585 → 904 → 585.
+- **The chassis scroll is a rescue, not a scroller, so a filling tray turns it off.** The overlay wraps a
+  tray in a `UIScrollView` so a *fitting* tray clamped by the room scrolls rather than clips. A filling
+  tray is exactly as tall as its card, and leaving that scroll enabled hands it the drag meant for the
+  content — measured: dragging the results carried the header and separator up off the top of the card.
+  It is disabled the moment the tray says it fills.
+- **A search tray is header, rule, scrolling list, and a search field floating over the list at the
+  bottom.** The field sits where the thumb is and never scrolls away, the list runs on underneath it
+  (`.contentMargins(.bottom,)` so the last row is still reachable), and `.scrollDismissesKeyboard(.interactively)`
+  gives the keyboard back to a downward drag. A tray declares that it fills through `PinTrayFillsKey`,
+  and the room it currently has arrives on the observable `PinTrayPhase` — not the environment, so the
+  keyboard moving re-renders the content without rebuilding it.
 - **A tray leaves on the keyboard's clock, not after it.** Tapping the space above an editing tray
   dismisses the whole tray — one meaning per control, and backing out of a sheet should not depend on
   which part of the backdrop was hit. Its motion used to be three reactions fighting inside 24ms: the

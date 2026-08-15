@@ -73,8 +73,8 @@ struct PinTrayMachine: Equatable {
     }
 
     enum Event: Equatable {
-        case presented(contentHeight: CGFloat)
-        case moved(contentHeight: CGFloat, edits: Bool, isPush: Bool)
+        case presented(contentHeight: CGFloat, fills: Bool = false)
+        case moved(contentHeight: CGFloat, fills: Bool = false, edits: Bool, isPush: Bool)
         case contentResized(CGFloat)
         case keyboardMeasured(CGFloat)
         case dragged(CGFloat)
@@ -94,10 +94,13 @@ struct PinTrayMachine: Equatable {
     private(set) var phase: Phase = .standing
     private(set) var keyboard: Keyboard = .closed
     private(set) var contentHeight: CGFloat = 0
+    /// Whether the standing tray takes all the room there is rather than the height of what it holds.
+    private(set) var fills = false
     /// A tray waiting for the keyboard keeps the height it is standing at until the keyboard moves.
     /// Adopting the new one first is the dip: a shorter card with no keyboard under it yet sits on the
     /// floor, so the top falls there and has to climb back.
     private var pendingContentHeight: CGFloat?
+    private var pendingFills = false
     /// Whether the standing tray is one that raises the keyboard, and so must let it lead.
     private(set) var edits = false
     private(set) var dragOffset: CGFloat = 0
@@ -122,6 +125,7 @@ struct PinTrayMachine: Equatable {
     private func geometry(_ phase: PinTrayGeometry.Phase) -> PinTrayGeometry {
         PinTrayGeometry(
             contentHeight: contentHeight,
+            fills: fills,
             room: room,
             keyboardInset: keyboard.height,
             dragOffset: dragOffset,
@@ -136,22 +140,27 @@ struct PinTrayMachine: Equatable {
 
     mutating func handle(_ event: Event) -> Reaction {
         switch event {
-        case .presented(let height):
+        case .presented(let height, let fills):
             contentHeight = height
+            self.fills = fills
             phase = .standing
             return Reaction(from: geometry(.arriving), to: geometry(.resting), timeline: .spring(bounce: trayResizeBounce))
 
-        case .moved(let height, let edits, let isPush):
+        case .moved(let height, let fills, let edits, let isPush):
             let wasEditing = self.edits
             let wasStanding = contentHeight
+            let wasFilling = self.fills
             contentHeight = height
+            self.fills = fills
             pendingContentHeight = nil
             self.edits = edits
             // A tray about to raise the keyboard holds still until it does: shrinking with no keyboard
             // under it sends the top down to the floor and back up again.
             if isPush, edits, keyboard == .closed {
                 contentHeight = wasStanding
+                self.fills = wasFilling
                 pendingContentHeight = height
+                pendingFills = fills
                 phase = .awaitingKeyboard
                 return Reaction(to: geometry(.resting), timeline: .carriedByKeyboard)
             }
@@ -184,7 +193,7 @@ struct PinTrayMachine: Equatable {
             let waited = phase == .awaitingKeyboard
             if waited {
                 phase = .standing
-                pendingContentHeight.map { contentHeight = $0 }
+                pendingContentHeight.map { contentHeight = $0; fills = pendingFills }
                 pendingContentHeight = nil
             }
             // Whenever the keyboard is moving it owns the timeline, whether the tray was waiting for
@@ -195,6 +204,8 @@ struct PinTrayMachine: Equatable {
             )
 
         case .contentResized(let height):
+            // A filling tray is sized by the room, so what it holds has nothing to say about it.
+            guard !fills else { return Reaction(to: geometry(.resting), timeline: .spring(bounce: 0)) }
             contentHeight = height
             // Content settling is not navigation: it resizes and nothing else, and an overshoot here
             // reverses direction under someone who is reading.

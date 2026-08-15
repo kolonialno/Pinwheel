@@ -5,7 +5,6 @@ extension EnvironmentValues {
     @Entry var pinTrayExit: () -> Void = {}
     @Entry var pinTrayPhase: PinTrayPhase? = nil
     @Entry var pinTrayBottomInset: CGFloat = .spacingL
-    @Entry var pinTrayMediumHeight: CGFloat = 0
 }
 
 /// The zoom a tray's content carries through a transition. It rides the content alone — a title that
@@ -14,15 +13,31 @@ extension EnvironmentValues {
 @Observable
 final class PinTrayPhase {
     var contentZoom: CGFloat = 1
+    /// How much room a filling tray has right now. Observed rather than passed through the environment,
+    /// so the keyboard moving re-renders the content without rebuilding it.
+    var standingRoom: CGFloat = 0
+}
+
+/// Whether the standing tray is sized by the room rather than by what it holds. The chassis has to know
+/// before it can lay one out, and only the tray itself knows.
+struct PinTrayFillsKey: PreferenceKey {
+    static let defaultValue = false
+
+    static func reduce(value: inout Bool, nextValue: () -> Bool) {
+        value = value || nextValue()
+    }
 }
 
 public struct PinTray<Content: SwiftUI.View, Accessory: SwiftUI.View>: SwiftUI.View {
-    /// How tall a tray stands. `.fitting` is the rule — as tall as what it holds. `.medium` is for a
-    /// surface you browse rather than read: it takes a standing height and scrolls inside it, so a
-    /// list that filters as you type does not move the tray on every keystroke.
+    /// How tall a tray stands: as tall as what it holds, or as tall as the room there is.
+    ///
+    /// `.filling` is for a surface you browse rather than read. It is anchored by its top — so the top
+    /// is a constant no keyboard can move — and only its bottom travels, riding the keyboard down and
+    /// stopping at the floor. The room it gains becomes list to scroll, and a list that filters as you
+    /// type never moves the tray.
     public enum Detent {
         case fitting
-        case medium
+        case filling
     }
 
     private struct Commit {
@@ -41,7 +56,6 @@ public struct PinTray<Content: SwiftUI.View, Accessory: SwiftUI.View>: SwiftUI.V
     @Environment(\.pinTrayExit) private var exit
     @Environment(\.pinTrayPhase) private var phase
     @Environment(\.pinTrayBottomInset) private var bottomInset
-    @Environment(\.pinTrayMediumHeight) private var mediumHeight
 
     public init(
         _ title: String,
@@ -85,10 +99,12 @@ public struct PinTray<Content: SwiftUI.View, Accessory: SwiftUI.View>: SwiftUI.V
         .padding(.bottom, bottomInset)
         .frame(maxWidth: .infinity)
         .frame(height: standingHeight, alignment: .top)
+        .preference(key: PinTrayFillsKey.self, value: detent == .filling)
     }
 
     private var standingHeight: CGFloat? {
-        detent == .medium && mediumHeight > 0 ? mediumHeight : nil
+        guard detent == .filling, let room = phase?.standingRoom, room > 0 else { return nil }
+        return room
     }
 
     private var isRoot: Bool { depth == 0 }
