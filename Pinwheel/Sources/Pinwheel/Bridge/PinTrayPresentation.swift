@@ -8,6 +8,9 @@ private let trayDimming: CGFloat = 0.35
 private let trayMargin: CGFloat = .spacingS
 private let trayBottomMargin: CGFloat = .spacingS
 private let trayKeyboardMargin: CGFloat = 20
+// Going deeper, the tray being left grows as it fades; coming back, the one arriving shrinks into
+// place. The shallower of the two always carries the zoom, so a sequence reads as depth.
+private let trayZoom: CGFloat = 1.08
 private let trayTopRadius: CGFloat = 32
 
 extension UIScreen {
@@ -99,7 +102,7 @@ final class PinTrayCoordinator<Item: Hashable> {
         let content = tray(top, path.count - 1)
 
         if let overlay {
-            overlay.show(content)
+            overlay.show(content, isPush: path.count >= shown.count)
             return
         }
 
@@ -246,7 +249,7 @@ final class PinTrayOverlay: UIView {
         current?.rootView = content
     }
 
-    func show(_ content: AnyView) {
+    func show(_ content: AnyView, isPush: Bool) {
         // The tray it is leaving becomes a still picture, so the dissolve is between two things that
         // cannot re-lay themselves out, and the scroll view is left holding a single live tray.
         let leaving = current?.view.snapshotView(afterScreenUpdates: false)
@@ -258,12 +261,19 @@ final class PinTrayOverlay: UIView {
 
         mount(content)
         current?.view.alpha = 0
+        if !isPush {
+            current?.view.transform = CGAffineTransform(scaleX: trayZoom, y: trayZoom)
+        }
         layoutIfNeeded()
 
         height.constant = standingHeight
         UIView.animate(springDuration: trayResizeDuration, bounce: trayResizeBounce) {
             self.current?.view.alpha = 1
+            self.current?.view.transform = .identity
             leaving?.alpha = 0
+            if isPush {
+                leaving?.transform = CGAffineTransform(scaleX: trayZoom, y: trayZoom)
+            }
             self.layoutIfNeeded()
         } completion: { _ in
             leaving?.removeFromSuperview()
