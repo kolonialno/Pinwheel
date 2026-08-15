@@ -415,13 +415,11 @@ final class PinTrayOverlay: UIView {
         tray.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(drag)))
     }
 
-    /// Whether this tray will raise a keyboard: something in it has focus, and a keyboard would appear.
-    /// With a hardware keyboard attached the first half is true and the second is not, and a tray that
-    /// believed the first alone waited forever for a keyboard that was never coming.
-    private var raisesTheKeyboard: Bool {
-        holdsFirstResponder && PinTrayKeyboardPresence.aKeyboardWouldAppear
-    }
-
+    /// Whether anything in the tray has focus, and so whether it stands on the keyboard.
+    ///
+    /// Deliberately not "will a keyboard appear", which two private APIs failed to answer — see
+    /// LEARNINGS. The hold that wanted the answer only applies to a tray sized by what it holds, and
+    /// none exists, so the question is not asked.
     private var holdsFirstResponder: Bool {
         func search(_ view: UIView) -> Bool {
             view.isFirstResponder || view.subviews.contains(where: search)
@@ -492,7 +490,7 @@ final class PinTrayOverlay: UIView {
         DispatchQueue.main.async {
             self.apply(self.machine.handle(.moved(
                 contentHeight: self.fittedHeight,
-                edits: self.raisesTheKeyboard,
+                edits: self.holdsFirstResponder,
                 isPush: isPush
             )))
         }

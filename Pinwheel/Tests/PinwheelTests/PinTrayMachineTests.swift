@@ -169,10 +169,7 @@ final class PinTrayMachineTests: XCTestCase {
         }
     }
 
-    // The wait used to be a bet with a stopwatch on it: with a hardware keyboard attached the field
-    // takes focus and nothing ever rises, so a tray that waited for it waited forever and sat at its
-    // content's height — 245 of a possible 834 — for as long as it was open. The question is asked
-    // outright now, so a tray that will raise nothing does not wait at all.
+    // A tray that raises nothing has nothing to wait for.
     func testATrayThatWillRaiseNoKeyboardDoesNotWaitForOne() {
         var machine = machine()
         _ = machine.handle(.moveBegan(isPush: true))
