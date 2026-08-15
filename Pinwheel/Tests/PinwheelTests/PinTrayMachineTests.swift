@@ -107,8 +107,9 @@ final class PinTrayMachineTests: XCTestCase {
     // cannot shoot it anywhere. Only the bottom travels, riding the keyboard down to the floor.
     func testAFillingTrayKeepsItsTopWhereverTheKeyboardIs() {
         var machine = PinTrayMachine(room: screen)
-        _ = machine.handle(.presented(contentHeight: 0, fills: true))
-        _ = machine.handle(.moved(contentHeight: 0, fills: true, edits: true, isPush: true))
+        _ = machine.handle(.fillsReported(true))
+        _ = machine.handle(.presented(contentHeight: 0))
+        _ = machine.handle(.moved(contentHeight: 0, edits: true, isPush: true))
 
         let height = screen.containerHeight
         let top = { (geometry: PinTrayGeometry) in height - geometry.bottomInset - geometry.height }
@@ -121,6 +122,20 @@ final class PinTrayMachineTests: XCTestCase {
         }
         XCTAssertEqual(Set(tops).count, 1, "the top never moves: \(tops)")
         XCTAssertEqual(bottoms.min(), trayBottomMargin, "and the bottom stops at the floor: \(bottoms)")
+    }
+
+    // How a tray stands arrives from SwiftUI whenever SwiftUI gets round to it — measured, 157ms before
+    // the move it describes. Drawing on arrival sent the card to the floor and back: 262 -> 602 -> 76.
+    func testATrayLearningItFillsDrawsNothingUntilTheNextEventCarriesIt() {
+        var machine = machine()
+        let standing = machine.geometry
+
+        let reported = machine.handle(.fillsReported(true))
+        XCTAssertEqual(reported.to, standing, "learning it fills moves nothing on its own")
+        XCTAssertEqual(reported.timeline, .carriedByKeyboard, "and starts nothing of ours")
+
+        let moved = machine.handle(.moved(contentHeight: 200, edits: false, isPush: true))
+        XCTAssertGreaterThan(moved.to.height, 200, "the next event stands it in the room it has")
     }
 
     func testLeavingATrayThatWasNotEditingAsksNothingOfTheKeyboard() {

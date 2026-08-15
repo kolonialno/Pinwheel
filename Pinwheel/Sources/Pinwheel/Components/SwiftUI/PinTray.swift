@@ -96,7 +96,9 @@ public struct PinTray<Content: SwiftUI.View, Accessory: SwiftUI.View>: SwiftUI.V
                     .padding(.top, .spacingXL)
             }
         }
-        .padding(.bottom, bottomInset)
+        // A filling tray runs to the card's own edge and insets its content instead: its list has to
+        // pass under whatever floats over it, which a padded box cannot do.
+        .padding(.bottom, detent == .filling ? 0 : bottomInset)
         .frame(maxWidth: .infinity)
         .frame(height: standingHeight, alignment: .top)
         .preference(key: PinTrayFillsKey.self, value: detent == .filling)

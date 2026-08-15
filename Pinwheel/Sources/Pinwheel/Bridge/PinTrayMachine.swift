@@ -73,8 +73,10 @@ struct PinTrayMachine: Equatable {
     }
 
     enum Event: Equatable {
-        case presented(contentHeight: CGFloat, fills: Bool = false)
-        case moved(contentHeight: CGFloat, fills: Bool = false, edits: Bool, isPush: Bool)
+        case presented(contentHeight: CGFloat)
+        case moved(contentHeight: CGFloat, edits: Bool, isPush: Bool)
+        /// The tray saying how it stands. It arrives from SwiftUI whenever SwiftUI gets round to it.
+        case fillsReported(Bool)
         case contentResized(CGFloat)
         case keyboardMeasured(CGFloat)
         case dragged(CGFloat)
@@ -100,7 +102,7 @@ struct PinTrayMachine: Equatable {
     /// Adopting the new one first is the dip: a shorter card with no keyboard under it yet sits on the
     /// floor, so the top falls there and has to climb back.
     private var pendingContentHeight: CGFloat?
-    private var pendingFills = false
+    private var pendingFills: Bool?
     /// Whether the standing tray is one that raises the keyboard, and so must let it lead.
     private(set) var edits = false
     private(set) var dragOffset: CGFloat = 0
@@ -140,27 +142,30 @@ struct PinTrayMachine: Equatable {
 
     mutating func handle(_ event: Event) -> Reaction {
         switch event {
-        case .presented(let height, let fills):
+        case .presented(let height):
             contentHeight = height
-            self.fills = fills
+            pendingFills.map { fills = $0 }
+            pendingFills = nil
             phase = .standing
             return Reaction(from: geometry(.arriving), to: geometry(.resting), timeline: .spring(bounce: trayResizeBounce))
 
-        case .moved(let height, let fills, let edits, let isPush):
+        case .moved(let height, let edits, let isPush):
             let wasEditing = self.edits
             let wasStanding = contentHeight
-            let wasFilling = self.fills
+            let wasFilling = fills
+            let arrivingFills = pendingFills ?? fills
             contentHeight = height
-            self.fills = fills
+            fills = arrivingFills
             pendingContentHeight = nil
+            pendingFills = nil
             self.edits = edits
             // A tray about to raise the keyboard holds still until it does: shrinking with no keyboard
             // under it sends the top down to the floor and back up again.
             if isPush, edits, keyboard == .closed {
                 contentHeight = wasStanding
-                self.fills = wasFilling
+                fills = wasFilling
                 pendingContentHeight = height
-                pendingFills = fills
+                pendingFills = arrivingFills
                 phase = .awaitingKeyboard
                 return Reaction(to: geometry(.resting), timeline: .carriedByKeyboard)
             }
@@ -193,8 +198,10 @@ struct PinTrayMachine: Equatable {
             let waited = phase == .awaitingKeyboard
             if waited {
                 phase = .standing
-                pendingContentHeight.map { contentHeight = $0; fills = pendingFills }
+                pendingContentHeight.map { contentHeight = $0 }
+                pendingFills.map { fills = $0 }
                 pendingContentHeight = nil
+                pendingFills = nil
             }
             // Whenever the keyboard is moving it owns the timeline, whether the tray was waiting for
             // it or is simply standing in its way.
@@ -202,6 +209,13 @@ struct PinTrayMachine: Equatable {
                 to: geometry(.resting),
                 timeline: keyboard.ownsTheTimeline || waited ? .carriedByKeyboard : .spring(bounce: 0)
             )
+
+        case .fillsReported(let fills):
+            // News, not an instruction to move. It arrives mid-transition — measured, 157ms before the
+            // move it describes — so standing the tray on it here draws the arriving tray's shape at the
+            // outgoing tray's position. The next event is what stands it there.
+            pendingFills = fills
+            return Reaction(to: geometry(.resting), timeline: .carriedByKeyboard)
 
         case .contentResized(let height):
             // A filling tray is sized by the room, so what it holds has nothing to say about it.

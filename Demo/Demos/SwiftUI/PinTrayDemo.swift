@@ -189,9 +189,11 @@ struct PinTrayDemo: View {
                     }
                 }
             }
-            .padding(.horizontal, .spacingXL)
-            .padding(.top, .spacingXL)
-            // The list runs on under the search field, so the last row can still be reached.
+            // A scroll view runs edge to edge and spaces its content with insets, so the rows pass
+            // under the rule and under the search field instead of stopping short of them. The bottom
+            // clears the field's own height and the gaps either side of it.
+            .contentMargins(.horizontal, .spacingXL, for: .scrollContent)
+            .contentMargins(.top, .spacingL, for: .scrollContent)
             .contentMargins(.bottom, .minimumControlHeight + .spacingL * 2, for: .scrollContent)
             .scrollDismissesKeyboard(.interactively)
             .overlay(alignment: .bottom) {

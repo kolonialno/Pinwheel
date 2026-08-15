@@ -74,7 +74,7 @@ final class PinTrayCoordinator<Item: Hashable> {
     }
 
     func trayFillsChanged(_ fills: Bool) {
-        overlay?.fills = fills
+        overlay?.trayFills(fills)
     }
 
     func sync(
@@ -135,17 +135,6 @@ final class PinTrayOverlay: UIView {
     private var lastContent: AnyView?
     private var rest: NSLayoutConstraint?
     private lazy var machine = PinTrayMachine(room: room)
-    /// Whether the standing tray takes the room rather than its content's height. The tray says so, and
-    /// the next event carries it — drawing it here would be a second animation nothing else knows about.
-    var fills = false {
-        didSet {
-            guard fills != oldValue else { return }
-            // The chassis scrolls only to rescue a tray taller than its card. A filling tray is exactly
-            // as tall as its card, so leaving it enabled hands it the drag meant for the content and
-            // carries the header off the top.
-            scroll.isScrollEnabled = !fills
-        }
-    }
 
     private var room: PinTrayGeometry.Room {
         PinTrayGeometry.Room(
@@ -201,7 +190,10 @@ final class PinTrayOverlay: UIView {
         height.constant = geometry.height
         // A filling tray is as tall as the card; a fitting one keeps its own height and scrolls when
         // the card is smaller than it.
-        currentHeight?.constant = fills ? geometry.height : fittedHeight
+        // The chassis scrolls only to rescue a tray taller than its card. A filling tray is exactly as
+        // tall as its card, so leaving it enabled hands it the drag meant for the content.
+        scroll.isScrollEnabled = !machine.fills
+        currentHeight?.constant = machine.fills ? geometry.height : fittedHeight
         currentPhase?.standingRoom = geometry.height
     }
 
@@ -384,7 +376,7 @@ final class PinTrayOverlay: UIView {
     private func geometry(_ phase: PinTrayGeometry.Phase) -> PinTrayGeometry {
         PinTrayGeometry(
             contentHeight: fittedHeight,
-            fills: fills,
+            fills: machine.fills,
             room: PinTrayGeometry.Room(
                 containerHeight: bounds.height,
                 safeAreaTop: safeAreaInsets.top,
@@ -433,7 +425,7 @@ final class PinTrayOverlay: UIView {
 
     func present(_ content: AnyView) {
         mount(content)
-        apply(machine.handle(.presented(contentHeight: fittedHeight, fills: fills)))
+        apply(machine.handle(.presented(contentHeight: fittedHeight)))
     }
 
     func refresh(_ content: AnyView) {
@@ -476,11 +468,14 @@ final class PinTrayOverlay: UIView {
         DispatchQueue.main.async {
             self.apply(self.machine.handle(.moved(
                 contentHeight: self.fittedHeight,
-                fills: self.fills,
                 edits: self.holdsFirstResponder,
                 isPush: isPush
             )))
         }
+    }
+
+    func trayFills(_ fills: Bool) {
+        apply(machine.handle(.fillsReported(fills)))
     }
 
     func dismiss() {
