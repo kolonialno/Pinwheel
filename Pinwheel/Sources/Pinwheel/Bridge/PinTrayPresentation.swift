@@ -148,7 +148,12 @@ final class PinTrayOverlay: UIView {
     /// All the view knows about the keyboard: how much of the screen it currently takes. What that
     /// means is the machine's to decide.
     private var measuredKeyboardHeight: CGFloat {
-        max(0, bounds.maxY - keyboardLayoutGuide.layoutFrame.minY - safeAreaInsets.bottom)
+        // Measured from the guide's own top edge, because that edge is what the card's bottom is
+        // constrained to. Subtracting the bottom safe area here made the machine believe a 337pt
+        // keyboard was 311 — the guide already excludes it, `usesBottomSafeArea` being false — so the
+        // card came out 26pt too tall and, pinned to the guide below, rode 26pt high until the keyboard
+        // left and the resting constraint dropped it back.
+        max(0, bounds.maxY - keyboardLayoutGuide.layoutFrame.minY)
     }
 
     /// Everything the views do comes through here: the machine says where the tray goes and who moves
@@ -212,6 +217,11 @@ final class PinTrayOverlay: UIView {
     private func write(_ geometry: PinTrayGeometry) {
         standingHeight = geometry.height
         height.constant = geometry.height
+        // The guide decides where the card's bottom goes; the geometry decides how far above the guide
+        // it stands. One constraint serves a docked keyboard and no keyboard at all, so its margin is
+        // whatever the geometry keeps clear beyond the keyboard itself — sixteen above a keyboard, eight
+        // above the floor. Fixing it at one of the two left the card eight points out under the other.
+        offset.constant = -(geometry.bottomInset - machine.keyboard.height)
         // A filling tray is as tall as the card; a fitting one keeps its own height and scrolls when
         // the card is smaller than it.
         // The chassis scrolls only to rescue a tray taller than its card. A filling tray is exactly as
