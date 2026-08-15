@@ -251,10 +251,8 @@ final class PinTrayOverlay: UIView {
         card.addSubview(hosting.view)
         hosting.didMove(toParent: parent)
 
-        // Offering the ceiling rather than infinity, so a tray asking to fill reports the ceiling while
-        // one sized by its rows still reports those.
         let fitted = hosting.sizeThatFits(
-            in: CGSize(width: bounds.width - trayMargin * 2, height: ceiling)
+            in: CGSize(width: bounds.width - trayMargin * 2, height: .greatestFiniteMagnitude)
         ).height
 
         fittedHeight = fitted
