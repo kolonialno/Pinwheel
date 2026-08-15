@@ -265,11 +265,14 @@ final class PinTrayOverlay: UIView {
         height.constant = standingHeight
         currentHeight?.constant = fittedHeight
         // Where the tray lives is layout, and the keyboard guide owns it; entering, leaving and
-        // dragging are a transform over that, so a gesture never fights the guide's constraints.
-        tray.transform = dragOffset > 0 ? CGAffineTransform(translationX: 0, y: dragOffset) : .identity
+        // dragging are a transform over that, so a gesture never fights the guide's constraints. The
+        // transform belongs *inside* the animation — assigned before it, the tray arrives already
+        // there and nothing animates.
+        let transform = dragOffset > 0 ? CGAffineTransform(translationX: 0, y: dragOffset) : .identity
         let radius = keyboardInset > 0 ? trayTopRadius : displayRadius
 
         guard animated else {
+            tray.transform = transform
             tray.layer.cornerRadius = radius
             alongside?()
             layoutIfNeeded()
@@ -277,6 +280,7 @@ final class PinTrayOverlay: UIView {
             return
         }
         UIView.animate(springDuration: trayResizeDuration, bounce: bounce) {
+            self.tray.transform = transform
             self.tray.layer.cornerRadius = radius
             alongside?()
             self.layoutIfNeeded()
