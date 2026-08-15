@@ -42,13 +42,13 @@ public struct PinTray<Content: SwiftUI.View, Accessory: SwiftUI.View>: SwiftUI.V
             Divider()
                 .frame(height: 1)
                 .overlay(Color.tertiaryText)
-                .padding(.horizontal, .spacingL)
+                .padding(.horizontal, .spacingXL)
             content()
             if let commit {
                 PinButton(commit.title, action: commit.action)
                     .style(.custom(text: .primaryBackground, background: .primaryText))
                     .fullWidth()
-                    .padding(.horizontal, .spacingL)
+                    .padding(.horizontal, .spacingXL)
                     .padding(.top, .spacingXL)
             }
         }
@@ -78,7 +78,7 @@ public struct PinTray<Content: SwiftUI.View, Accessory: SwiftUI.View>: SwiftUI.V
             }
         }
         .frame(maxWidth: .infinity, minHeight: .minimumControlHeight)
-        .padding(.horizontal, .spacingL)
+        .padding(.horizontal, .spacingXL)
         .padding(.vertical, .spacingS)
     }
 }

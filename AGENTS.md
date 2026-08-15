@@ -99,10 +99,15 @@ Durable design decisions and why they were made.
   the height settles a ~377pt move in ~0.23s and an ~87pt move in ~0.15s, with about 3pt of overshoot on
   the big one only. Duration scaling with distance is a spring rather than a timed curve, hence
   `springDuration: 0.30, bounce: 0.10`. The same capture gives the geometry, and the tray is a **floating
-  card**, not an edge-to-edge sheet: inset `.spacingL` horizontally, standing `.spacingS` off the bottom,
-  `.radiusL` on all four corners, everything inside inset `.spacingL`, a 64pt header band (which Pinwheel
+  card**, not an edge-to-edge sheet: an 8pt margin on all four sides (`.spacingS`), `.radiusL` corners,
+  everything inside inset `.spacingXL`, a 64pt header band (which Pinwheel
   already had), a 1pt hairline, and a 48pt commit button whose bottom lands 32pt off the screen. Ours
   matches every one of those.
+- **The type scale is 20/18/16, taken from the reference.** `DefaultFontProvider` was 23/20/17; measuring
+  X's tray gave an ~18pt semibold title, ~16pt body and row text, and a 20pt semibold price, which is a
+  cleaner three-step scale and is what the default theme now ships (footnote 13 and caption 11 unchanged).
+  `FontProvider`'s semibold defaults hardcode their sizes rather than deriving them from the regular
+  variants, so a scale change has to be made in both files or the weights drift apart.
 - **Read a radius by A/B against a known value, never by extrapolating one.** Edge detection on an
   antialiased corner under-reads it — a known 12pt corner measured 8.3pt — so a single reading plus a
   scale factor put the reference at ~19pt and would have picked the wrong token. Rendering `.radiusM` and
