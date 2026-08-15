@@ -130,6 +130,7 @@ final class PinTrayOverlay: UIView {
     private var keyboardInset: CGFloat = 0
     private var fittedHeight: CGFloat = 0
     private var currentHeight: NSLayoutConstraint?
+    private var currentPhase: PinTrayPhase?
     private var standingHeight: CGFloat = 0
 
     var onBackgroundDismiss: () -> Void = {}
@@ -250,33 +251,32 @@ final class PinTrayOverlay: UIView {
     }
 
     func show(_ content: AnyView, isPush: Bool) {
-        // The tray it is leaving becomes a still picture, so the dissolve is between two things that
-        // cannot re-lay themselves out, and the scroll view is left holding a single live tray.
-        let leaving = current?.view.snapshotView(afterScreenUpdates: false)
-        if let leaving, let outgoing = current {
-            leaving.frame = CGRect(origin: .zero, size: outgoing.view.bounds.size)
-            card.addSubview(leaving)
+        // The tray it is leaving is detached from the scroll view and held at the frame it already
+        // has, so it cannot re-lay itself out while it fades and cannot drive the scroll size.
+        let leaving = current
+        let leavingPhase = currentPhase
+        if let leaving {
+            let size = leaving.view.bounds.size
+            leaving.view.translatesAutoresizingMaskIntoConstraints = true
+            card.addSubview(leaving.view)
+            leaving.view.frame = CGRect(origin: .zero, size: size)
         }
-        current.map(unmount)
 
-        mount(content)
+        mount(content, entering: isPush ? 1 : trayZoom)
         current?.view.alpha = 0
-        if !isPush {
-            current?.view.transform = CGAffineTransform(scaleX: trayZoom, y: trayZoom)
-        }
         layoutIfNeeded()
 
         height.constant = standingHeight
+        withAnimation(.trayContent) {
+            leavingPhase?.contentZoom = isPush ? trayZoom : 1
+            self.currentPhase?.contentZoom = 1
+        }
         UIView.animate(springDuration: trayResizeDuration, bounce: trayResizeBounce) {
             self.current?.view.alpha = 1
-            self.current?.view.transform = .identity
-            leaving?.alpha = 0
-            if isPush {
-                leaving?.transform = CGAffineTransform(scaleX: trayZoom, y: trayZoom)
-            }
+            leaving?.view.alpha = 0
             self.layoutIfNeeded()
         } completion: { _ in
-            leaving?.removeFromSuperview()
+            leaving.map(self.unmount)
         }
     }
 
@@ -291,8 +291,10 @@ final class PinTrayOverlay: UIView {
         }
     }
 
-    private func mount(_ content: AnyView) {
-        let hosting = UIHostingController(rootView: content)
+    private func mount(_ content: AnyView, entering: CGFloat = 1) {
+        let phase = PinTrayPhase()
+        phase.contentZoom = entering
+        let hosting = UIHostingController(rootView: AnyView(content.environment(\.pinTrayPhase, phase)))
         // The tray adds the home-indicator inset itself, and SwiftUI applying it too measures it twice.
         hosting.safeAreaRegions = []
         hosting.view.backgroundColor = .clear
@@ -321,6 +323,7 @@ final class PinTrayOverlay: UIView {
 
         current = hosting
         currentHeight = contentHeight
+        currentPhase = phase
     }
 
     private func unmount(_ hosting: UIHostingController<AnyView>) {
