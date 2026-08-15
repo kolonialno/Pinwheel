@@ -166,7 +166,6 @@ struct PinTrayDemo: View {
             }
             .padding(.horizontal, .spacingXL)
             .padding(.top, .spacingXL)
-            .frame(maxHeight: .infinity, alignment: .top)
         }
     }
 

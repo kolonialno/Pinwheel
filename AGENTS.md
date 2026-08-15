@@ -133,11 +133,13 @@ Durable design decisions and why they were made.
   fix: the body's first ink sits a constant 192.3pt below the card's top for the whole transition while
   the card springs 264 -> 402pt. The constraint stays updatable so a filling tray still re-lays out when
   the keyboard moves.
-- **A tray fills by being offered the ceiling, not infinity.** `sizeThatFits` with an infinite height
-  returns the ideal size, so `.frame(maxHeight: .infinity)` reports the same number as content-sized
-  rows and nothing fills. Offering the ceiling instead lets a tray that wants the room report the
-  ceiling while one sized by its rows still reports those — no extra API, and the search tray then
-  stands from just under the safe area down to the keyboard the way the reference does.
+- **A tray is sized by its content, and nothing else — there is no fill.** More content, taller tray;
+  less content, shorter one, down to a floor of the 48pt control plus the header's and the commit
+  button's own spacing. The available room is a *clamp*, never a target: a tray is measured against an
+  unbounded height and only capped when it would outgrow the screen or the keyboard. A search tray was
+  briefly made to fill the room the way the reference's does — the reference's stands 477pt tall with
+  roughly half of it blank — and that is a divergence we take deliberately, because a tray that
+  reserves space it has no content for is a tray lying about what it holds.
 - **`@FocusState` does not cross a hosting controller.** A tray's content renders in its own
   `UIHostingController`, so focus declared on the presenting view silently never takes and the keyboard
   never comes up; the field has to own its own `@FocusState` inside the tray's content. The symptom is
