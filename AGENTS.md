@@ -24,16 +24,16 @@ is not one.
 
 | Target | Holds | Runs |
 |---|---|---|
-| **`PinwheelTests`** | the library's own behaviour — logic, geometry, tokens, rendering, the capture engine. **The default home.** | hostless SwiftPM, whole suite in seconds |
+| **`PinwheelTests`** | the library's own behaviour — logic, geometry, tokens, rendering, the capture engine. **The default home.** | hostless SwiftPM |
 | **`DemoTests`** | facts needing a live app: anything **presented**, anything needing a real scene or a real keyboard, and Demo-target code the package cannot see | **hosted by `Demo.app`** |
-| **`DemoUITests`** | throwaway probes only, **empty at rest** | XCUITest, ~10s a test |
+| **`DemoUITests`** | throwaway probes only, **empty at rest** | XCUITest |
 
 - **A bug gets a failing test first.** Red, run it, confirm it fails for the right reason, then fix. Never
   edit source and test in the same step. Only bugs get this; everywhere else prefer making the mistake
   unrepresentable over asserting it is absent.
 - **Teeth, always.** Prove the test fails against the un-fixed code. Commit the fix *before* teeth-testing
   it, or the revert silently eats it. When a fix ships without a red first, say so plainly.
-- **`DemoTests` is hosted and has a harness.** `DemoTests/HostedView.swift`: `window(showing:)` flips
+- **`DemoTests` is hosted and ships a harness**, `HostedView`. Its `window(showing:)` flips
   `_AXSSetAutomationEnabled` so SwiftUI fills its accessibility tree and labels, frames and
   `accessibilityActivate()` become readable; `presentation(in:)` waits for a presented view to join the
   window; `settledPresentation(in:)` waits for a detent to stop moving. If a fact needs an app it goes
@@ -42,9 +42,9 @@ is not one.
   is absent, deleted in the change that fixes what it found. What stays is the unit test for what it
   localised. Coverage is never a reason to keep one.
 - **The one exception costs two things.** A workaround held against SwiftUI or UIKit that nothing lower
-  can reach may keep a permanent UI test — but only with teeth *and* a place in the merge gate. `DemoUITests` is not in the gate, so a permanent test
-  there is one nobody runs: the last one passed with its own crash restored, having guarded nothing for
-  months. Either put it where it runs, or do not write it.
+  can reach may keep a permanent UI test — but only with teeth *and* a place in the merge gate. A guard
+  outside the gate is one nobody runs, and it rots without telling you. Either put it where it runs, or
+  do not write it.
 - **A probe must not pass `-UITestingNoAnimations`.** It disables animations, so motion reads as an
   instant snap and the measurement blames the code for the harness.
 - **A comment that explains a behaviour becomes a named test, then the comment dies.**
@@ -64,8 +64,8 @@ is not one.
 - **`Scripts/sweep.sh --preview`** snapshots every component and tweak variant; `--capture --only=<id>`
   re-checks one component's Figma IR. Never hand-roll `simctl` against a pinned UDID — the sweep owns its
   own simulator, and a hardcoded device launches nowhere while you read a stale result.
-- **The Xcode MCP** for build and verify (`BuildProject`, `RenderPreview`, `RunSomeTests`,
-  `tabIdentifier: "windowtab1"`); `xcodebuild`/`simctl` are the fallback. See the `xcode-mcp` skill.
+- **The Xcode MCP** for build and verify (`BuildProject`, `RenderPreview`, `RunSomeTests`);
+  `xcodebuild`/`simctl` are the fallback. Setup and its gotchas live in the `xcode-mcp` skill.
 
 ## Merge gate
 
@@ -77,8 +77,8 @@ ran green.
 ~/bin/test-sim -s Demo -o DemoTests
 ```
 
-The `Tests: unit NN/NN + hosted NN/NN green (local xcodebuild)` trailer is the signal, enforced by
-`.claude/hooks/green-commit-gate.py`.
+The `Tests: unit NN/NN + hosted NN/NN green (local xcodebuild)` trailer is the signal, and a PreToolUse
+hook blocks a merge whose tip commit lacks it.
 
 ## House style
 
@@ -102,10 +102,12 @@ The `Tests: unit NN/NN + hosted NN/NN green (local xcodebuild)` trailer is the s
 
 ## Where things live
 
-- **Sources by domain, not access level**: `API/`, `Tokens/`, `Components/SwiftUI` + `Components/UIKit`,
-  `Catalog/`, `Bridge/`, `Capture/`, `Recording/`, `Extensions/`.
-- **Demo mirrors the split** — `Demo/Demos/SwiftUI` + `Demo/Demos/UIKit` hold every catalog screen;
-  `Demo/FigmaCapture/` holds only the capture engine, never a browsable screen.
-- **Both targets are file-system-synchronized groups**, so the folder layout *is* the project structure —
-  adding or moving files needs no `project.pbxproj` edit.
-- The package lives in `Pinwheel/`; a second root `Package.swift` re-exposes it to external consumers.
+- **Sources are grouped by domain, not by access level** — the public surface, tokens, components, the
+  catalog, the SwiftUI↔UIKit bridge, capture, recording — and components are split by which world they
+  belong to. Find a file by what it is, not by a remembered path.
+- **The Demo mirrors that split**, and holds every browsable catalog screen. The capture engine lives
+  apart from the screens, so a screen is never mistaken for engine code.
+- **Both targets are file-system-synchronized groups**, so the folder layout *is* the project structure:
+  adding or moving a file needs no `project.pbxproj` edit, and a new folder is a real decision.
+- The package sits one level in, with a second root manifest re-exposing it to external consumers, so
+  moving it changes their import paths.
