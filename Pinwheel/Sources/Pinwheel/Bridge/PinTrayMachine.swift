@@ -66,7 +66,7 @@ struct PinTrayMachine: Equatable {
         case presented(contentHeight: CGFloat)
         case moved(contentHeight: CGFloat, edits: Bool, isPush: Bool)
         case contentResized(CGFloat)
-        case keyboardReported(Keyboard)
+        case keyboardMeasured(CGFloat)
         case dragged(CGFloat)
         case released(velocity: CGFloat, dismissBeyond: CGFloat)
         case dismissed
@@ -95,6 +95,15 @@ struct PinTrayMachine: Equatable {
 
     init(room: PinTrayGeometry.Room) {
         self.room = room
+    }
+
+    /// What a measured height means, read against what the keyboard was last doing. Moving or settled
+    /// is a conclusion rather than an observation, so it is drawn here — anywhere else is a second copy
+    /// of the keyboard's state, and the two go out of step the moment we ask it to leave.
+    func keyboard(measuring height: CGFloat) -> Keyboard {
+        let previous = keyboard.height
+        guard height > 0 else { return previous > 0 ? .closing : .closed }
+        return height == previous ? .open(height: height) : .opening(height: height)
     }
 
     private func geometry(_ phase: PinTrayGeometry.Phase) -> PinTrayGeometry {
@@ -136,11 +145,24 @@ struct PinTrayMachine: Equatable {
             phase = .standing
             // Leaving a tray that was editing, the keyboard has to be told to go, or it is torn away
             // without an animation for the tray to travel beside.
-            let effects: [Effect] = (!isPush && wasEditing && keyboard != .closed) ? [.dismissKeyboard] : []
-            return Reaction(to: geometry(.resting), timeline: .spring(bounce: trayResizeBounce), effects: effects)
+            let dismissesKeyboard = !isPush && wasEditing && keyboard != .closed
+            if dismissesKeyboard {
+                // Commanding it away is a change to what the machine knows, taking effect now rather
+                // than when the keyboard gets around to saying so. Dismissing re-lays the whole screen
+                // at once, so the reports it provokes arrive *before* this reaction is drawn — and a
+                // target computed against a keyboard we have already sent away would land on top of
+                // them, leaving the tray at a height belonging to neither state.
+                keyboard = .closing
+                self.edits = false
+            }
+            return Reaction(
+                to: geometry(.resting),
+                timeline: .spring(bounce: trayResizeBounce),
+                effects: dismissesKeyboard ? [.dismissKeyboard] : []
+            )
 
-        case .keyboardReported(let keyboard):
-            self.keyboard = keyboard
+        case .keyboardMeasured(let height):
+            keyboard = keyboard(measuring: height)
             let waited = phase == .awaitingKeyboard
             if waited {
                 phase = .standing

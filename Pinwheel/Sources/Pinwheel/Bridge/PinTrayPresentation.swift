@@ -120,7 +120,6 @@ final class PinTrayOverlay: UIView {
     private var current: UIHostingController<AnyView>?
     private weak var parent: UIViewController?
     private var displayRadius: CGFloat = .radiusL
-    private var keyboardInset: CGFloat = 0
     private var fittedHeight: CGFloat = 0
     private var currentHeight: NSLayoutConstraint?
     private var currentPhase: PinTrayPhase?
@@ -139,12 +138,10 @@ final class PinTrayOverlay: UIView {
         )
     }
 
-    /// The keyboard is nobody's to command, so its position is read and mapped into the report the
-    /// machine reasons about — moving or settled, and how tall.
-    private var reportedKeyboard: PinTrayMachine.Keyboard {
-        let inset = max(0, bounds.maxY - keyboardLayoutGuide.layoutFrame.minY - safeAreaInsets.bottom)
-        guard inset > 0 else { return keyboardInset > 0 ? .closing : .closed }
-        return inset == keyboardInset ? .open(height: inset) : .opening(height: inset)
+    /// All the view knows about the keyboard: how much of the screen it currently takes. What that
+    /// means is the machine's to decide.
+    private var measuredKeyboardHeight: CGFloat {
+        max(0, bounds.maxY - keyboardLayoutGuide.layoutFrame.minY - safeAreaInsets.bottom)
     }
 
     /// Everything the views do comes through here: the machine says where the tray goes and who moves
@@ -309,10 +306,9 @@ final class PinTrayOverlay: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         machine.room = room
-        let reported = reportedKeyboard
-        guard reported != machine.keyboard else { return }
-        keyboardInset = reported.height
-        apply(machine.handle(.keyboardReported(reported)))
+        let measured = measuredKeyboardHeight
+        guard machine.keyboard(measuring: measured) != machine.keyboard else { return }
+        apply(machine.handle(.keyboardMeasured(measured)))
     }
 
     /// The one place a tray's rules are evaluated. Everything below is a projection of this value, so
@@ -326,7 +322,7 @@ final class PinTrayOverlay: UIView {
                 safeAreaBottom: safeAreaInsets.bottom,
                 displayCornerRadius: displayRadius
             ),
-            keyboardInset: keyboardInset,
+            keyboardInset: machine.keyboard.height,
             dragOffset: dragOffset,
             phase: phase,
             standsOnKeyboard: rest?.isActive != true

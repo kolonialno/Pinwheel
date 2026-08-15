@@ -17,7 +17,7 @@ final class PinTrayMachineTests: XCTestCase {
         _ = machine.handle(.presented(contentHeight: height))
         if edits {
             _ = machine.handle(.moved(contentHeight: height, edits: true, isPush: true))
-            _ = machine.handle(.keyboardReported(.open(height: 311)))
+            _ = machine.handle(.keyboardMeasured(311))
         }
         return machine
     }
@@ -42,7 +42,7 @@ final class PinTrayMachineTests: XCTestCase {
         XCTAssertEqual(machine.phase, .awaitingKeyboard)
         XCTAssertEqual(push.timeline, .carriedByKeyboard, "the keyboard owns this move, so we start nothing")
 
-        let opening = machine.handle(.keyboardReported(.opening(height: 311)))
+        let opening = machine.handle(.keyboardMeasured(311))
         XCTAssertEqual(opening.timeline, .carriedByKeyboard)
         let height = screen.containerHeight
         let top = { (g: PinTrayGeometry) in height - g.bottomInset - g.height }
@@ -55,8 +55,8 @@ final class PinTrayMachineTests: XCTestCase {
         let height = screen.containerHeight
         var tops = [height - machine.geometry.bottomInset - machine.geometry.height]
         for event in [PinTrayMachine.Event.moved(contentHeight: 456, edits: true, isPush: true),
-                      .keyboardReported(.opening(height: 311)),
-                      .keyboardReported(.open(height: 311))] {
+                      .keyboardMeasured(311),
+                      .keyboardMeasured(311)] {
             let reaction = machine.handle(event)
             tops.append(height - reaction.to.bottomInset - reaction.to.height)
         }
@@ -71,6 +71,38 @@ final class PinTrayMachineTests: XCTestCase {
         XCTAssertEqual(pop.effects, [.dismissKeyboard])
     }
 
+    // Coming back from the search tray landed the card at 509pt — a height belonging to nothing, half
+    // way between the two trays. The reaction was computed while the keyboard was still up, and applied
+    // after dismissing it had already re-laid everything out, so the stale answer won.
+    func testComingBackFromAnEditingTrayReturnsToTheHeightItLeftFrom() {
+        var machine = machine()
+        let standing = machine.geometry.height
+
+        _ = machine.handle(.moved(contentHeight: 456, edits: true, isPush: true))
+        _ = machine.handle(.keyboardMeasured(311))
+        _ = machine.handle(.keyboardMeasured(311))
+
+        // The field is still first responder at the moment the pop is reported: the keyboard has been
+        // asked to go, not yet gone.
+        let pop = machine.handle(.moved(contentHeight: standing, edits: true, isPush: false))
+        XCTAssertEqual(pop.to.height, standing, "it comes back to the height it left from")
+    }
+
+    // The rule underneath: an effect the machine commands is part of its own state that same turn, so
+    // whatever the outside world does about it can only ever agree.
+    func testCommandingTheKeyboardAwayCountsAsTheKeyboardLeaving() {
+        var machine = machine(edits: true)
+        let pop = machine.handle(.moved(contentHeight: 641, edits: true, isPush: false))
+
+        XCTAssertEqual(pop.effects, [.dismissKeyboard])
+        XCTAssertEqual(machine.keyboard.height, 0, "it does not go on believing the keyboard is up")
+        XCTAssertEqual(
+            machine.handle(.keyboardMeasured(0)).to,
+            pop.to,
+            "the keyboard reporting what it was told changes nothing, so arrival order cannot matter"
+        )
+    }
+
     func testLeavingATrayThatWasNotEditingAsksNothingOfTheKeyboard() {
         var machine = machine()
         let pop = machine.handle(.moved(contentHeight: 456, edits: false, isPush: false))
@@ -81,13 +113,13 @@ final class PinTrayMachineTests: XCTestCase {
     // dismissal read as two chained steps rather than one motion.
     func testAMovingKeyboardAlwaysOwnsTheTimeline() {
         var machine = machine(edits: true)
-        XCTAssertEqual(machine.handle(.keyboardReported(.closing)).timeline, .carriedByKeyboard)
-        XCTAssertEqual(machine.handle(.keyboardReported(.opening(height: 311))).timeline, .carriedByKeyboard)
+        XCTAssertEqual(machine.handle(.keyboardMeasured(0)).timeline, .carriedByKeyboard)
+        XCTAssertEqual(machine.handle(.keyboardMeasured(311)).timeline, .carriedByKeyboard)
     }
 
     func testASettledKeyboardOwnsNothing() {
         var machine = machine(edits: true)
-        XCTAssertEqual(machine.handle(.keyboardReported(.open(height: 311))).timeline, .spring(bounce: 0))
+        XCTAssertEqual(machine.handle(.keyboardMeasured(311)).timeline, .spring(bounce: 0))
     }
 
     // A search resizing per keystroke moved the card 13,174pt across 45 reversals, and the bounce is
