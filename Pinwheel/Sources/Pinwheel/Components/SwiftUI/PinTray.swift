@@ -3,6 +3,15 @@ import SwiftUI
 extension EnvironmentValues {
     @Entry var pinTrayDepth: Int = 0
     @Entry var pinTrayExit: () -> Void = {}
+    @Entry var pinTrayPhase: PinTrayPhase? = nil
+}
+
+/// The zoom a tray's content carries through a transition. It rides the content alone — a title that
+/// grew on its way out would read as the tray moving, where the reference keeps its chrome still and
+/// lets only the content travel.
+@Observable
+final class PinTrayPhase {
+    var contentZoom: CGFloat = 1
 }
 
 public struct PinTray<Content: SwiftUI.View, Accessory: SwiftUI.View>: SwiftUI.View {
@@ -19,6 +28,7 @@ public struct PinTray<Content: SwiftUI.View, Accessory: SwiftUI.View>: SwiftUI.V
     @Environment(\.pinwheelTheme) private var theme
     @Environment(\.pinTrayDepth) private var depth
     @Environment(\.pinTrayExit) private var exit
+    @Environment(\.pinTrayPhase) private var phase
 
     public init(
         _ title: String,
@@ -44,6 +54,7 @@ public struct PinTray<Content: SwiftUI.View, Accessory: SwiftUI.View>: SwiftUI.V
                 .overlay(Color.tertiaryText)
                 .padding(.horizontal, .spacingXL)
             content()
+                .scaleEffect(phase?.contentZoom ?? 1)
             if let commit {
                 PinButton(commit.title, action: commit.action)
                     .style(.custom(text: .primaryBackground, background: .primaryText))
