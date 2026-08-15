@@ -134,28 +134,21 @@ final class PinTrayOverlay: UIView {
     private var standingHeight: CGFloat = 0
     private var dragOffset: CGFloat = 0
     private var lastContent: AnyView?
+    private var rest: NSLayoutConstraint?
+
 
     var onBackgroundDismiss: () -> Void = {}
-
-    /// A card standing above the keyboard clears it by more than it clears the screen's own edge.
-    private var bottomInset: CGFloat {
-        keyboardInset > 0 ? keyboardInset + trayKeyboardMargin : trayBottomMargin
-    }
 
     /// What the content keeps clear below itself: the home indicator's own strip, less the margin the
     /// card already stands off the screen by. Lifted onto the keyboard there is no indicator to clear.
     private var contentBottomInset: CGFloat {
-        keyboardInset > 0 ? .spacingL : max(safeAreaInsets.bottom - trayBottomMargin, .spacingL)
+        max(safeAreaInsets.bottom - trayBottomMargin, .spacingL)
     }
 
     /// A tray standing at medium keeps that height whether or not the keyboard is up, so a list that
     /// filters as you type does not move the card. The room still wins where there is less of it.
     private var mediumHeight: CGFloat {
-        min(bounds.height * 0.5, ceiling)
-    }
-
-    private var ceiling: CGFloat {
-        bounds.height - safeAreaInsets.top - trayMargin - bottomInset
+        bounds.height * 0.5
     }
 
     // A hosting controller's view has to live inside its parent controller's own view tree, so the
@@ -197,13 +190,43 @@ final class PinTrayOverlay: UIView {
         scroll.alwaysBounceVertical = false
         card.addSubview(scroll)
 
+        // Laid out by the keyboard rather than reacting to it. The keyboard runs out of process and
+        // posts its notifications asynchronously, so anything driven off them is racing the keyboard's
+        // own animation; a constraint to this guide is carried *by* that animation, and it brings
+        // interactive dismissal with it.
+        keyboardLayoutGuide.usesBottomSafeArea = false
         height = tray.heightAnchor.constraint(equalToConstant: 0)
-        offset = tray.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -trayBottomMargin)
+        let topLimit = tray.topAnchor.constraint(
+            greaterThanOrEqualTo: safeAreaLayoutGuide.topAnchor,
+            constant: trayMargin
+        )
+
+        height.priority = .defaultHigh
+        offset = tray.bottomAnchor.constraint(
+            equalTo: keyboardLayoutGuide.topAnchor,
+            constant: -trayBottomMargin
+        )
+        let lifted = tray.bottomAnchor.constraint(
+            equalTo: keyboardLayoutGuide.topAnchor,
+            constant: -trayKeyboardMargin
+        )
+        // The guide owns the swap: docked at the bottom edge it uses the resting constraint, lifted
+        // away from it the keyboard one, and it exchanges them inside the keyboard's own animation.
+        // Toggling these by hand from layoutSubviews re-enters layout and UIKit throws.
+        offset.priority = UILayoutPriority(999)
+        lifted.priority = UILayoutPriority(999)
+        keyboardLayoutGuide.setConstraints([offset], activeWhenNearEdge: .bottom)
+        keyboardLayoutGuide.setConstraints([lifted], activeWhenAwayFrom: .bottom)
+
+        // Leaving a tray that was editing, the card takes its resting place at once and lets the
+        // keyboard slide off it — the reference moves only the keyboard, never both. Required, so the
+        // guide's own constraint yields to it, and released once the keyboard has gone.
+        rest = tray.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -trayBottomMargin)
         NSLayoutConstraint.activate([
             tray.leadingAnchor.constraint(equalTo: leadingAnchor, constant: trayMargin),
             tray.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -trayMargin),
+            topLimit,
             height,
-            offset,
             card.leadingAnchor.constraint(equalTo: tray.leadingAnchor),
             card.trailingAnchor.constraint(equalTo: tray.trailingAnchor),
             card.topAnchor.constraint(equalTo: tray.topAnchor),
@@ -215,13 +238,17 @@ final class PinTrayOverlay: UIView {
         ])
 
         tray.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(drag)))
+    }
 
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(keyboardChanged),
-            name: UIResponder.keyboardWillChangeFrameNotification,
-            object: nil
-        )
+    // Whether the card is still nested in the display's corner is the one thing no constraint can
+    // express, so it is read where the guide has already been laid out.
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let lifted = keyboardLayoutGuide.layoutFrame.minY < bounds.maxY - safeAreaInsets.bottom - 1
+        let radius = lifted ? trayTopRadius : displayRadius
+        if tray.layer.cornerRadius != radius {
+            tray.layer.cornerRadius = radius
+        }
     }
 
     /// The card's geometry is one thing — how tall it stands, how far it sits off the bottom, and the
@@ -234,10 +261,12 @@ final class PinTrayOverlay: UIView {
         alongside: (() -> Void)? = nil,
         completion: (() -> Void)? = nil
     ) {
-        standingHeight = min(fittedHeight, ceiling)
+        standingHeight = fittedHeight
         height.constant = standingHeight
         currentHeight?.constant = fittedHeight
-        offset.constant = -bottomInset + dragOffset
+        // Where the tray lives is layout, and the keyboard guide owns it; entering, leaving and
+        // dragging are a transform over that, so a gesture never fights the guide's constraints.
+        tray.transform = dragOffset > 0 ? CGAffineTransform(translationX: 0, y: dragOffset) : .identity
         let radius = keyboardInset > 0 ? trayTopRadius : displayRadius
 
         guard animated else {
@@ -256,22 +285,11 @@ final class PinTrayOverlay: UIView {
         }
     }
 
-    // The keyboard changes how much room there is, which a tray standing at medium is measured
-    // against, so the content is rebuilt before the geometry settles.
-    @objc private func keyboardChanged(_ note: Notification) {
-        guard let end = (note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue else { return }
-        let overlap = max(0, bounds.maxY - convert(end, from: nil).minY)
-        guard overlap != keyboardInset else { return }
-        keyboardInset = overlap
-        lastContent.map(refresh)
-        settleGeometry(animated: true)
-    }
-
     func present(_ content: AnyView) {
         mount(content)
         height.constant = standingHeight
-        offset.constant = standingHeight
         layoutIfNeeded()
+        tray.transform = CGAffineTransform(translationX: 0, y: standingHeight + trayBottomMargin)
         settleGeometry(animated: true) { self.dimming.alpha = 1 }
     }
 
@@ -293,6 +311,7 @@ final class PinTrayOverlay: UIView {
             leaving.view.frame = CGRect(origin: .zero, size: size)
         }
 
+        if !isPush { rest?.isActive = true }
         mount(content, entering: isPush ? 1 : trayZoom)
         current?.view.alpha = 0
         layoutIfNeeded()
@@ -306,11 +325,12 @@ final class PinTrayOverlay: UIView {
             leaving?.view.alpha = 0
         } completion: {
             leaving.map(self.unmount)
+            self.rest?.isActive = false
         }
     }
 
     func dismiss() {
-        dragOffset = standingHeight + bottomInset
+        dragOffset = standingHeight + trayBottomMargin
         settleGeometry(animated: true, bounce: 0) {
             self.dimming.alpha = 0
         } completion: {
@@ -346,7 +366,7 @@ final class PinTrayOverlay: UIView {
         ).height
 
         fittedHeight = fitted
-        standingHeight = min(fitted, ceiling)
+        standingHeight = fitted
 
         // Held at its full height inside the scroll view, so a tray clamped by the room it has
         // scrolls rather than clipping, and neither view re-lays out during a dissolve.
@@ -375,7 +395,7 @@ final class PinTrayOverlay: UIView {
     func settle(to content: CGFloat) {
         guard content > 0, current != nil else { return }
         fittedHeight = content
-        guard abs(min(content, ceiling) - standingHeight) > 0.5 else { return }
+        guard abs(content - standingHeight) > 0.5 else { return }
         settleGeometry(animated: true, bounce: 0)
     }
 
