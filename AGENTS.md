@@ -32,9 +32,14 @@ about to change.
   `accessibilityActivate()` become readable; `presentation(in:)` waits for a presented view to join the
   window; `settledPresentation(in:)` waits for a detent to stop moving. If a fact needs an app, it goes
   here — do not conclude it is untestable.
-- **A probe never lands.** It is an instrument: red while the fix is absent, deleted in the change that
-  fixes what it found. What stays is the unit test for what it localised. A UI test earns a commit only
-  by guarding an Apple-framework workaround.
+- **A UI test does not land.** Driving the app to watch a change work is an instrument: red while the fix
+  is absent, deleted in the change that fixes what it found. What stays is the unit test for what it
+  localised. Coverage is never a reason to keep one.
+- **The one exception costs two things.** A workaround held against SwiftUI or UIKit that nothing lower
+  can reach may keep a permanent UI test — but only if it has **teeth** (it fails with the workaround
+  removed) *and* a place in the **merge gate**. `DemoUITests` is not in the gate, so a permanent test
+  there is one nobody runs: the last one passed with its own crash restored and had been guarding nothing
+  for months before anyone looked. Either put it where it runs, or do not write it.
 - **Teeth, always.** Prove the test fails against the un-fixed code. Commit the fix *before* teeth-testing
   it, or the revert silently eats it. When a fix ships without a red first, say so plainly.
 
