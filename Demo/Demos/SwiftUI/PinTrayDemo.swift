@@ -143,12 +143,10 @@ struct PinTrayDemo: View {
 
     private var region: some View {
         PinTray("Region") {
-            VStack(spacing: .spacingXL) {
-                SearchField(text: $query)
-
+            ScrollView {
                 if matches.isEmpty {
                     VStack(spacing: .spacingL) {
-                        PinLabel(query.isEmpty ? "Search for a location or boost globally" : "No regions match “\(query)”")
+                        PinLabel(query.isEmpty ? "Search for a location or boost globally" : "No regions match \u{201C}\(query)\u{201D}")
                             .color(.secondary)
                             .multilineTextAlignment(.center)
                         if query.isEmpty {
@@ -167,6 +165,7 @@ struct PinTrayDemo: View {
                             .buttonStyle(.plain)
                         }
                     }
+                    .frame(maxWidth: .infinity)
                 } else {
                     VStack(spacing: 0) {
                         ForEach(matches, id: \.self) { country in
@@ -192,9 +191,16 @@ struct PinTrayDemo: View {
             }
             .padding(.horizontal, .spacingXL)
             .padding(.top, .spacingXL)
+            // The list runs on under the search field, so the last row can still be reached.
+            .contentMargins(.bottom, .minimumControlHeight + .spacingL * 2, for: .scrollContent)
+            .scrollDismissesKeyboard(.interactively)
+            .overlay(alignment: .bottom) {
+                SearchField(text: $query)
+                    .padding(.horizontal, .spacingXL)
+            }
             .animation(.trayContent, value: matches)
         }
-        .detent(.medium)
+        .detent(.filling)
     }
 
     /// Ranked so a typed prefix wins.

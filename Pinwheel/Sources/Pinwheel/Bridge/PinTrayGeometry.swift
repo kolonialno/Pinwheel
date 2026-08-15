@@ -48,6 +48,7 @@ struct PinTrayGeometry: Equatable {
 
     init(
         contentHeight: CGFloat,
+        fills: Bool = false,
         room: Room,
         keyboardInset: CGFloat = 0,
         dragOffset: CGFloat = 0,
@@ -57,12 +58,16 @@ struct PinTrayGeometry: Equatable {
         // A tray that is not editing rests at the bottom and lets the keyboard leave over it, so only
         // the keyboard moves. One that is editing stands on the keyboard, clearing it by more than it
         // clears the screen's own edge.
+        // The bottom rides the keyboard down and stops at the floor, which the keyboard then carries
+        // on past — so the clamp is what ends the tray's travel, not a second animation.
         let lifted = keyboardInset > 0 && standsOnKeyboard
-        bottomInset = lifted ? keyboardInset + trayKeyboardMargin : trayBottomMargin
+        bottomInset = max(trayBottomMargin, lifted ? keyboardInset + trayKeyboardMargin : 0)
         bottomCornerRadius = lifted ? trayTopRadius : room.displayCornerRadius
 
+        // A filling tray is anchored by its top, which is therefore a constant no keyboard can move:
+        // only the bottom travels, and the room it gains becomes list to scroll.
         let available = room.containerHeight - room.safeAreaTop - trayMargin - bottomInset
-        height = max(0, min(contentHeight, available))
+        height = max(0, fills ? available : min(contentHeight, available))
 
         // The home indicator's strip, less the margin the tray already stands off the screen by.
         contentBottomInset = max(room.safeAreaBottom - trayBottomMargin, .spacingL)

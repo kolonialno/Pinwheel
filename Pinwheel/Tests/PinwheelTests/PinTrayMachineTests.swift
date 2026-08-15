@@ -103,6 +103,26 @@ final class PinTrayMachineTests: XCTestCase {
         )
     }
 
+    // The whole point of a filling tray: its top is a constant, so tapping the search field again
+    // cannot shoot it anywhere. Only the bottom travels, riding the keyboard down to the floor.
+    func testAFillingTrayKeepsItsTopWhereverTheKeyboardIs() {
+        var machine = PinTrayMachine(room: screen)
+        _ = machine.handle(.presented(contentHeight: 0, fills: true))
+        _ = machine.handle(.moved(contentHeight: 0, fills: true, edits: true, isPush: true))
+
+        let height = screen.containerHeight
+        let top = { (geometry: PinTrayGeometry) in height - geometry.bottomInset - geometry.height }
+        var tops: [CGFloat] = []
+        var bottoms: [CGFloat] = []
+        for measured in [311, 311, 240, 160, 80, 0, 0, 311] as [CGFloat] {
+            let reaction = machine.handle(.keyboardMeasured(measured))
+            tops.append(top(reaction.to))
+            bottoms.append(reaction.to.bottomInset)
+        }
+        XCTAssertEqual(Set(tops).count, 1, "the top never moves: \(tops)")
+        XCTAssertEqual(bottoms.min(), trayBottomMargin, "and the bottom stops at the floor: \(bottoms)")
+    }
+
     func testLeavingATrayThatWasNotEditingAsksNothingOfTheKeyboard() {
         var machine = machine()
         let pop = machine.handle(.moved(contentHeight: 456, edits: false, isPush: false))
