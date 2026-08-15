@@ -191,6 +191,21 @@ Durable design decisions and why they were made.
   One moving object rather than two is what makes it read as a single motion. A required `rest`
   constraint pinned to the view's bottom, activated on a pop and released when the transition ends,
   outranks the guide's own (priority 999) for exactly that span.
+- **The tray is a machine, and the keyboard is an actor it does not own.** `PinTrayMachine` holds the
+  state — what the tray holds, what the keyboard is doing, whether the standing tray edits, a drag —
+  and answers each event with where the tray goes *and who moves it there*. That last part is the one
+  every bug turned on, so `Timeline` is state: `.immediate` for an entry position or a finger,
+  `.spring(bounce:)` for a change nothing else owns, and `.carriedByKeyboard` for one the keyboard owns,
+  where we set the value and start nothing. The keyboard enters as **reports** (`closed`, `opening`,
+  `open`, `closing`) mapped from the guide rather than as something we command, because we cannot
+  command it — and `opening`/`closing` are exactly the states in which it owns the timeline. Effects it
+  cannot perform itself, like dismissing the keyboard on the way out, come back as `Effect` values.
+  Every rule is then a test with no window: twelve of them, each named for the state that broke.
+- **"Hold still" has to mean holding the old value, not the new one with the animation withheld.** The
+  first machine correctly said the keyboard owned the push, and still handed out a target computed with
+  the keyboard closed — the floor. The test that walks the whole journey and asserts the top never
+  reverses caught it: `[263, 448, 129, 129]`, with the dip sitting in the middle of the model. A tray
+  waiting for the keyboard keeps the height it is standing at until the keyboard reports.
 - **The tray's geometry is a value, and the views are a projection of it.** `PinTrayGeometry` takes
   what the tray holds, the room, the keyboard, a drag and a phase, and answers height, clearance,
   translation and corner — importing `CoreGraphics` and nothing else. Every rule discovered by filming
