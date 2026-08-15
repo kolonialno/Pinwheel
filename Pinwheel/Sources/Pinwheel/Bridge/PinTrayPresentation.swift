@@ -130,8 +130,6 @@ final class PinTrayOverlay: UIView {
     private var fittedHeight: CGFloat = 0
     private var currentHeight: NSLayoutConstraint?
     private var currentPhase: PinTrayPhase?
-    private var standingHeight: CGFloat = 0
-    private var dragOffset: CGFloat = 0
     private var lastContent: AnyView?
     private var rest: NSLayoutConstraint?
     private lazy var machine = PinTrayMachine(room: room)
@@ -215,7 +213,6 @@ final class PinTrayOverlay: UIView {
     }
 
     private func write(_ geometry: PinTrayGeometry) {
-        standingHeight = geometry.height
         height.constant = geometry.height
         // The guide decides where the card's bottom goes; the geometry decides how far above the guide
         // it stands. One constraint serves a docked keyboard and no keyboard at all, so its margin is
@@ -271,7 +268,7 @@ final class PinTrayOverlay: UIView {
     /// What the content keeps clear below itself: the home indicator's own strip, less the margin the
     /// card already stands off the screen by. Lifted onto the keyboard there is no indicator to clear.
     private var contentBottomInset: CGFloat {
-        geometry(.resting).contentBottomInset
+        machine.geometry.contentBottomInset
     }
 
     /// How tall a filling tray stands: all the room there is. Read off the same geometry everything
@@ -426,25 +423,6 @@ final class PinTrayOverlay: UIView {
         apply(machine.handle(.keyboardMeasured(measured)))
     }
 
-    /// The one place a tray's rules are evaluated. Everything below is a projection of this value, so
-    /// the rules themselves are unit tests rather than screen recordings.
-    private func geometry(_ phase: PinTrayGeometry.Phase) -> PinTrayGeometry {
-        PinTrayGeometry(
-            contentHeight: fittedHeight,
-            fills: machine.fills,
-            room: PinTrayGeometry.Room(
-                containerHeight: bounds.height,
-                safeAreaTop: safeAreaInsets.top,
-                safeAreaBottom: safeAreaInsets.bottom,
-                displayCornerRadius: displayRadius
-            ),
-            keyboardInset: machine.keyboard.height,
-            dragOffset: dragOffset,
-            phase: phase,
-            standsOnKeyboard: rest?.isActive != true
-        )
-    }
-
     func present(_ content: AnyView) {
         PinwheelRecorder.note("navigation", "present")
         mount(content)
@@ -537,7 +515,6 @@ final class PinTrayOverlay: UIView {
         ).height
 
         fittedHeight = fitted
-        standingHeight = fitted
 
         // Held at its full height inside the scroll view, so a tray clamped by the room it has scrolls
         // rather than clipping, and neither view re-lays out during a dissolve. Never shorter than the
@@ -571,8 +548,9 @@ final class PinTrayOverlay: UIView {
     /// Content changing inside a standing tray resizes it, clamped to the room there is. This is not
     /// navigation, so it moves without bounce — an overshoot here reverses direction under the reader.
     func settle(to content: CGFloat) {
-        PinwheelRecorder.note("reported", "content measures \(Int(content))  standing=\(Int(standingHeight))")
-        guard content > 0, current != nil, abs(content - standingHeight) > 0.5 else { return }
+        let standing = machine.geometry.height
+        PinwheelRecorder.note("reported", "content measures \(Int(content))  standing=\(Int(standing))")
+        guard content > 0, current != nil, abs(content - standing) > 0.5 else { return }
         apply(machine.handle(.contentResized(content)))
     }
 
