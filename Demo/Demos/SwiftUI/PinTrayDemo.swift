@@ -75,7 +75,7 @@ struct PinTrayDemo: View {
                     .padding(.horizontal, .spacingL)
                     .padding(.vertical, .spacingL)
             }
-            .padding(.horizontal, .spacingL)
+            .padding(.horizontal, .spacingXL)
         } accessory: {
             Button { path.append(.howItWorks) } label: {
                 Image(systemName: "questionmark.circle")
@@ -99,7 +99,7 @@ struct PinTrayDemo: View {
                     .padding(.horizontal, .spacingL)
                     .padding(.vertical, .spacingXL)
             }
-            .padding(.horizontal, .spacingL)
+            .padding(.horizontal, .spacingXL)
         }
         .commit("Got It") { path.removeLast() }
     }
@@ -116,7 +116,7 @@ struct PinTrayDemo: View {
                             Image(systemName: method.0)
                                 .imageScale(.large)
                                 .frame(width: .spacingXXL)
-                            PinLabel(method.1).font(.subtitleSemibold)
+                            PinLabel(method.1).font(.bodySemibold)
                             Spacer()
                             if index == selectedMethod {
                                 Image(systemName: "checkmark")
@@ -130,7 +130,7 @@ struct PinTrayDemo: View {
                     .accessibilityIdentifier("pinwheel.tray.method.\(index)")
                 }
             }
-            .padding(.horizontal, .spacingL)
+            .padding(.horizontal, .spacingXL)
             .padding(.vertical, .spacingM)
         }
     }
@@ -146,7 +146,7 @@ struct PinTrayDemo: View {
                             .color(index == selected ? .primary : .secondary)
                         Spacer()
                         PinLabel(tier.price)
-                            .font(.subtitleSemibold)
+                            .font(.titleSemibold)
                             .color(index == selected ? .primary : .secondary)
                     }
                     .padding(.horizontal, .spacingL)
@@ -174,7 +174,7 @@ struct PinTrayDemo: View {
             HStack {
                 PinLabel(title).color(.secondary)
                 Spacer()
-                PinLabel(value).font(.subtitleSemibold)
+                PinLabel(value).font(.bodySemibold)
                 Image(systemName: "chevron.right")
                     .imageScale(.small)
                     .foregroundStyle(.tertiaryText)

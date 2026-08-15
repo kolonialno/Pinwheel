@@ -5,7 +5,7 @@ private let trayResizeDuration: TimeInterval = 0.30
 private let trayResizeBounce: CGFloat = 0.10
 private let trayDismissVelocity: CGFloat = 800
 private let trayDimming: CGFloat = 0.35
-private let trayMargin: CGFloat = .spacingL
+private let trayMargin: CGFloat = .spacingS
 private let trayBottomMargin: CGFloat = .spacingS
 
 extension SwiftUI.View {
