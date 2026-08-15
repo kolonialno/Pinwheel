@@ -60,7 +60,7 @@ final class PinTrayGeometryTests: XCTestCase {
 
     func testATrayTallerThanTheRoomStandsAtTheRoomsHeight() {
         let tall = geometry(contentHeight: 5_000)
-        XCTAssertEqual(tall.height, 912 - 62 - trayMargin - trayBottomMargin)
+        XCTAssertEqual(tall.height, 912 - 62 - trayBackdropReach - trayBottomMargin)
     }
 
     func testATrayShorterThanTheRoomStandsAtItsContentsHeight() {

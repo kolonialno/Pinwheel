@@ -4,6 +4,10 @@ let trayMargin: CGFloat = .spacingS
 let trayBottomMargin: CGFloat = .spacingS
 let trayKeyboardMargin: CGFloat = .spacingL
 let trayTopRadius: CGFloat = 32
+/// The strip of backdrop left above every tray. Tapping it dismisses the tray, so it is a control and
+/// takes a control's minimum height — a tray that grew over it left 8pt and swallowed the taps aimed
+/// there, which took the only way out that isn't the header.
+let trayBackdropReach: CGFloat = .minimumControlHeight
 
 /// Where a tray stands, as a value. It holds every rule about height, clearance and corner, and knows
 /// nothing about views — so each rule is a test rather than a screen recording.
@@ -66,7 +70,7 @@ struct PinTrayGeometry: Equatable {
 
         // A filling tray is anchored by its top, which is therefore a constant no keyboard can move:
         // only the bottom travels, and the room it gains becomes list to scroll.
-        let available = room.containerHeight - room.safeAreaTop - trayMargin - bottomInset
+        let available = room.containerHeight - room.safeAreaTop - trayBackdropReach - bottomInset
         height = max(0, fills ? available : min(contentHeight, available))
 
         // The home indicator's strip, less the margin the tray already stands off the screen by.

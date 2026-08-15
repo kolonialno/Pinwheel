@@ -184,7 +184,12 @@ final class PinTrayMachineTests: XCTestCase {
         XCTAssertEqual(machine.phase, .standing, "it gives up waiting")
         XCTAssertTrue(machine.fills, "and takes up what the arriving tray said about itself")
         XCTAssertEqual(standing.to.height, machine.geometry.height, accuracy: 0.5)
-        XCTAssertGreaterThan(standing.to.height, 800, "standing in the room it has, not at its content")
+        XCTAssertEqual(
+            standing.to.height,
+            screen.containerHeight - screen.safeAreaTop - trayBackdropReach - trayBottomMargin,
+            accuracy: 0.5,
+            "standing in the room it has, not at its content"
+        )
     }
 
     // The whole way in, measured off the app: 641 -> 245 -> 828, a collapse to the arriving tray's
@@ -205,6 +210,27 @@ final class PinTrayMachineTests: XCTestCase {
         }
 
         XCTAssertEqual(tops, tops.sorted(by: >), "the top never descends on the way in: \(tops)")
+    }
+
+    // Tapping the space above the card dismisses the tray, so the card may never take that space.
+    // Filling it left a 14pt strip between the safe area and the card — measured, a tap aimed there
+    // landed on the card instead, and the only way out was the header.
+    func testNoTrayEverCoversTheSpaceThatDismissesIt() {
+        var machine = machine()
+        _ = machine.handle(.moveBegan(isPush: true))
+        _ = machine.handle(.fillsReported(true))
+        _ = machine.handle(.moved(contentHeight: 245, edits: true, isPush: true))
+
+        let height = screen.containerHeight
+        for measured in [0, 311, 0] as [CGFloat] {
+            let reaction = machine.handle(.keyboardMeasured(measured))
+            let top = height - reaction.to.bottomInset - reaction.to.height
+            XCTAssertGreaterThanOrEqual(
+                top - screen.safeAreaTop,
+                .minimumControlHeight,
+                "the strip above the card stays big enough to hit, keyboard at \(measured)"
+            )
+        }
     }
 
     func testLeavingATrayThatWasNotEditingAsksNothingOfTheKeyboard() {
