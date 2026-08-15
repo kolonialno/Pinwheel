@@ -108,13 +108,20 @@ Durable design decisions and why they were made.
   cleaner three-step scale and is what the default theme now ships (footnote 13 and caption 11 unchanged).
   `FontProvider`'s semibold defaults hardcode their sizes rather than deriving them from the regular
   variants, so a scale change has to be made in both files or the weights drift apart.
-- **The card's corners are continuous, and the bottom pair is twice the top.** Measured off the
-  reference: the top corners extend 27pt and the bottom 55pt, because the bottom pair runs concentric
-  with the display's own corner rather than matching the top. `CALayer` carries one radius, so the tray
-  is two nested layers — an outer rounding only the bottom corners and an inner rounding only the top —
+- **The card's bottom corners take the display's own radius, and the top pair does not.** A
+  bottom-anchored card reads as continuous with the hardware only when its bottom corners carry the
+  screen's radius outright — `UIScreen`'s `_displayCornerRadius` (62 on an iPhone Air), read by KVC
+  since UIKit exposes it nowhere public. Note it is *not* the concentric `radius - inset`: 54 was
+  measurably too tight, and matching the reference's corner profile point by point picked 62. The top
+  corners sit nowhere near a device corner and stay small (28). `CALayer` carries one radius, so the
+  card is two nested layers — an outer rounding only the bottom pair, an inner rounding only the top —
   which keeps both animating natively with the height, where a `CAShapeLayer` mask would have to be
-  animated by hand. Both set `cornerCurve = .continuous`; a circular corner reads as cut against the
-  device's own curve. Neither radius is a token (28 and `.radiusL * 2`).
+  animated by hand. Both set `cornerCurve = .continuous`, matching `ConcentricRounding`'s existing
+  vocabulary; a circular corner reads as cut against the device's curve.
+- **Compare a corner by its profile, not by one number.** "How far along the edge until it goes
+  straight" saturates and inverted the answer here — it said the reference corner was *smaller* than
+  ours when it was larger. Sampling the edge inset at a series of depths (4, 8, 12, 16, 24, 32, 40,
+  48pt from the corner) compares two curves honestly and solved the radius in one run.
 - **Read a radius by A/B against a known value, never by extrapolating one.** Edge detection on an
   antialiased corner under-reads it — a known 12pt corner measured 8.3pt — so a single reading plus a
   scale factor put the reference at ~19pt and would have picked the wrong token. Rendering `.radiusM` and

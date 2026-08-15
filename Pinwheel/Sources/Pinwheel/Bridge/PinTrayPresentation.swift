@@ -7,10 +7,15 @@ private let trayDismissVelocity: CGFloat = 800
 private let trayDimming: CGFloat = 0.35
 private let trayMargin: CGFloat = .spacingS
 private let trayBottomMargin: CGFloat = .spacingS
-// Measured off the reference: the bottom corners run concentric with the display's own, so they are
-// roughly twice the top pair. Neither is a radius token.
 private let trayTopRadius: CGFloat = 28
-private let trayBottomRadius: CGFloat = .radiusL * 2
+
+extension UIScreen {
+    /// The display's own corner radius, which a bottom-anchored card has to nest inside to look
+    /// continuous with the hardware. UIKit exposes it nowhere public.
+    var pinDisplayCornerRadius: CGFloat {
+        (value(forKey: "_displayCornerRadius") as? CGFloat) ?? .radiusL
+    }
+}
 
 extension SwiftUI.View {
     public func pinwheelTray<Item: Hashable, TrayContent: SwiftUI.View>(
@@ -119,8 +124,9 @@ final class PinTrayOverlay: UIView {
             UITapGestureRecognizer(target: self, action: #selector(dismissFromBackground))
         )
 
+        let screen = controller.view.window?.screen ?? UIScreen.main
         tray.translatesAutoresizingMaskIntoConstraints = false
-        tray.layer.cornerRadius = trayBottomRadius
+        tray.layer.cornerRadius = screen.pinDisplayCornerRadius
         tray.layer.maskedCorners = [.layerMinXMaxYCorner, .layerMaxXMaxYCorner]
         tray.layer.cornerCurve = .continuous
         tray.clipsToBounds = true
