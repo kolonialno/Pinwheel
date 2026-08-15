@@ -20,6 +20,14 @@ to change, add to it as you learn, and keep *this* file to what a session needs 
   closure or a protocol. A parent coordinates and its children have one job each and are pure where they
   can be — the tray's geometry and its machine are pure values, and the chassis that draws them owns
   nothing else.
+- **A child answers to its own delegate and reports upward in its own words.** The body is its scroll
+  view's delegate; what it tells the tray is "pulled down by 40", never `scrollViewDidScroll`. A parent
+  adopting its child's protocol drags the child's vocabulary a level up where it does not belong.
+- **Containment is a UIKit job.** SwiftUI supplies leaves — a row, a title, a field. Anything that holds,
+  lays out, scrolls or routes a gesture is a `UIView` we own. Asking SwiftUI to contain is what makes
+  gestures fight across the seam, representables vanish without a scene, and children findable only by
+  walking a tree somebody else owns.
+- **One file per abstraction.**
 - **Dependencies arrive through `init`** — no optionals, no defaults, no two-phase setup. If a thing
   cannot exist without a container, a clock and something to show, it takes all three at birth. Every
   protocol ships a real implementation and a stub, so the seam is usable from a test the day it is made.
@@ -57,6 +65,9 @@ is not one.
   can reach may keep a permanent UI test — but only with teeth *and* a place in the merge gate. A guard
   outside the gate is one nobody runs, and it rots without telling you. Either put it where it runs, or
   do not write it.
+- **Assert arrival before measuring anything.** A probe that never reached the state proves nothing, and
+  reads exactly like one that did — a drag aimed at a list that was never populated landed on a button
+  and produced confident, worthless numbers.
 - **A probe must not pass `-UITestingNoAnimations`.** It disables animations, so motion reads as an
   instant snap and the measurement blames the code for the harness.
 - **A comment that explains a behaviour becomes a named test, then the comment dies.**
@@ -76,6 +87,8 @@ is not one.
 - **`Scripts/sweep.sh --preview`** snapshots every component and tweak variant; `--capture --only=<id>`
   re-checks one component's Figma IR. Never hand-roll `simctl` against a pinned UDID — the sweep owns its
   own simulator, and a hardcoded device launches nowhere while you read a stale result.
+- **Dump the runtime rather than stopping at a search result.** Two private keyboard flags looked right
+  and both were wrong; enumerating every property on the live object, twice, settled it in one run.
 - **The Xcode MCP** for build and verify (`BuildProject`, `RenderPreview`, `RunSomeTests`);
   `xcodebuild`/`simctl` are the fallback. Setup and its gotchas live in the `xcode-mcp` skill.
 
