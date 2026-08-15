@@ -99,7 +99,7 @@ Durable design decisions and why they were made.
   the height settles a ~377pt move in ~0.23s and an ~87pt move in ~0.15s, with about 3pt of overshoot on
   the big one only. Duration scaling with distance is a spring rather than a timed curve, hence
   `springDuration: 0.30, bounce: 0.10`. The same capture gives the geometry, and the tray is a **floating
-  card**, not an edge-to-edge sheet: an 8pt margin on all four sides (`.spacingS`), `.radiusL` corners,
+  card**, not an edge-to-edge sheet: an 8pt margin on all four sides (`.spacingS`), continuous corners,
   everything inside inset `.spacingXL`, a 64pt header band (which Pinwheel
   already had), a 1pt hairline, and a 48pt commit button whose bottom lands 32pt off the screen. Ours
   matches every one of those.
@@ -108,6 +108,13 @@ Durable design decisions and why they were made.
   cleaner three-step scale and is what the default theme now ships (footnote 13 and caption 11 unchanged).
   `FontProvider`'s semibold defaults hardcode their sizes rather than deriving them from the regular
   variants, so a scale change has to be made in both files or the weights drift apart.
+- **The card's corners are continuous, and the bottom pair is twice the top.** Measured off the
+  reference: the top corners extend 27pt and the bottom 55pt, because the bottom pair runs concentric
+  with the display's own corner rather than matching the top. `CALayer` carries one radius, so the tray
+  is two nested layers — an outer rounding only the bottom corners and an inner rounding only the top —
+  which keeps both animating natively with the height, where a `CAShapeLayer` mask would have to be
+  animated by hand. Both set `cornerCurve = .continuous`; a circular corner reads as cut against the
+  device's own curve. Neither radius is a token (28 and `.radiusL * 2`).
 - **Read a radius by A/B against a known value, never by extrapolating one.** Edge detection on an
   antialiased corner under-reads it — a known 12pt corner measured 8.3pt — so a single reading plus a
   scale factor put the reference at ~19pt and would have picked the wrong token. Rendering `.radiusM` and

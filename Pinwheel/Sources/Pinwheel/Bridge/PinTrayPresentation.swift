@@ -7,6 +7,10 @@ private let trayDismissVelocity: CGFloat = 800
 private let trayDimming: CGFloat = 0.35
 private let trayMargin: CGFloat = .spacingS
 private let trayBottomMargin: CGFloat = .spacingS
+// Measured off the reference: the bottom corners run concentric with the display's own, so they are
+// roughly twice the top pair. Neither is a radius token.
+private let trayTopRadius: CGFloat = 28
+private let trayBottomRadius: CGFloat = .radiusL * 2
 
 extension SwiftUI.View {
     public func pinwheelTray<Item: Hashable, TrayContent: SwiftUI.View>(
@@ -89,6 +93,7 @@ final class PinTrayCoordinator<Item: Hashable> {
 final class PinTrayOverlay: UIView {
     private let dimming = UIView()
     private let tray = UIView()
+    private let card = UIView()
     private var height = NSLayoutConstraint()
     private var offset = NSLayoutConstraint()
     private var current: UIHostingController<AnyView>?
@@ -115,10 +120,19 @@ final class PinTrayOverlay: UIView {
         )
 
         tray.translatesAutoresizingMaskIntoConstraints = false
-        tray.backgroundColor = .primaryBackground
-        tray.layer.cornerRadius = .radiusL
+        tray.layer.cornerRadius = trayBottomRadius
+        tray.layer.maskedCorners = [.layerMinXMaxYCorner, .layerMaxXMaxYCorner]
+        tray.layer.cornerCurve = .continuous
         tray.clipsToBounds = true
         addSubview(tray)
+
+        card.translatesAutoresizingMaskIntoConstraints = false
+        card.backgroundColor = .primaryBackground
+        card.layer.cornerRadius = trayTopRadius
+        card.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
+        card.layer.cornerCurve = .continuous
+        card.clipsToBounds = true
+        tray.addSubview(card)
 
         height = tray.heightAnchor.constraint(equalToConstant: 0)
         offset = tray.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -trayBottomMargin)
@@ -127,6 +141,10 @@ final class PinTrayOverlay: UIView {
             tray.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -trayMargin),
             height,
             offset,
+            card.leadingAnchor.constraint(equalTo: tray.leadingAnchor),
+            card.trailingAnchor.constraint(equalTo: tray.trailingAnchor),
+            card.topAnchor.constraint(equalTo: tray.topAnchor),
+            card.bottomAnchor.constraint(equalTo: tray.bottomAnchor),
         ])
 
         tray.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(drag)))
@@ -179,7 +197,7 @@ final class PinTrayOverlay: UIView {
         hosting.view.backgroundColor = .clear
         hosting.view.translatesAutoresizingMaskIntoConstraints = false
         parent?.addChild(hosting)
-        tray.addSubview(hosting.view)
+        card.addSubview(hosting.view)
         hosting.didMove(toParent: parent)
 
         let fitted = hosting.sizeThatFits(
@@ -187,9 +205,9 @@ final class PinTrayOverlay: UIView {
         ).height
 
         NSLayoutConstraint.activate([
-            hosting.view.leadingAnchor.constraint(equalTo: tray.leadingAnchor),
-            hosting.view.trailingAnchor.constraint(equalTo: tray.trailingAnchor),
-            hosting.view.topAnchor.constraint(equalTo: tray.topAnchor),
+            hosting.view.leadingAnchor.constraint(equalTo: card.leadingAnchor),
+            hosting.view.trailingAnchor.constraint(equalTo: card.trailingAnchor),
+            hosting.view.topAnchor.constraint(equalTo: card.topAnchor),
             hosting.view.heightAnchor.constraint(equalToConstant: fitted),
         ])
 
