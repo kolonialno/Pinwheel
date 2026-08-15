@@ -88,3 +88,8 @@ extension PinTray where Accessory == EmptyView {
         self.init(title, content: content, accessory: { EmptyView() })
     }
 }
+
+public extension Animation {
+    /// Content changing inside a standing tray, which resizes it — the same spring the tray moves on.
+    static let trayContent = Animation.spring(duration: 0.30, bounce: 0.10)
+}

@@ -52,6 +52,12 @@ private struct PinTrayPresenter<Item: Hashable, TrayContent: SwiftUI.View>: UIVi
                         .environment(\.pinTrayExit) {
                             if depth == 0 { path.removeAll() } else { path.removeLast() }
                         }
+                        // Its own ideal height, not the height of the box it was put in, so content
+                        // that changes while the tray stands reports the tray's new size.
+                        .fixedSize(horizontal: false, vertical: true)
+                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+                            coordinator.contentHeightChanged(height)
+                        }
                 )
             }
         )
@@ -64,12 +70,24 @@ final class PinTrayCoordinator<Item: Hashable> {
 
     var dismissAll: () -> Void = {}
 
+    func contentHeightChanged(_ height: CGFloat) {
+        overlay?.settle(to: height)
+    }
+
     func sync(
         path: [Item],
         from presenter: UIViewController,
         tray: (Item, Int) -> AnyView
     ) {
-        guard path != shown else { return }
+        // The presenting view re-renders on its own state, and a tray's content is built from that
+        // state — so an unchanged path still has to hand the standing tray its new content, or the
+        // tray keeps rendering whatever it was mounted with.
+        guard path != shown else {
+            if let top = path.last {
+                overlay?.refresh(tray(top, path.count - 1))
+            }
+            return
+        }
         defer { shown = path }
 
         guard let top = path.last else {
@@ -100,6 +118,7 @@ final class PinTrayOverlay: UIView {
     private let dimming = UIView()
     private let tray = UIView()
     private let card = UIView()
+    private let scroll = UIScrollView()
     private var height = NSLayoutConstraint()
     private var offset = NSLayoutConstraint()
     private var current: UIHostingController<AnyView>?
@@ -155,6 +174,11 @@ final class PinTrayOverlay: UIView {
         card.clipsToBounds = true
         tray.addSubview(card)
 
+        scroll.translatesAutoresizingMaskIntoConstraints = false
+        scroll.showsVerticalScrollIndicator = false
+        scroll.alwaysBounceVertical = false
+        card.addSubview(scroll)
+
         height = tray.heightAnchor.constraint(equalToConstant: 0)
         offset = tray.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -trayBottomMargin)
         NSLayoutConstraint.activate([
@@ -166,6 +190,10 @@ final class PinTrayOverlay: UIView {
             card.trailingAnchor.constraint(equalTo: tray.trailingAnchor),
             card.topAnchor.constraint(equalTo: tray.topAnchor),
             card.bottomAnchor.constraint(equalTo: tray.bottomAnchor),
+            scroll.leadingAnchor.constraint(equalTo: card.leadingAnchor),
+            scroll.trailingAnchor.constraint(equalTo: card.trailingAnchor),
+            scroll.topAnchor.constraint(equalTo: card.topAnchor),
+            scroll.bottomAnchor.constraint(equalTo: card.bottomAnchor),
         ])
 
         tray.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(drag)))
@@ -194,7 +222,7 @@ final class PinTrayOverlay: UIView {
         offset.constant = -bottomInset
         standingHeight = min(fittedHeight, ceiling)
         height.constant = standingHeight
-        currentHeight?.constant = standingHeight
+        currentHeight?.constant = fittedHeight
         UIView.animate(withDuration: duration, delay: 0, options: curve) {
             self.tray.layer.cornerRadius = self.keyboardInset > 0 ? trayTopRadius : self.displayRadius
             self.layoutIfNeeded()
@@ -214,8 +242,20 @@ final class PinTrayOverlay: UIView {
         }
     }
 
+    func refresh(_ content: AnyView) {
+        current?.rootView = content
+    }
+
     func show(_ content: AnyView) {
-        let outgoing = current
+        // The tray it is leaving becomes a still picture, so the dissolve is between two things that
+        // cannot re-lay themselves out, and the scroll view is left holding a single live tray.
+        let leaving = current?.view.snapshotView(afterScreenUpdates: false)
+        if let leaving, let outgoing = current {
+            leaving.frame = CGRect(origin: .zero, size: outgoing.view.bounds.size)
+            card.addSubview(leaving)
+        }
+        current.map(unmount)
+
         mount(content)
         current?.view.alpha = 0
         layoutIfNeeded()
@@ -223,15 +263,15 @@ final class PinTrayOverlay: UIView {
         height.constant = standingHeight
         UIView.animate(springDuration: trayResizeDuration, bounce: trayResizeBounce) {
             self.current?.view.alpha = 1
-            outgoing?.view.alpha = 0
+            leaving?.alpha = 0
             self.layoutIfNeeded()
         } completion: { _ in
-            outgoing.map(self.unmount)
+            leaving?.removeFromSuperview()
         }
     }
 
     func dismiss() {
-        offset.constant = height.constant
+        offset.constant = standingHeight
         UIView.animate(springDuration: trayResizeDuration, bounce: 0) {
             self.dimming.alpha = 0
             self.layoutIfNeeded()
@@ -248,7 +288,7 @@ final class PinTrayOverlay: UIView {
         hosting.view.backgroundColor = .clear
         hosting.view.translatesAutoresizingMaskIntoConstraints = false
         parent?.addChild(hosting)
-        card.addSubview(hosting.view)
+        scroll.addSubview(hosting.view)
         hosting.didMove(toParent: parent)
 
         let fitted = hosting.sizeThatFits(
@@ -258,14 +298,14 @@ final class PinTrayOverlay: UIView {
         fittedHeight = fitted
         standingHeight = min(fitted, ceiling)
 
-        // Held at its own height from the top, never stretched to the card. Pinning the bottom too
-        // would re-lay the content out on every frame of the height spring, and a cross-fade between
-        // two reflowing views reads as a stutter rather than a dissolve.
-        let contentHeight = hosting.view.heightAnchor.constraint(equalToConstant: standingHeight)
+        // Held at its full height inside the scroll view, so a tray clamped by the room it has
+        // scrolls rather than clipping, and neither view re-lays out during a dissolve.
+        let contentHeight = hosting.view.heightAnchor.constraint(equalToConstant: fitted)
         NSLayoutConstraint.activate([
-            hosting.view.leadingAnchor.constraint(equalTo: card.leadingAnchor),
-            hosting.view.trailingAnchor.constraint(equalTo: card.trailingAnchor),
-            hosting.view.topAnchor.constraint(equalTo: card.topAnchor),
+            hosting.view.widthAnchor.constraint(equalTo: scroll.frameLayoutGuide.widthAnchor),
+            hosting.view.leadingAnchor.constraint(equalTo: scroll.contentLayoutGuide.leadingAnchor),
+            hosting.view.topAnchor.constraint(equalTo: scroll.contentLayoutGuide.topAnchor),
+            hosting.view.bottomAnchor.constraint(equalTo: scroll.contentLayoutGuide.bottomAnchor),
             contentHeight,
         ])
 
@@ -277,6 +317,22 @@ final class PinTrayOverlay: UIView {
         hosting.willMove(toParent: nil)
         hosting.view.removeFromSuperview()
         hosting.removeFromParent()
+    }
+
+    /// Content changing inside a standing tray — a search filtering down — resizes it, clamped to the
+    /// room there is.
+    func settle(to content: CGFloat) {
+        guard content > 0, current != nil else { return }
+        fittedHeight = content
+        let target = min(content, ceiling)
+        guard abs(target - standingHeight) > 0.5 else { return }
+
+        standingHeight = target
+        currentHeight?.constant = content
+        height.constant = target
+        UIView.animate(springDuration: trayResizeDuration, bounce: trayResizeBounce) {
+            self.layoutIfNeeded()
+        }
     }
 
     @objc private func dismissFromBackground() {

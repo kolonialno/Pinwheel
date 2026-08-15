@@ -146,28 +146,77 @@ struct PinTrayDemo: View {
             VStack(spacing: .spacingXL) {
                 SearchField(text: $query)
 
-                VStack(spacing: .spacingL) {
-                    PinLabel("Search for a location or boost globally")
-                        .color(.secondary)
-                    Button {
-                        selectedRegion = "Global"
-                        path.removeLast()
-                    } label: {
-                        PinLabel("Boost Global")
-                            .padding(.horizontal, .spacingL)
-                            .frame(minHeight: .minimumControlHeight)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: .radiusL)
-                                    .strokeBorder(Color.tertiaryText, lineWidth: 1)
-                            )
+                if matches.isEmpty {
+                    VStack(spacing: .spacingL) {
+                        PinLabel(query.isEmpty ? "Search for a location or boost globally" : "No regions match “\(query)”")
+                            .color(.secondary)
+                            .multilineTextAlignment(.center)
+                        if query.isEmpty {
+                            Button {
+                                selectedRegion = "Global"
+                                path.removeLast()
+                            } label: {
+                                PinLabel("Boost Global")
+                                    .padding(.horizontal, .spacingL)
+                                    .frame(minHeight: .minimumControlHeight)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: .radiusL)
+                                            .strokeBorder(Color.tertiaryText, lineWidth: 1)
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
-                    .buttonStyle(.plain)
+                } else {
+                    VStack(spacing: 0) {
+                        ForEach(matches, id: \.self) { country in
+                            Button {
+                                selectedRegion = country
+                                path.removeLast()
+                            } label: {
+                                HStack {
+                                    PinLabel(country)
+                                    Spacer()
+                                    if country == selectedRegion {
+                                        Image(systemName: "checkmark").foregroundStyle(.primaryText)
+                                    }
+                                }
+                                .frame(minHeight: .minimumControlHeight)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("pinwheel.tray.country.\(country)")
+                        }
+                    }
                 }
             }
             .padding(.horizontal, .spacingXL)
             .padding(.top, .spacingXL)
+            .animation(.trayContent, value: matches)
         }
     }
+
+    /// Ranked so a typed prefix wins.
+    private var matches: [String] {
+        let needle = query.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !needle.isEmpty else { return [] }
+        let hits = Self.countries.filter { $0.lowercased().contains(needle) }
+        return (
+            hits.sorted { first, second in
+                let firstLeads = first.lowercased().hasPrefix(needle)
+                let secondLeads = second.lowercased().hasPrefix(needle)
+                if firstLeads != secondLeads { return firstLeads }
+                return first < second
+            }
+        )
+    }
+
+    // Two letters is ISO 3166-1 alpha-2, which is a country; the numeric identifiers are groupings
+    // like Europe, and a country's own subRegions are its states, so those cannot filter it out.
+    private static let countries: [String] = Locale.Region.isoRegions
+        .filter { $0.identifier.count == 2 }
+        .compactMap { Locale.current.localizedString(forRegionCode: $0.identifier) }
+        .sorted()
 
     /// The reference shows five rows with the edges faded out, so the list reads as a wheel that
     /// runs past the tray rather than a list that ends there.
