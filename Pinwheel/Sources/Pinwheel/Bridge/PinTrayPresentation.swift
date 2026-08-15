@@ -132,6 +132,8 @@ final class PinTrayOverlay: UIView {
     private var currentHeight: NSLayoutConstraint?
     private var currentPhase: PinTrayPhase?
     private var standingHeight: CGFloat = 0
+    private var dragOffset: CGFloat = 0
+    private var lastContent: AnyView?
 
     var onBackgroundDismiss: () -> Void = {}
 
@@ -144,6 +146,12 @@ final class PinTrayOverlay: UIView {
     /// card already stands off the screen by. Lifted onto the keyboard there is no indicator to clear.
     private var contentBottomInset: CGFloat {
         keyboardInset > 0 ? .spacingL : max(safeAreaInsets.bottom - trayBottomMargin, .spacingL)
+    }
+
+    /// A tray standing at medium keeps that height whether or not the keyboard is up, so a list that
+    /// filters as you type does not move the card. The room still wins where there is less of it.
+    private var mediumHeight: CGFloat {
+        min(bounds.height * 0.5, ceiling)
     }
 
     private var ceiling: CGFloat {
@@ -216,27 +224,47 @@ final class PinTrayOverlay: UIView {
         )
     }
 
-    // Standing clear of the bottom edge, the card is no longer nested in the display's corner, so its
-    // bottom pair drops to the same radius as its top.
+    /// The card's geometry is one thing — how tall it stands, how far it sits off the bottom, and the
+    /// corner that depends on whether it is still nested in the display's own. Every trigger re-targets
+    /// this one spring rather than starting a second animation over the first: two curves running on
+    /// the same constraint is what made leaving a tray with the keyboard up read as two steps.
+    private func settleGeometry(
+        animated: Bool,
+        bounce: CGFloat = trayResizeBounce,
+        alongside: (() -> Void)? = nil,
+        completion: (() -> Void)? = nil
+    ) {
+        standingHeight = min(fittedHeight, ceiling)
+        height.constant = standingHeight
+        currentHeight?.constant = fittedHeight
+        offset.constant = -bottomInset + dragOffset
+        let radius = keyboardInset > 0 ? trayTopRadius : displayRadius
+
+        guard animated else {
+            tray.layer.cornerRadius = radius
+            alongside?()
+            layoutIfNeeded()
+            completion?()
+            return
+        }
+        UIView.animate(springDuration: trayResizeDuration, bounce: bounce) {
+            self.tray.layer.cornerRadius = radius
+            alongside?()
+            self.layoutIfNeeded()
+        } completion: { _ in
+            completion?()
+        }
+    }
+
+    // The keyboard changes how much room there is, which a tray standing at medium is measured
+    // against, so the content is rebuilt before the geometry settles.
     @objc private func keyboardChanged(_ note: Notification) {
         guard let end = (note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue else { return }
         let overlap = max(0, bounds.maxY - convert(end, from: nil).minY)
         guard overlap != keyboardInset else { return }
         keyboardInset = overlap
-
-        let duration = note.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? TimeInterval ?? trayResizeDuration
-        let curve = (note.userInfo?[UIResponder.keyboardAnimationCurveUserInfoKey] as? Int).map {
-            UIView.AnimationOptions(rawValue: UInt($0) << 16)
-        } ?? []
-
-        offset.constant = -bottomInset
-        standingHeight = min(fittedHeight, ceiling)
-        height.constant = standingHeight
-        currentHeight?.constant = fittedHeight
-        UIView.animate(withDuration: duration, delay: 0, options: curve) {
-            self.tray.layer.cornerRadius = self.keyboardInset > 0 ? trayTopRadius : self.displayRadius
-            self.layoutIfNeeded()
-        }
+        lastContent.map(refresh)
+        settleGeometry(animated: true)
     }
 
     func present(_ content: AnyView) {
@@ -244,16 +272,13 @@ final class PinTrayOverlay: UIView {
         height.constant = standingHeight
         offset.constant = standingHeight
         layoutIfNeeded()
-
-        offset.constant = -bottomInset
-        UIView.animate(springDuration: trayResizeDuration, bounce: trayResizeBounce) {
-            self.dimming.alpha = 1
-            self.layoutIfNeeded()
-        }
+        settleGeometry(animated: true) { self.dimming.alpha = 1 }
     }
 
     func refresh(_ content: AnyView) {
-        current?.rootView = content
+        guard let phase = currentPhase else { return }
+        lastContent = content
+        current?.rootView = wrap(content, phase: phase)
     }
 
     func show(_ content: AnyView, isPush: Bool) {
@@ -272,39 +297,42 @@ final class PinTrayOverlay: UIView {
         current?.view.alpha = 0
         layoutIfNeeded()
 
-        height.constant = standingHeight
         withAnimation(.trayContent) {
             leavingPhase?.contentZoom = isPush ? trayZoom : 1
             self.currentPhase?.contentZoom = 1
         }
-        UIView.animate(springDuration: trayResizeDuration, bounce: trayResizeBounce) {
+        settleGeometry(animated: true) {
             self.current?.view.alpha = 1
             leaving?.view.alpha = 0
-            self.layoutIfNeeded()
-        } completion: { _ in
+        } completion: {
             leaving.map(self.unmount)
         }
     }
 
     func dismiss() {
-        offset.constant = standingHeight
-        UIView.animate(springDuration: trayResizeDuration, bounce: 0) {
+        dragOffset = standingHeight + bottomInset
+        settleGeometry(animated: true, bounce: 0) {
             self.dimming.alpha = 0
-            self.layoutIfNeeded()
-        } completion: { _ in
+        } completion: {
             self.current.map(self.unmount)
             self.removeFromSuperview()
         }
     }
 
-    private func mount(_ content: AnyView, entering: CGFloat = 1) {
-        let phase = PinTrayPhase()
-        phase.contentZoom = entering
-        let hosting = UIHostingController(rootView: AnyView(
+    private func wrap(_ content: AnyView, phase: PinTrayPhase) -> AnyView {
+        AnyView(
             content
                 .environment(\.pinTrayPhase, phase)
                 .environment(\.pinTrayBottomInset, contentBottomInset)
-        ))
+                .environment(\.pinTrayMediumHeight, mediumHeight)
+        )
+    }
+
+    private func mount(_ content: AnyView, entering: CGFloat = 1) {
+        let phase = PinTrayPhase()
+        phase.contentZoom = entering
+        lastContent = content
+        let hosting = UIHostingController(rootView: wrap(content, phase: phase))
         // The tray adds the home-indicator inset itself, and SwiftUI applying it too measures it twice.
         hosting.safeAreaRegions = []
         hosting.view.backgroundColor = .clear
@@ -342,20 +370,13 @@ final class PinTrayOverlay: UIView {
         hosting.removeFromParent()
     }
 
-    /// Content changing inside a standing tray — a search filtering down — resizes it, clamped to the
-    /// room there is.
+    /// Content changing inside a standing tray resizes it, clamped to the room there is. This is not
+    /// navigation, so it moves without bounce — an overshoot here reverses direction under the reader.
     func settle(to content: CGFloat) {
         guard content > 0, current != nil else { return }
         fittedHeight = content
-        let target = min(content, ceiling)
-        guard abs(target - standingHeight) > 0.5 else { return }
-
-        standingHeight = target
-        currentHeight?.constant = content
-        height.constant = target
-        UIView.animate(springDuration: trayResizeDuration, bounce: trayResizeBounce) {
-            self.layoutIfNeeded()
-        }
+        guard abs(min(content, ceiling) - standingHeight) > 0.5 else { return }
+        settleGeometry(animated: true, bounce: 0)
     }
 
     @objc private func dismissFromBackground() {
@@ -367,18 +388,17 @@ final class PinTrayOverlay: UIView {
 
         switch gesture.state {
         case .changed:
-            offset.constant = -bottomInset + max(0, travelled)
-            dimming.alpha = 1 - (max(0, travelled) / max(height.constant, 1)) * 0.6
+            dragOffset = max(0, travelled)
+            settleGeometry(animated: false)
+            dimming.alpha = 1 - (dragOffset / max(height.constant, 1)) * 0.6
         case .ended, .cancelled:
             let velocity = gesture.velocity(in: self).y
-            if velocity > trayDismissVelocity || travelled > height.constant / 3 {
+            let leaving = velocity > trayDismissVelocity || travelled > height.constant / 3
+            dragOffset = 0
+            if leaving {
                 onBackgroundDismiss()
             } else {
-                offset.constant = -bottomInset
-                UIView.animate(springDuration: trayResizeDuration, bounce: trayResizeBounce) {
-                    self.dimming.alpha = 1
-                    self.layoutIfNeeded()
-                }
+                settleGeometry(animated: true) { self.dimming.alpha = 1 }
             }
         default:
             break

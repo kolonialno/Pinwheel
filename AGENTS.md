@@ -154,6 +154,20 @@ Durable design decisions and why they were made.
   tray to it. Watching the hosted view's `intrinsicContentSize` from `layoutSubviews` does **not**
   work — a required height constraint means nothing in the overlay's own layout is dirtied, so it
   fires only at mount.
+- **One geometry, one animator — a second curve on the same constraint reads as two steps.** The
+  card's height, how far it stands off the bottom, and its bottom corner are one state, settled by one
+  spring that every trigger re-targets. Leaving a tray with the keyboard up used to run our spring and
+  UIKit's keyboard curve over the same constraints at once, and the second replaced the first
+  mid-flight: the dismissal read as chained rather than continuous. The keyboard no longer brings its
+  own curve.
+- **Navigation is felt, content is not.** A push or pop springs with bounce and carries the zoom;
+  content resizing inside a standing tray moves the height alone, with `bounce: 0`, because an
+  overshoot there reverses direction under someone who is reading.
+- **A surface you browse stands at a detent; only a surface you read is sized by its rows.**
+  `PinTray.Detent.medium` takes half the screen (clamped by the room) and keeps it whether or not the
+  keyboard is up, so a list that filters as you type scrolls inside a still card. Measured on a search
+  that made a reviewer motion sick: the card's top edge travelled 13,174pt across 45 direction
+  reversals, and after these three changes travels 198pt across 1.
 - **The dissolve carries a zoom, and its direction is the depth.** Going deeper, the tray being left
   grows as it fades; coming back, the one arriving starts grown and shrinks into place. The shallower
   of the two always carries the zoom and the deeper sits at 1.0, so a sequence reads as depth rather

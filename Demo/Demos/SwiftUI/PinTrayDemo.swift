@@ -194,6 +194,7 @@ struct PinTrayDemo: View {
             .padding(.top, .spacingXL)
             .animation(.trayContent, value: matches)
         }
+        .detent(.medium)
     }
 
     /// Ranked so a typed prefix wins.
