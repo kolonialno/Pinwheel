@@ -162,9 +162,16 @@ final class PinTrayOverlay: UIView {
             write(reaction.to)
         case .spring(let bounce):
             place(reaction.to, animated: true, bounce: bounce)
+        case .matching(let timing):
+            place(reaction.to, matching: timing)
         }
         if reaction.dismisses {
-            DispatchQueue.main.asyncAfter(deadline: .now() + trayResizeDuration) {
+            let travel: TimeInterval
+            switch reaction.timeline {
+            case .matching(let timing): travel = timing.duration
+            default: travel = trayResizeDuration
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + travel) {
                 self.current.map(self.unmount)
                 self.removeFromSuperview()
             }
@@ -175,6 +182,23 @@ final class PinTrayOverlay: UIView {
         standingHeight = geometry.height
         height.constant = geometry.height
         currentHeight?.constant = fittedHeight
+    }
+
+    /// Drawn on the keyboard's own clock and curve, started in the same turn the keyboard was asked to
+    /// leave — so the two are one motion rather than one following the other.
+    private func place(_ geometry: PinTrayGeometry, matching timing: PinTrayMachine.KeyboardTiming) {
+        write(geometry)
+        UIView.animate(
+            withDuration: timing.duration,
+            delay: 0,
+            options: UIView.AnimationOptions(rawValue: UInt(timing.curve) << 16),
+            animations: {
+                self.tray.transform = CGAffineTransform(translationX: 0, y: geometry.translation)
+                self.tray.layer.cornerRadius = geometry.bottomCornerRadius
+                self.dimming.alpha = 0
+                self.layoutIfNeeded()
+            }
+        )
     }
 
     private func place(_ geometry: PinTrayGeometry, animated: Bool, bounce: CGFloat = trayResizeBounce) {
@@ -221,6 +245,15 @@ final class PinTrayOverlay: UIView {
         dimming.addGestureRecognizer(
             UITapGestureRecognizer(target: self, action: #selector(dismissFromBackground))
         )
+
+        for name in [UIResponder.keyboardWillShowNotification, UIResponder.keyboardWillHideNotification] {
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(keyboardAnnouncedItsMove),
+                name: name,
+                object: nil
+            )
+        }
 
         let screen = controller.view.window?.screen ?? UIScreen.main
         displayRadius = screen.pinDisplayCornerRadius
@@ -301,6 +334,14 @@ final class PinTrayOverlay: UIView {
             view.isFirstResponder || view.subviews.contains(where: search)
         }
         return search(self)
+    }
+
+    @objc private func keyboardAnnouncedItsMove(_ notification: Notification) {
+        guard
+            let duration = notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? TimeInterval,
+            let curve = notification.userInfo?[UIResponder.keyboardAnimationCurveUserInfoKey] as? Int
+        else { return }
+        machine.keyboardTiming = PinTrayMachine.KeyboardTiming(duration: duration, curve: curve)
     }
 
     override func layoutSubviews() {
