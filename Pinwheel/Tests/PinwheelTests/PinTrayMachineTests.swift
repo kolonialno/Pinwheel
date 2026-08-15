@@ -187,6 +187,26 @@ final class PinTrayMachineTests: XCTestCase {
         XCTAssertGreaterThan(standing.to.height, 800, "standing in the room it has, not at its content")
     }
 
+    // The whole way in, measured off the app: 641 -> 245 -> 828, a collapse to the arriving tray's
+    // content height before it stood up. SwiftUI measures the arriving content mid-move, and a value
+    // arriving mid-move must be recorded rather than drawn — whichever value it is.
+    func testPushingIntoATrayNeverDropsItsTopOnTheWayIn() {
+        var machine = machine()
+        let height = screen.containerHeight
+        let top = { (geometry: PinTrayGeometry) in height - geometry.bottomInset - geometry.height }
+        var tops = [top(machine.geometry)]
+
+        for event in [PinTrayMachine.Event.moveBegan(isPush: true),
+                      .fillsReported(true),
+                      .contentResized(245),
+                      .moved(contentHeight: 245, edits: true, isPush: true),
+                      .keyboardMeasured(311)] {
+            tops.append(top(machine.handle(event).to))
+        }
+
+        XCTAssertEqual(tops, tops.sorted(by: >), "the top never descends on the way in: \(tops)")
+    }
+
     func testLeavingATrayThatWasNotEditingAsksNothingOfTheKeyboard() {
         var machine = machine()
         let pop = machine.handle(.moved(contentHeight: 456, edits: false, isPush: false))

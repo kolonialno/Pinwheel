@@ -191,6 +191,15 @@ Durable design decisions and why they were made.
   One moving object rather than two is what makes it read as a single motion. A required `rest`
   constraint pinned to the view's bottom, activated on a pop and released when the transition ends,
   outranks the guide's own (priority 999) for exactly that span.
+- **Everything SwiftUI hands over mid-move is news, not an instruction — one rule, not one guard per
+  value.** Two values arrive about the tray that is *arriving*: how it stands (`fillsReported`) and how
+  tall its content measures (`contentResized`). Drawing either one while the outgoing tray is still on
+  screen puts the arriving tray's shape in the outgoing tray's place. Guarding them one at a time is how
+  the dip kept coming back: the first guard went on `fillsReported`, `contentResized` kept drawing, and
+  every push collapsed 641 → 245 → 828. `recordForTheArrivingTray` now catches all of them at the top of
+  `handle` while `isSettlingAMove`, and the move's resolution draws once. Measured across the whole loop
+  — present, push, pop, push — every leg is 187pt of travel for 186pt of distance with no reversals,
+  where two of them previously wasted 52pt and 477pt.
 - **A tray's shape arrives as state, never as its own animation.** Wiring `fills` up from the tray's
   preference, its `didSet` also drew the change — `settleGeometry(animated:)`, a second animation path
   the machine knew nothing about. It fired when the preference landed, which is *before* the keyboard,

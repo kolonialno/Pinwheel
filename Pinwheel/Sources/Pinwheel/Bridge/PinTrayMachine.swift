@@ -151,7 +151,27 @@ struct PinTrayMachine: Equatable {
         geometry(phase == .leaving ? .leaving : .resting)
     }
 
+    /// What SwiftUI hands over about the tray that is arriving: how it stands, and how tall its content
+    /// measures. Mid-move these are news rather than instructions — the tray on screen is still the
+    /// outgoing one, so drawing them puts the arriving tray's shape in the outgoing tray's place. That
+    /// collapse, measured, was 641 to 245 and back up to 828 on every push.
+    private mutating func recordForTheArrivingTray(_ event: Event) -> Bool {
+        switch event {
+        case .fillsReported(let fills):
+            pendingFills = fills
+            return true
+        case .contentResized(let height):
+            pendingContentHeight = height
+            return true
+        default:
+            return false
+        }
+    }
+
     mutating func handle(_ event: Event) -> Reaction {
+        if isSettlingAMove, recordForTheArrivingTray(event) {
+            return Reaction(to: geometry(.resting), timeline: .carriedByKeyboard)
+        }
         switch event {
         case .presented(let height):
             contentHeight = height
@@ -241,17 +261,10 @@ struct PinTrayMachine: Equatable {
             return Reaction(to: geometry(.resting), timeline: .carriedByKeyboard)
 
         case .fillsReported(let fills):
-            // Mid-move this is news rather than an instruction: it arrives before the move that
-            // describes it — measured, 157ms before — so standing the tray on it here would draw the
-            // arriving tray's shape at the outgoing tray's position.
-            guard isSettlingAMove else {
-                // Standing still, there may be no next event at all: with a hardware keyboard attached
-                // the software keyboard never appears, and the tray waited for a report never coming.
-                self.fills = fills
-                return Reaction(to: geometry(.resting), timeline: .spring(bounce: 0))
-            }
-            pendingFills = fills
-            return Reaction(to: geometry(.resting), timeline: .carriedByKeyboard)
+            // Standing still, it takes effect now: there may be no next event at all, since with a
+            // hardware keyboard attached the software keyboard never speaks.
+            self.fills = fills
+            return Reaction(to: geometry(.resting), timeline: .spring(bounce: 0))
 
         case .contentResized(let height):
             // A filling tray is sized by the room, so what it holds has nothing to say about it.
