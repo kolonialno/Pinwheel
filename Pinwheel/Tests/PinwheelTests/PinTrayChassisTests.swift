@@ -19,6 +19,24 @@ final class PinTrayChassisTests: XCTestCase {
         return (overlay, window)
     }
 
+    // Coming back to the search tray with a query still typed, its content measured 1553 against a 641
+    // card, so the chassis laid it out at 1553 and the card showed a window onto nothing.
+    func testAnArrivingTrayTallerThanTheCardIsStillLaidOutToTheCard() {
+        let (overlay, window) = standing()
+        let card = overlay.cardHeight
+
+        overlay.show(AnyView(Color.clear.frame(height: 2_000).fixedSize(horizontal: false, vertical: true)), isPush: true)
+        overlay.trayFills(true)
+        window.layoutIfNeeded()
+
+        XCTAssertEqual(
+            overlay.contentHeight,
+            card,
+            accuracy: 0.5,
+            "a tray arriving into a card is the size of that card, however tall it measures"
+        )
+    }
+
     // Pushing into the search tray, its content was laid out at its own measured height — 245 against a
     // 642 card — so the search field, which rides the content's bottom edge, appeared mid-screen and
     // travelled to the bottom once the move resolved.

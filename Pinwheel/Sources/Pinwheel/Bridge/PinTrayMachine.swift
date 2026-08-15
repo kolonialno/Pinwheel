@@ -169,6 +169,19 @@ struct PinTrayMachine: Equatable {
     }
 
     mutating func handle(_ event: Event) -> Reaction {
+        let drawn = geometry
+        var reaction = resolve(event)
+        // A reaction that changes nothing starts nothing. Dragging the list to put the keyboard away,
+        // every sample arrived twice — moving, then apparently settled — and the settled one started a
+        // spring against a keyboard still under the finger, sixty times a second. An interactive
+        // dismissal never really settles, so the honest test is whether anything actually moved.
+        if reaction.from == nil, reaction.effects.isEmpty, !reaction.dismisses, reaction.to == drawn {
+            reaction.timeline = .carriedByKeyboard
+        }
+        return reaction
+    }
+
+    private mutating func resolve(_ event: Event) -> Reaction {
         if isSettlingAMove, recordForTheArrivingTray(event) {
             return Reaction(to: geometry(.resting), timeline: .carriedByKeyboard)
         }

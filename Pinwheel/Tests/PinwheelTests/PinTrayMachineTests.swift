@@ -249,7 +249,22 @@ final class PinTrayMachineTests: XCTestCase {
 
     func testASettledKeyboardOwnsNothing() {
         var machine = machine(edits: true)
-        XCTAssertEqual(machine.handle(.keyboardMeasured(311)).timeline, .spring(bounce: 0))
+        _ = machine.handle(.keyboardMeasured(311))
+        XCTAssertEqual(machine.handle(.contentResized(300)).timeline, .spring(bounce: 0))
+    }
+
+    // Dragging the list to put the keyboard away, every sample arrived twice — once as moving and once
+    // as settled — and the settled one started a spring at 60fps against a keyboard still under the
+    // finger. Measured, the card's top wandered 116 -> 83 -> 116 while it should not have moved at all.
+    func testAReactionThatChangesNothingStartsNothing() {
+        var machine = machine(edits: true)
+        let settled = machine.handle(.keyboardMeasured(311))
+        XCTAssertEqual(settled.to, machine.geometry, "nothing about the tray changed")
+        XCTAssertEqual(
+            settled.timeline,
+            .carriedByKeyboard,
+            "so nothing of ours starts; a spring here fights whatever is still moving"
+        )
     }
 
     // A search resizing per keystroke moved the card 13,174pt across 45 reversals, and the bounce is

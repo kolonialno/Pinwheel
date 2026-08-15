@@ -191,6 +191,19 @@ Durable design decisions and why they were made.
   One moving object rather than two is what makes it read as a single motion. A required `rest`
   constraint pinned to the view's bottom, activated on a pop and released when the transition ends,
   outranks the guide's own (priority 999) for exactly that span.
+- **A reaction that changes nothing starts nothing.** Dragging the list to put the keyboard away, every
+  sample arrived twice — once as moving, once as apparently settled — and the settled one started a
+  spring against a keyboard still under the finger, sixty times a second. The model said the card's top
+  was at 117 throughout; the layer sat at 90, dragged up by the springs in flight, and snapped back when
+  they stopped. An interactive dismissal never really settles, so "same height twice" is not a test for
+  it — whether anything actually moved is. `handle` compares each reaction against what is already drawn
+  and hands back `carriedByKeyboard` when they match.
+- **An arriving tray is the size of the card it is arriving into, however tall it measures.** Returning
+  to the search tray with a query still typed, its content measured 1553 against a 641 card, the chassis
+  laid it out at 1553, and the card became a window onto nothing — blank. Shorter than the card and
+  anything anchored to the content's bottom floats mid-card; taller and the card shows nothing. Only a
+  tray that has arrived and is sized by what it holds keeps its own height, which is what the chassis
+  scroll exists for.
 - **A session someone drove by hand is readable: `-PinwheelRecord`.** `PinwheelRecorder` writes
   `session.log` into the app's temporary directory — every touch with the identifier of whatever it hit,
   every navigation, everything SwiftUI reports in, every reaction the machine returns, and the geometry

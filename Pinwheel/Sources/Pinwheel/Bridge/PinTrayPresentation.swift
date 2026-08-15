@@ -201,6 +201,14 @@ final class PinTrayOverlay: UIView {
         }
     }
 
+    /// How tall the content stands inside a card of this height. Arriving, or filling, it is exactly the
+    /// card: shorter and anything anchored to its bottom floats mid-card, taller and the card becomes a
+    /// window onto nothing. Only a tray that has arrived and is sized by what it holds keeps its own
+    /// height, which is what the chassis scroll is for.
+    private func contentHeight(standingIn card: CGFloat) -> CGFloat {
+        machine.fills || machine.isSettlingAMove ? card : max(fittedHeight, card)
+    }
+
     private func write(_ geometry: PinTrayGeometry) {
         standingHeight = geometry.height
         height.constant = geometry.height
@@ -209,10 +217,7 @@ final class PinTrayOverlay: UIView {
         // The chassis scrolls only to rescue a tray taller than its card. A filling tray is exactly as
         // tall as its card, so leaving it enabled hands it the drag meant for the content.
         scroll.isScrollEnabled = !machine.fills
-        // Never shorter than the card: a tray taller than its card keeps its own height and scrolls,
-        // but one shorter is stretched to fill, so anything anchored to the content's bottom edge stays
-        // on the card's bottom edge rather than floating mid-card until the move resolves.
-        currentHeight?.constant = max(fittedHeight, geometry.height)
+        currentHeight?.constant = contentHeight(standingIn: geometry.height)
         currentPhase?.standingRoom = geometry.height
     }
 
@@ -530,7 +535,9 @@ final class PinTrayOverlay: UIView {
         // at the arriving tray's own measured height until the move resolved, which is where the search
         // field was appearing — mid-card, then travelling down.
         let contentHeight = hosting.view.heightAnchor.constraint(
-            equalToConstant: max(fitted, tray.bounds.height)
+            equalToConstant: tray.bounds.height > 0
+                ? self.contentHeight(standingIn: tray.bounds.height)
+                : fitted
         )
         NSLayoutConstraint.activate([
             hosting.view.widthAnchor.constraint(equalTo: scroll.frameLayoutGuide.widthAnchor),
