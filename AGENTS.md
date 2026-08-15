@@ -14,6 +14,8 @@ to change, add to it as you learn, and keep *this* file to what a session needs 
   produced contradictory numbers, numbers taken off the home screen, and wrong point scales. Every
   question has an instrument below — reach for it before writing one.
 - **Verify before claiming done**, and report what you actually observed, failures included.
+- **Adding or moving a file needs no `project.pbxproj` edit** — both targets are file-system-synchronized
+  groups, so the folder layout *is* the project structure and a new folder is a real decision.
 - **One place draws, one place decides.** Most bugs here have been the same shape: a second copy of some
   state, or a second path that animates. Delete the copy rather than syncing it.
 
@@ -99,15 +101,3 @@ hook blocks a merge whose tip commit lacks it.
   Unprefixed on our types; `pinwheel`-prefixed only when extending a SwiftUI type.
 - **Catalog ids derive from title + tags** — there is no manual `id:`, and deep links and persistence key
   off them, so a title must be unique within its scope.
-
-## Where things live
-
-- **Sources are grouped by domain, not by access level** — the public surface, tokens, components, the
-  catalog, the SwiftUI↔UIKit bridge, capture, recording — and components are split by which world they
-  belong to. Find a file by what it is, not by a remembered path.
-- **The Demo mirrors that split**, and holds every browsable catalog screen. The capture engine lives
-  apart from the screens, so a screen is never mistaken for engine code.
-- **Both targets are file-system-synchronized groups**, so the folder layout *is* the project structure:
-  adding or moving a file needs no `project.pbxproj` edit, and a new folder is a real decision.
-- The package sits one level in, with a second root manifest re-exposing it to external consumers, so
-  moving it changes their import paths.
