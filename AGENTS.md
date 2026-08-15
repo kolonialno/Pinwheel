@@ -133,6 +133,19 @@ Durable design decisions and why they were made.
   fix: the body's first ink sits a constant 192.3pt below the card's top for the whole transition while
   the card springs 264 -> 402pt. The constraint stays updatable so a filling tray still re-lays out when
   the keyboard moves.
+- **A standing tray's content is live, and its height follows.** The presenting view re-renders on its
+  own state, so an unchanged path still has to hand the standing tray freshly built content — without
+  that, a tray keeps rendering whatever it was mounted with, and a search field types into a list that
+  never filters (the same graph boundary that breaks `@FocusState`). The height then follows from
+  SwiftUI's side: the content is `.fixedSize(vertical:)` so it reports its *ideal* height rather than
+  the box it was put in, and an `onGeometryChange` hands that back to the chassis, which springs the
+  tray to it. Watching the hosted view's `intrinsicContentSize` from `layoutSubviews` does **not**
+  work — a required height constraint means nothing in the overlay's own layout is dirtied, so it
+  fires only at mount.
+- **A clamped tray scrolls, and a dissolve runs against a still picture.** Content is held at its full
+  height inside a scroll view, so a tray that outgrows the room scrolls instead of clipping; the tray
+  it is leaving is snapshotted and faded, which keeps the scroll view holding a single live tray and
+  guarantees neither side of the dissolve can re-lay itself out.
 - **A tray is sized by its content, and nothing else — there is no fill.** More content, taller tray;
   less content, shorter one, down to a floor of the 48pt control plus the header's and the commit
   button's own spacing. The available room is a *clamp*, never a target: a tray is measured against an
