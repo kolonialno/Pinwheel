@@ -123,6 +123,19 @@ Durable design decisions and why they were made.
   same radius as its top — measured on the reference, the two corners are then identical. The overlay
   watches `keyboardWillChangeFrame`, lifts by the overlap, and animates the corner with the keyboard's
   own duration and curve so the two move as one.
+- **A tray clears the keyboard by more than it clears the screen edge.** Measured on the reference:
+  20pt above the keyboard against 8pt above the bottom of the display. The overlay carries both, and
+  recomputes its ceiling when the keyboard moves so a tray that fills shrinks to the new room rather
+  than being pushed off the top.
+- **A tray fills by being offered the ceiling, not infinity.** `sizeThatFits` with an infinite height
+  returns the ideal size, so `.frame(maxHeight: .infinity)` reports the same number as content-sized
+  rows and nothing fills. Offering the ceiling instead lets a tray that wants the room report the
+  ceiling while one sized by its rows still reports those — no extra API, and the search tray then
+  stands from just under the safe area down to the keyboard the way the reference does.
+- **`@FocusState` does not cross a hosting controller.** A tray's content renders in its own
+  `UIHostingController`, so focus declared on the presenting view silently never takes and the keyboard
+  never comes up; the field has to own its own `@FocusState` inside the tray's content. The symptom is
+  a text field that looks right, takes a tap to focus, and shows no caret on arrival.
 - **The top radius is 32.** Measured against the reference's corner profile; `.radiusL` (24) and a
   first guess of 28 were both visibly tighter at every depth. Not a radius token.
 - **Compare a corner by its profile, not by one number.** "How far along the edge until it goes

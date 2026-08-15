@@ -7,6 +7,7 @@ private let trayDismissVelocity: CGFloat = 800
 private let trayDimming: CGFloat = 0.35
 private let trayMargin: CGFloat = .spacingS
 private let trayBottomMargin: CGFloat = .spacingS
+private let trayKeyboardMargin: CGFloat = 20
 private let trayTopRadius: CGFloat = 32
 
 extension UIScreen {
@@ -105,9 +106,19 @@ final class PinTrayOverlay: UIView {
     private weak var parent: UIViewController?
     private var displayRadius: CGFloat = .radiusL
     private var keyboardInset: CGFloat = 0
+    private var fittedHeight: CGFloat = 0
     private var standingHeight: CGFloat = 0
 
     var onBackgroundDismiss: () -> Void = {}
+
+    /// A card standing above the keyboard clears it by more than it clears the screen's own edge.
+    private var bottomInset: CGFloat {
+        keyboardInset > 0 ? keyboardInset + trayKeyboardMargin : trayBottomMargin
+    }
+
+    private var ceiling: CGFloat {
+        bounds.height - safeAreaInsets.top - trayMargin - bottomInset
+    }
 
     // A hosting controller's view has to live inside its parent controller's own view tree, so the
     // overlay hangs off the topmost controller rather than straight off the window.
@@ -179,7 +190,8 @@ final class PinTrayOverlay: UIView {
             UIView.AnimationOptions(rawValue: UInt($0) << 16)
         } ?? []
 
-        offset.constant = -(trayBottomMargin + keyboardInset)
+        offset.constant = -bottomInset
+        height.constant = min(fittedHeight, ceiling)
         UIView.animate(withDuration: duration, delay: 0, options: curve) {
             self.tray.layer.cornerRadius = self.keyboardInset > 0 ? trayTopRadius : self.displayRadius
             self.layoutIfNeeded()
@@ -192,7 +204,7 @@ final class PinTrayOverlay: UIView {
         offset.constant = standingHeight
         layoutIfNeeded()
 
-        offset.constant = -(trayBottomMargin + keyboardInset)
+        offset.constant = -bottomInset
         UIView.animate(springDuration: trayResizeDuration, bounce: trayResizeBounce) {
             self.dimming.alpha = 1
             self.layoutIfNeeded()
@@ -236,19 +248,23 @@ final class PinTrayOverlay: UIView {
         card.addSubview(hosting.view)
         hosting.didMove(toParent: parent)
 
+        // Offering the ceiling rather than infinity, so a tray asking to fill reports the ceiling while
+        // one sized by its rows still reports those.
         let fitted = hosting.sizeThatFits(
-            in: CGSize(width: bounds.width - trayMargin * 2, height: .greatestFiniteMagnitude)
+            in: CGSize(width: bounds.width - trayMargin * 2, height: ceiling)
         ).height
 
+        // Filling the card rather than carrying its own height, so a tray that asks for more room than
+        // there is lands at the ceiling and lays its content out at that height.
         NSLayoutConstraint.activate([
             hosting.view.leadingAnchor.constraint(equalTo: card.leadingAnchor),
             hosting.view.trailingAnchor.constraint(equalTo: card.trailingAnchor),
             hosting.view.topAnchor.constraint(equalTo: card.topAnchor),
-            hosting.view.heightAnchor.constraint(equalToConstant: fitted),
+            hosting.view.bottomAnchor.constraint(equalTo: card.bottomAnchor),
         ])
 
         current = hosting
-        let ceiling = bounds.height - safeAreaInsets.top - trayBottomMargin - keyboardInset - .spacingXXL
+        fittedHeight = fitted
         standingHeight = min(fitted, ceiling)
     }
 
@@ -267,14 +283,14 @@ final class PinTrayOverlay: UIView {
 
         switch gesture.state {
         case .changed:
-            offset.constant = -(trayBottomMargin + keyboardInset) + max(0, travelled)
+            offset.constant = -bottomInset + max(0, travelled)
             dimming.alpha = 1 - (max(0, travelled) / max(height.constant, 1)) * 0.6
         case .ended, .cancelled:
             let velocity = gesture.velocity(in: self).y
             if velocity > trayDismissVelocity || travelled > height.constant / 3 {
                 onBackgroundDismiss()
             } else {
-                offset.constant = -(trayBottomMargin + keyboardInset)
+                offset.constant = -bottomInset
                 UIView.animate(springDuration: trayResizeDuration, bounce: trayResizeBounce) {
                     self.dimming.alpha = 1
                     self.layoutIfNeeded()
