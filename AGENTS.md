@@ -1,63 +1,94 @@
 # Agent Guidelines
 
-Pinwheel-specific guidance: how we work here, testing, and the decisions log. The generic, portable iOS conventions live one level up in the iOS domain `AGENTS.md` (`~/code/<org>/ios/AGENTS.md`) and are inherited automatically via the agent-memory walk-up — they're not repeated here. Read **Pinwheel — decisions** before changing public API or structure.
+How we work in Pinwheel. Portable iOS conventions live one level up (`~/code/<org>/ios/AGENTS.md`) and
+are inherited, so they are not repeated. **Why** any of this is the way it is — the measurements, the
+traps, the bugs behind each rule — is in `LEARNINGS.md`; read the part that covers whatever you are
+about to change.
 
-## Pinwheel — way of working
+## The five that matter
 
-- Treat Pinwheel as a SwiftUI-first package with UIKit compatibility.
-- Do not add `import UIKit` to SwiftUI-first views, SwiftUI examples, or SwiftUI API call sites.
-- Keep UIKit usage isolated to UIKit compatibility types, UIKit example components, or clearly named bridge/adaptor files that translate existing UIKit-backed providers into SwiftUI-native values.
-- Prefer SwiftUI `Font`, `Color`, `View`, and environment-driven APIs for new package surfaces.
-- **Theme is law.** Every Pinwheel surface resolves provider-backed tokens (`PinwheelTheme` / the `Config` providers), never Apple's system styles. Design API so the *wrong* (system-style) path is unrepresentable — that's why `PinLabel.font` takes a themed `PinTextStyle`, not a raw `Font`. (The cross-project "make the wrong thing unrepresentable", applied to theming.)
-- **One implementation per component.** A bridgeable component is a SwiftUI `Pin*` source plus a thin `UIPin*` shell that hosts it — never two parallel implementations. Theming/light-dark crosses the bridge for free because both sides read the same provider tokens.
-- **Shared vocabularies are top-level types.** When two or more components reuse a concept, promote it to a top-level `public` type (`PinTextStyle`, `PinState`, `PinLabel.TextColor`) rather than nesting it under one component.
-- **SwiftUI-native API.** Bare initializer + chained, themed modifiers (`PinLabel("x").font(.caption).color(.secondary)`, `PinButton("x") { }.style(.secondary).loading(flag)`). Mirror SwiftUI's own names where one exists (`systemImage:`, `.font(_:)`); `.font` is typography on any text component, `.style` is a button's visual variant. Raw escape hatches are explicit and named (`.color(.custom(...))`, `.style(.custom(text:background:))`). **Modifier naming:** chained modifiers on our *own* types are unprefixed; prefix with `pinwheel` *only* when extending a SwiftUI type to avoid collisions (`View.pinwheelTweaks { }`).
-- **Verify visually — the how** (applying the cross-project "verify before claiming done"):
-  - Render the permanent `#Preview` in the catalog registry (`DemoPinwheelSections.swift`) — set `previewComponentID` and `RenderPreview` it (pass its current project-relative path; `XcodeGlob` finds it if it moved). No throwaway `#Preview` needed.
-  - Or deep-link a booted sim: `simctl launch <bundle> -PinwheelPreview <id> [-PinwheelPreviewTweak <title>]`.
-  - `Scripts/sweep.sh --preview` snapshots every component + tweak variant (light in `$OUT`, dark in `$OUT/dark`) for a full sweep.
-  - **To re-capture and check one component's Figma IR, run `Scripts/sweep.sh --capture --only=<id>` — never hand-roll `simctl install/launch` against a pinned UDID.** The sweep owns a dedicated simulator (`resolve_udid`, see Project layout); a hardcoded device silently launches nowhere, so you read a stale served doc and chase a phantom bug. `--only` keeps the rest of the catalog and skips the reboot (add `--no-build` to reuse the last build). Read the result from the serve (`/manifest.json` → the item's `file`).
-  - When matching SwiftUI to UIKit, the UIKit example (or `main`) is the parity source of truth.
-- **Build/verify via the Xcode MCP** — `BuildProject` after every change, `RenderPreview` to look, `RunSomeTests` for the regression tests (`tabIdentifier: "windowtab1"`). Setup + the session-restart gotcha live in the `xcode-mcp` skill; `xcodebuild`/`simctl` are the fallback.
-- **Keep the decisions log current** as components change, and name build-contract dirs freely (`Scripts/`, `DemoUITests`); the canonical folder map is in Decisions › Project layout.
-- **Local green-commit gate — GitHub Actions CI is paused.** GitHub's macOS runners flake on the hostless capture tests (a `UIWindow` activated inside a hostless `XCTest` process crashes *only* there — never on any local simulator; the exact CI command passes 24/24 in ~3.6s locally), and Actions minutes are scarce, so `.github/workflows/ci.yml`'s `push`/`pull_request` triggers are commented out (manual `workflow_dispatch` only). The merge gate is now **local**: before merging, run both tiers with `xcodebuild` —
-  - library: `xcodebuild test -project Demo.xcodeproj -scheme PinwheelTests -destination "platform=iOS Simulator,id=<udid>" CODE_SIGNING_ALLOWED=NO`
-  - hosted: `xcodebuild test -project Demo.xcodeproj -scheme Demo -only-testing:DemoTests -destination "platform=iOS Simulator,id=<udid>" CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY=''`
-  — and only merge a commit whose message **states they ran green** (a `Tests: unit NN/NN + hosted NN/NN green (local xcodebuild)` trailer). That claim is the merge signal. **Enforced** by a PreToolUse hook (`.claude/hooks/green-commit-gate.py`, wired in `.claude/settings.json`) that blocks a `gh pr merge` / `git merge`-into-main whose tip commit lacks a `Tests: … green` trailer — so the gate can't be silently skipped. `DemoUITests` is not a tier: it holds probes mid-bug and is empty the rest of the time, so a run of it proves nothing. Re-enable the Actions triggers once the hosted tier has run on a runner, or once CI moves off Actions minutes.
+1. **Measure and reproduce before fixing.** A cause is something a run showed you, not something the
+   code suggests. Guessing costs a build and a launch per round, and a wrong guess looks exactly like a
+   right one that changed nothing.
+2. **A bug gets a failing test first.** Red, run it, confirm it fails for the right reason, then fix.
+   Never edit source and test in the same step. Only bugs get this; everywhere else, prefer making the
+   mistake unrepresentable over asserting it is absent.
+3. **Test at the lowest rung that can hold the fact** — `PinwheelTests`, then `DemoTests`, then a UI
+   test. Moving up a rung needs a reason, and "it was easier" is not one.
+4. **Reach for the instruments before writing one.** They are listed below. Never measure this app off
+   an image.
+5. **Verify before claiming done**, and say what you actually observed, failures included.
 
-## Pinwheel — testing
+## The rungs
 
-- **Three test targets. Write the test in `PinwheelTests` unless it needs something that target cannot do.**
+| Target | Holds | Runs |
+|---|---|---|
+| **`PinwheelTests`** | the library's own behaviour — logic, geometry, tokens, rendering, the capture engine. **The default home.** | hostless SwiftPM, whole suite in seconds |
+| **`DemoTests`** | facts needing a live app: anything **presented**, anything needing a real scene, a real keyboard, or Demo-target code the package cannot see | **hosted by `Demo.app`** |
+| **`DemoUITests`** | throwaway probes only, **empty at rest** | XCUITest, ~10s a test |
 
-  | Target | Holds | Runs |
-  |---|---|---|
-  | **`PinwheelTests`** | the library's own behaviour — logic, tokens, rendering, the capture engine. **The default home.** | hostless (declared in `Pinwheel/Package.swift`), ~3.3s fixed, all 123 in 4.8s |
-  | **`DemoTests`** | facts needing a live app: anything **presented** (sheet, alert, popover), and Demo-target code the package cannot see (`LiveCaptureHost`, the sweep) | hosted by `Demo.app`, ~5.5s fixed |
-  | **`DemoUITests`** | throwaway probes only, and **empty at rest** | XCUITest, ~10s a test |
+- **`DemoTests` is hosted and has a harness.** `DemoTests/HostedView.swift`: `window(showing:)` flips
+  `_AXSSetAutomationEnabled` so SwiftUI fills its accessibility tree and labels, frames and
+  `accessibilityActivate()` become readable; `presentation(in:)` waits for a presented view to join the
+  window; `settledPresentation(in:)` waits for a detent to stop moving. If a fact needs an app, it goes
+  here — do not conclude it is untestable.
+- **`PinwheelTests` cannot be given a host** (SwiftPM target; a host is an Xcode setting). That is a
+  design gate, not a limitation: the day a library test needs `Demo.app`, something leaked out of the
+  library.
+- **`DemoTests` must not link the package products.** It loads them from its host; `@testable import
+  Pinwheel` needs no product dependency, and adding one breaks `DemoUITests`.
+- **A probe never lands.** It is an instrument: red while the fix is absent, deleted in the change that
+  fixes what it found. What stays is the unit test for what it localised. A UI test earns a commit only
+  by guarding an Apple-framework workaround.
+- **Teeth, always.** Prove the test fails against the un-fixed code. Commit the fix *before* teeth-testing
+  it, or the revert silently eats it. When a fix ships without a red first, say so plainly.
 
-  - **A hostless bundle draws but cannot present.** A `UIWindow` renders fine there, which is what lets the capture tests read a DisplayList with no app. A *presentation* needs the app's scene machinery — without it the sheet is created and its view never joins the window, so traits fall back to their defaults and an assertion reads the default instead of the real value. Measured: the window carried `Ember` while the sheet inside it read `Standard`. Anything presented belongs in `DemoTests`.
-  - **`PinwheelTests` cannot be given a test host.** It is a SwiftPM test target, and a host is an Xcode project setting (`TEST_HOST`/`BUNDLE_LOADER`) — `DemoTests` is the answer, not a setting on the package. Keeping it hostless is also a design gate: 123 tests passing with no app is the proof the library stands alone, and the day one of them needs `Demo.app` something has leaked out of the library. Hosting costs ~2.2s a run, so speed is not the reason either way.
-  - **`DemoTests` must not link the package products.** `Demo.app` already links `Pinwheel` and `DemoCatalog`, and a test bundle that re-declares them as `packageProductDependencies` breaks *`DemoUITests`* with undefined `PinTag` symbols. The bundle loads them from its host; `@testable import Pinwheel` needs no product dependency.
-  - `DemoTests/HostedView.swift` is the harness (ported from tienda-ios). `window(showing:)` flips `_AXSSetAutomationEnabled` so SwiftUI fills its accessibility tree, which is what makes labels, frames and `accessibilityActivate()` readable at all; `presentation(in:)` waits for the presented view to **join the window** before you read traits; `settledPresentation(in:)` waits for a measured detent to stop moving.
-- **A UI probe cannot measure motion while it passes `-UITestingNoAnimations`.** `Demo/AppDelegate.swift` calls
-  `UIView.setAnimationsEnabled(false)` under that flag, so every animation reads as an instant snap and a
-  measurement blames the code for what the harness did. Three separate "the height doesn't animate"
-  conclusions came from this, including one that sent a whole chassis to be rewritten. Drop the flag when
-  filming, and confirm an animation exists by asking the layer (`layer.animationKeys()`) rather than
-  inferring it from geometry.
-- **`simctl io recordVideo` drops frames badly enough to be useless for motion** — 39 frames over 10
-  seconds in one run, missing whole transitions. To measure a curve, sample from inside the app on a
-  `CADisplayLink`, reading `layer.presentation()` and writing to `NSTemporaryDirectory()`; read the file
-  out of the app container afterwards. That instrument named the fault in one run where video had failed
-  four times.
-- **Bugs require TDD, and only bugs do.** A bug is a failure, so reproduce the failure first: red before green, and run the red, since a test bolted on after can pass for the wrong reason. Pay the cost to reach a fiddly observable. Everywhere else, resist adding a test to prove a test could fail — the suite grows and then costs forever. Prefer making the mistake unrepresentable over asserting it is absent.
-- **A UI test earns a commit only by guarding Apple's frameworks.** A good implementation is reachable from a unit test, so needing the simulator to see a fact usually says the fact is trapped in a view — fix that instead.
-    - **A probe never lands.** Driving the app to watch a change work is an instrument: red while the fix is absent, and that failure localizes the fault. The unit test for what it localized is what stays — write it while it is still red, fix, watch both go green, then delete the probe in the same change.
-    - **A permanent one lands only for a workaround we hold against SwiftUI or UIKit.** One test per workaround, on one screen.
-    - Coverage is not a reason to keep one. `PinwheelTests` is where coverage goes.
-- **Teeth, always:** prove the test fails against the un-fixed code (revert the fix, watch it fail for the right reason, restore) — a test that was never red proves nothing. When the fix already shipped, teeth-verification is the honest substitute — say so.
-- **A comment that explains a behavior becomes a named test, then the comment dies.** When a *why*/gotcha comment describes something a test could assert (a value-match rule, a binding, an ordering, a token resolution), write the test named for that behavior, teeth-verify it, and delete the comment — the test both documents and guards it, and can't rot silently the way prose does. (`testScreenPaddingTokensMatchTheirValuesNeverInheritingStale` replaced the padding-tokenization comment; the float-token and component-nesting crash-traps became tests too.) Keep the plugin and capture engine trending comment-free this way; only genuinely untestable external facts (a Figma-API load-order crash the mock can't reproduce) stay as a terse comment.
-- **Order the git dance right: commit the fix *before* teeth-testing it.** Teeth-verification reverts the source (or `git checkout`s it) to confirm red — if the fix isn't committed yet, that revert *silently drops it*, and a later commit captures the test without the fix (a green-looking branch with a failing test and missing behavior). Commit the fix, then revert-to-red against the committed version, then restore. (Learned the hard way — a stray `git checkout` ate an uncommitted `screen()` fix and cost a debugging detour.)
+## The instruments
+
+- **`PinwheelRecorder`** — `-PinwheelRecord` writes `session.log` to the app's tmp: every touch with the
+  name of what it hit, every navigation, every reaction with its state, keyboard frames, and geometry
+  when it changes. For anything a person drove by hand. Appends across launches; read it with
+  `xcrun simctl get_app_container <udid> <bundle> data`.
+- **`PinDisplayListCapture`** (SwiftUI tree) and **`PinUIKitCapture`** (UIView tree) — real frames for
+  any layout question. A layout fact is a test, not a look.
+- **A `CADisplayLink` tape** for motion: sample `layer.presentation()` and write to
+  `NSTemporaryDirectory()`. `simctl io recordVideo` drops frames badly enough to be useless.
+- **`RenderPreview`** on the catalog's permanent `#Preview`, `simctl launch -PinwheelPreview <id>`, and
+  `Scripts/sweep.sh --preview` for a full sweep. To re-check one component's Figma IR use
+  `Scripts/sweep.sh --capture --only=<id>` — never hand-roll `simctl` against a pinned UDID.
+- **Build/verify via the Xcode MCP** (`BuildProject`, `RenderPreview`, `RunSomeTests`,
+  `tabIdentifier: "windowtab1"`); `xcodebuild`/`simctl` are the fallback. See the `xcode-mcp` skill.
+- **Never measure this app off a screenshot.** Images are for external references. Pixel-scanning your
+  own app has produced contradictory numbers, numbers off the home screen, and wrong scales.
+- **A probe must not pass `-UITestingNoAnimations`** — it disables animations, so every motion reads as
+  an instant snap and the measurement blames the code for the harness.
+
+## The merge gate
+
+GitHub Actions is paused, so the gate is local. Run both tiers and only merge a commit whose message
+states they ran green:
+
+```
+xcodebuild test -project Demo.xcodeproj -scheme PinwheelTests -destination "platform=iOS Simulator,id=<udid>" CODE_SIGNING_ALLOWED=NO
+xcodebuild test -project Demo.xcodeproj -scheme Demo -only-testing:DemoTests -destination "platform=iOS Simulator,id=<udid>" CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY=''
+```
+
+The `Tests: unit NN/NN + hosted NN/NN green (local xcodebuild)` trailer is the merge signal, enforced by
+`.claude/hooks/green-commit-gate.py`. `DemoUITests` is not a tier.
+
+## House style
+
+- **SwiftUI-first with UIKit compatibility.** No `import UIKit` in SwiftUI-first views, examples or call
+  sites; keep UIKit to compatibility types and clearly named bridges.
+- **Theme is law.** Every surface resolves provider-backed tokens (`PinwheelTheme`), never Apple's system
+  styles, and API is shaped so the system-style path is unrepresentable — `PinLabel.font` takes a themed
+  `PinTextStyle`, not a `Font`.
+- **One implementation per component**: a SwiftUI `Pin*` plus a thin `UIPin*` shell that hosts it.
+- **Shared vocabularies are top-level types** (`PinTextStyle`, `PinState`).
+- **SwiftUI-native API**: bare initializer plus chained themed modifiers, mirroring SwiftUI's own names.
+  Unprefixed on our types; `pinwheel`-prefixed only when extending a SwiftUI type.
+- **A comment that explains a behaviour becomes a named test, then the comment dies.**
+- **Keep `LEARNINGS.md` current** as you learn; keep this file to what a session needs nine times in ten.
 
 ## Pinwheel — decisions
 
@@ -72,316 +103,11 @@ Durable design decisions and why they were made.
 
 ### Trays
 
-- **A tray is a short surface that stands as tall as its own content, and a sequence of them is one
-  surface changing.** `PinTray` is the content — centred title, one leading control, optional trailing
-  accessory, optional commit — and `View.pinwheelTray(path:)` is the stack, where the array *is* the
-  navigation: appending pushes, removing pops. The leading control is **derived from depth**, a cross at
-  the root and a back chevron once pushed, so a root tray showing "back" is unrepresentable. Modelled on
-  the tray system Benji Taylor built for Family and now X, whose published rules we follow: one piece of
-  content or one action per tray, every tray titled, consecutive trays differing in height, and the theme
-  taken from context.
-- **The chassis is hand-written UIKit hosting SwiftUI, because neither `presentationDetents` nor
-  `UIPresentationController` will give up the height.** A detent is a declared *set of stops* that UIKit
-  re-resolves with its own animation, so the sheet edge can't be put on the same timeline as the content;
-  and a presentation controller re-applies `frameOfPresentedViewInContainerView` on the next layout pass,
-  which cancels a spring started against it. `PinTrayOverlay` therefore owns everything: its own view in
-  the topmost controller's hierarchy, a height constraint, a dimming view, and one
-  `UIView.animate(springDuration:bounce:)` driving the height and the cross-dissolve together.
-- **The overlay hangs off the topmost view controller, never straight off the window.** A
-  `UIHostingController`'s view has to live inside its parent controller's own view tree; parenting the
-  hosting controllers to the presenter while adding their views to the window raises
-  `_associatedViewControllerForwardsAppearanceCallbacks` and kills the app on first present. Walking
-  `presentedViewController` to the top also puts the tray above whatever is currently presented.
-- **`UIHostingController` already applies the bottom safe-area inset, so the chassis sets
-  `safeAreaRegions = []` and adds it once.** Leaving both to apply it measures it twice and leaves a
-  second inset of dead space under the content — 67pt below the commit button where the reference has 32.
-- **The motion and the metrics are measured, not guessed.** Frame-stepping a 60fps capture of X's tray:
-  the height settles a ~377pt move in ~0.23s and an ~87pt move in ~0.15s, with about 3pt of overshoot on
-  the big one only. Duration scaling with distance is a spring rather than a timed curve, hence
-  `springDuration: 0.30, bounce: 0.10`. The same capture gives the geometry, and the tray is a **floating
-  card**, not an edge-to-edge sheet: an 8pt margin on all four sides (`.spacingS`), continuous corners,
-  everything inside inset `.spacingXL`, a 64pt header band (which Pinwheel
-  already had), a 1pt hairline, and a 48pt commit button whose bottom lands 32pt off the screen. Ours
-  matches every one of those.
-- **The type scale is 20/18/16, taken from the reference.** `DefaultFontProvider` was 23/20/17; measuring
-  X's tray gave an ~18pt semibold title, ~16pt body and row text, and a 20pt semibold price, which is a
-  cleaner three-step scale and is what the default theme now ships (footnote 13 and caption 11 unchanged).
-  `FontProvider`'s semibold defaults hardcode their sizes rather than deriving them from the regular
-  variants, so a scale change has to be made in both files or the weights drift apart.
-- **The card's bottom corners take the display's own radius, and the top pair does not.** A
-  bottom-anchored card reads as continuous with the hardware only when its bottom corners carry the
-  screen's radius outright — `UIScreen`'s `_displayCornerRadius` (62 on an iPhone Air), read by KVC
-  since UIKit exposes it nowhere public. Note it is *not* the concentric `radius - inset`: 54 was
-  measurably too tight, and matching the reference's corner profile point by point picked 62. The top
-  corners sit nowhere near a device corner and stay small (28). `CALayer` carries one radius, so the
-  card is two nested layers — an outer rounding only the bottom pair, an inner rounding only the top —
-  which keeps both animating natively with the height, where a `CAShapeLayer` mask would have to be
-  animated by hand. Both set `cornerCurve = .continuous`, matching `ConcentricRounding`'s existing
-  vocabulary; a circular corner reads as cut against the device's curve.
-- **A card standing clear of the bottom edge loses the display's radius.** With the keyboard up the
-  tray rides above it, is no longer nested in the display's corner, and its bottom pair drops to the
-  same radius as its top — measured on the reference, the two corners are then identical. The overlay
-  watches `keyboardWillChangeFrame`, lifts by the overlap, and animates the corner with the keyboard's
-  own duration and curve so the two move as one.
-- **The spacing in the reference is 8 between things and 24 around them — there is no 20, and 24 is
-  never a gap.** Measured across 433 unique frames of X's tray: adjacent boxes are 8pt apart (159
-  occurrences, plus 29 at 9 and 3 at 7, and *nothing* at any other value), content is inset 24pt from
-  the card edge (603 occurrences), and a control is 48pt tall (447). The large separations between
-  sections are 70-100pt and are not spacing at all — they are content sitting in the gap. So a middle
-  step between `.spacingL` and `.spacingXL` has no support: the scale in evidence is 8 / 16 / 24 / 48.
-- **The tray's bottom clearance is the home indicator's, not a spacing token.** It reads as 24pt on an
-  iPhone Air, which is the bottom safe area less the margin the card already stands off the screen by —
-  so the tray derives it (`safeAreaInsets.bottom - trayBottomMargin`, floored at `.spacingL`) and the
-  content's bottom lands exactly on the safe-area boundary on any device. Lifted onto the keyboard
-  there is no indicator to clear, so it drops to the floor. Hardcoding 24 would be right on one phone.
-- **A tray clears the keyboard by more than it clears the screen edge.** `.spacingL` above the
-  keyboard against `.spacingS` above the bottom of the display — the reference measures 20pt there, and
-  the token is taken over the exact number. The overlay carries both, and
-  recomputes its ceiling when the keyboard moves so a tray that fills shrinks to the new room rather
-  than being pushed off the top.
-- **The hosted content is held at its own height from the top, never stretched to the card.** Pinning
-  its bottom to the card as well re-lays the content out on every frame of the height spring, and a
-  cross-fade between two reflowing views reads as a stutter rather than a dissolve. Measured after the
-  fix: the body's first ink sits a constant 192.3pt below the card's top for the whole transition while
-  the card springs 264 -> 402pt. The constraint stays updatable so a filling tray still re-lays out when
-  the keyboard moves.
-- **A standing tray's content is live, and its height follows.** The presenting view re-renders on its
-  own state, so an unchanged path still has to hand the standing tray freshly built content — without
-  that, a tray keeps rendering whatever it was mounted with, and a search field types into a list that
-  never filters (the same graph boundary that breaks `@FocusState`). The height then follows from
-  SwiftUI's side: the content is `.fixedSize(vertical:)` so it reports its *ideal* height rather than
-  the box it was put in, and an `onGeometryChange` hands that back to the chassis, which springs the
-  tray to it. Watching the hosted view's `intrinsicContentSize` from `layoutSubviews` does **not**
-  work — a required height constraint means nothing in the overlay's own layout is dirtied, so it
-  fires only at mount.
-- **A tray about to edit hands its timeline to the keyboard; one that is leaving dismisses it
-  deliberately.** Two faults with one cause — geometry resolved at a moment when the keyboard's state
-  was not yet true. Pushing to a tray that edits, the card shrank to its new height with no keyboard
-  under it yet, so its top fell 184pt to the floor and climbed back once the keyboard arrived. So the
-  push now waits a turn, asks whether anything in the tray became first responder, and if so leaves the
-  height for the keyboard to carry: the constant is set from `layoutSubviews` when the guide moves, so
-  it resolves inside the keyboard's animation. Measured, the top then runs 262 -> 103 without ever
-  reversing. Popping, unmounting the tray tore the field out from under the keyboard and it vanished
-  with no animation to travel with, so the card descended alone; `endEditing(true)` before the
-  transition gives the keyboard its own dismissal to ride, and the card goes 103 -> 262 beside it.
-  The dissolve stays on its own timeline in both directions — it is the content changing, not the card
-  moving, and it should never wait on a keyboard.
-- **Measure a transition from inside the app, not from a recording.** A `CADisplayLink` writing the
-  tray's presentation-layer frame and the guide's frame to a file each frame answered in one run what
-  four rounds of pixel-detectors on `simctl` video could not: the detectors kept latching onto the
-  keyboard's edge or the content behind the tray, and `simctl io recordVideo` drops the very frames a
-  transition lives in. Read the file out of the app container afterwards. Note the guide reports its
-  *model* value, so it shows the keyboard's target rather than where it is drawn — for that, look at
-  frames.
-- **The keyboard lays the tray out; the tray does not react to the keyboard.** On iOS 17+ the keyboard
-  runs in its own process and "will *asynchronously* initialize the keyboard UI and then
-  *asynchronously* post the notifications and perform the animations" (WWDC23, *Keep up with the
-  keyboard*) — so anything driven off `keyboardWillChangeFrame` is racing an animation it cannot join,
-  which is why our own spring read as staggered no matter how it was tuned. The tray constrains its
-  bottom to `keyboardLayoutGuide.topAnchor` with `usesBottomSafeArea = false`, and hands the two
-  margins to `setConstraints(_:activeWhenNearEdge:)` / `activeWhenAwayFrom:` so UIKit swaps them inside
-  the keyboard's own animation. Interactive dismissal comes free — the guide tracks the dismiss gesture.
-  **Never toggle those constraints by hand from `layoutSubviews`**: it re-enters layout and UIKit throws
-  `_setActive:mutuallyExclusiveConstraints:`. Only the corner radius is read there, because a corner is
-  not expressible as a constraint.
-- **Leaving a tray that was editing, the card takes its resting place at once and the keyboard slides
-  off it.** Studied frame by frame, the reference never squeezes a card into the room a departing
-  keyboard still occupies and never walks it down: at the moment back is tapped the full-height card is
-  already at the screen's bottom, *behind* the keyboard, and the keyboard alone moves, uncovering it.
-  One moving object rather than two is what makes it read as a single motion. A required `rest`
-  constraint pinned to the view's bottom, activated on a pop and released when the transition ends,
-  outranks the guide's own (priority 999) for exactly that span.
-- **The keyboard is measured from the edge the card is pinned to, and the margin above it comes from one
-  place.** The card's bottom is a constraint to `keyboardLayoutGuide`; its height is the machine's. Two
-  disagreements between them left the top drifting 26pt as the keyboard went, which reads as the card
-  sliding down while you scroll. First, `measuredKeyboardHeight` subtracted the bottom safe area that the
-  guide already excludes (`usesBottomSafeArea` is false), so the machine believed a 345pt keyboard was
-  311 and made the card 26pt too tall. Second, one constraint serves both a docked keyboard and no
-  keyboard at all, so a fixed margin on it is right for one and wrong by 8 for the other — `offset.constant`
-  is now whatever the geometry keeps clear beyond the keyboard itself. Measured with a live keyboard,
-  the top went 90 → 124 → 116, where 116 is `safeAreaTop + trayBackdropReach` and is what the model said
-  all along. Teeth: reverting both puts it back to 90 on the same probe.
-- **A reaction that changes nothing starts nothing.** Dragging the list to put the keyboard away, every
-  sample arrived twice — once as moving, once as apparently settled — and the settled one started a
-  spring against a keyboard still under the finger, sixty times a second. The model said the card's top
-  was at 117 throughout; the layer sat at 90, dragged up by the springs in flight, and snapped back when
-  they stopped. An interactive dismissal never really settles, so "same height twice" is not a test for
-  it — whether anything actually moved is. `handle` compares each reaction against what is already drawn
-  and hands back `carriedByKeyboard` when they match.
-- **An arriving tray is the size of the card it is arriving into, however tall it measures.** Returning
-  to the search tray with a query still typed, its content measured 1553 against a 641 card, the chassis
-  laid it out at 1553, and the card became a window onto nothing — blank. Shorter than the card and
-  anything anchored to the content's bottom floats mid-card; taller and the card shows nothing. Only a
-  tray that has arrived and is sized by what it holds keeps its own height, which is what the chassis
-  scroll exists for.
-- **A session someone drove by hand is readable: `-PinwheelRecord`.** `PinwheelRecorder` writes
-  `session.log` into the app's temporary directory — every touch with the identifier of whatever it hit,
-  every navigation, everything SwiftUI reports in, every reaction the machine returns, and the geometry
-  between them (only when it changes, so sitting still costs nothing to read). Touches come from a
-  `UIGestureRecognizer` that never leaves `.possible`, so it sees everything and swallows nothing; it
-  attaches to each window on `didBecomeVisibleNotification`. Off entirely without the argument. It exists
-  so a person can say "watch this" instead of describing it — and because a description of motion is the
-  thing this repo keeps proving you cannot act on. **Each launch truncates the file**, so read it before
-  relaunching.
-- **The arriving content is laid out to the card, never to itself.** The chassis mounted an arriving
-  tray at its own measured height and `write` kept re-setting it there — 245 inside a 642 card — so the
-  search field, which rides the content's bottom edge, appeared mid-card and travelled down once the move
-  resolved. The card's own geometry was clean throughout, which is why every tape of the *card* said the
-  push was fine: 794pt of field travel, invisible in the column being sampled. `currentHeight` is now
-  `max(fittedHeight, geometry.height)` — taller than its card it keeps its height and scrolls, shorter it
-  stretches to fill — and the field's bottom edge no longer moves at all during a push. `settleGeometry`,
-  a second place that drew the same constant and had no callers left, is gone with it.
-- **No tray ever covers the space that dismisses it.** Tapping the backdrop above the card dismisses the
-  whole tray, so `trayBackdropReach` reserves a strip of it — `.minimumControlHeight`, because tapping it
-  is a control and takes a control's target size. A filling tray taking *all* the room left 8pt between
-  the safe area and the card: measured, a tap aimed at that strip landed on the card instead, and the
-  header became the only way out. The room every tray is clamped to is now measured from below that
-  strip, which costs 40pt of height and buys back the affordance.
-- **Everything SwiftUI hands over mid-move is news, not an instruction — one rule, not one guard per
-  value.** Two values arrive about the tray that is *arriving*: how it stands (`fillsReported`) and how
-  tall its content measures (`contentResized`). Drawing either one while the outgoing tray is still on
-  screen puts the arriving tray's shape in the outgoing tray's place. Guarding them one at a time is how
-  the dip kept coming back: the first guard went on `fillsReported`, `contentResized` kept drawing, and
-  every push collapsed 641 → 245 → 828. `recordForTheArrivingTray` now catches all of them at the top of
-  `handle` while `isSettlingAMove`, and the move's resolution draws once. Measured across the whole loop
-  — present, push, pop, push — every leg is 187pt of travel for 186pt of distance with no reversals,
-  where two of them previously wasted 52pt and 477pt.
-- **A tray's shape arrives as state, never as its own animation.** Wiring `fills` up from the tray's
-  preference, its `didSet` also drew the change — `settleGeometry(animated:)`, a second animation path
-  the machine knew nothing about. It fired when the preference landed, which is *before* the keyboard,
-  so the card grew to the floor and then climbed back: measured, the top went 262 → 602 → 76, one
-  reversal and 340pt of wasted downward travel, which is exactly the shoot the awaiting-keyboard hold
-  exists to prevent. The flag is now only recorded and the next event carries it; the same run then
-  reads 262 → 76, monotonic, no reversal. Any `didSet` that draws is this bug again.
-- **A tray is as tall as what it holds, or as tall as the room there is — `.fitting` or `.filling`.**
-  `.medium` was a lie once it stopped being half of anything, so the pair now says what it means. A
-  filling tray is anchored by its **top**, which makes that top a constant (`safeAreaTop + trayMargin`)
-  no keyboard can move: only the bottom travels, riding the keyboard down and clamping at the floor
-  while the keyboard carries on past it. That is what stops the card shooting when the search field is
-  tapped again — it is structural, not arranged. Guarded by
-  `testAFillingTrayKeepsItsTopWhereverTheKeyboardIs`, which sweeps the keyboard 311 → 0 → 311 and asserts
-  one distinct top; with the anchor removed it walks 585 → 904 → 585.
-- **The chassis scroll is a rescue, not a scroller, so a filling tray turns it off.** The overlay wraps a
-  tray in a `UIScrollView` so a *fitting* tray clamped by the room scrolls rather than clips. A filling
-  tray is exactly as tall as its card, and leaving that scroll enabled hands it the drag meant for the
-  content — measured: dragging the results carried the header and separator up off the top of the card.
-  It is disabled the moment the tray says it fills.
-- **A search tray is header, rule, scrolling list, and a search field floating over the list at the
-  bottom.** The field sits where the thumb is and never scrolls away, the list runs on underneath it
-  (`.contentMargins(.bottom,)` so the last row is still reachable), and `.scrollDismissesKeyboard(.interactively)`
-  gives the keyboard back to a downward drag. A tray declares that it fills through `PinTrayFillsKey`,
-  and the room it currently has arrives on the observable `PinTrayPhase` — not the environment, so the
-  keyboard moving re-renders the content without rebuilding it.
-- **A tray leaves on the keyboard's clock, not after it.** Tapping the space above an editing tray
-  dismisses the whole tray — one meaning per control, and backing out of a sheet should not depend on
-  which part of the backdrop was hit. Its motion used to be three reactions fighting inside 24ms: the
-  keyboard's report said *rest*, the dismissal said *leave* against a keyboard already sent away, and a
-  second report said *rest* again and won — so the card lurched two thirds of the way down and was
-  deleted off the screen mid-air (measured: top 103 → 445 of 912, removed at 0.335s). Now leaving is
-  sticky (a report cannot put a leaving tray back), the exit is measured with the keyboard gone, and it
-  is drawn on the duration and curve the keyboard announces in `keyboardWillShow`/`Hide` — so the two
-  start together and stay on one curve instead of handing off, which is where a stall comes from. The
-  keyboard's real duration is **0.3833s**, not the 0.25s everyone assumes: borrow the clock, never guess
-  it. `PinTrayMachine.Timeline.matching` carries it, and the unmount waits for that same duration.
-- **An effect the machine commands counts as having happened, that same turn.** Coming back from the
-  search tray landed the card at 509pt — a height belonging to neither tray. The reaction was computed
-  while the keyboard was still up and applied *after* `endEditing` had already re-laid the screen, so the
-  keyboard's own reports landed first and the stale answer overwrote them. Dismissing is therefore a
-  change to the machine's own state (`keyboard = .closing`) at the moment it is ordered, not when the
-  keyboard gets around to confirming it — which makes the outside world's confirmation agree with what we
-  already drew, so arrival order stops mattering. Two tests hold it, one for the height and one for the
-  ordering.
-- **The view measures the keyboard; the machine decides what the measurement means.** The overlay used to
-  keep its own `keyboardInset` and derive opening/open/closing from it, updating it only when the machine's
-  view of the keyboard changed — so a *commanded* dismissal left the copy stuck at 311 forever. The next
-  push then read a rising keyboard as already settled, ran our spring against its animation, and the card
-  sagged 40pt before climbing (measured: one reversal on the second push, none on the first). The copy was
-  the bug, so it is gone: the view reports a height and `PinTrayMachine.keyboard(measuring:)` draws the
-  conclusion. Structural, not asserted — there is no second copy left to go stale.
-- **The tray is a machine, and the keyboard is an actor it does not own.** `PinTrayMachine` holds the
-  state — what the tray holds, what the keyboard is doing, whether the standing tray edits, a drag —
-  and answers each event with where the tray goes *and who moves it there*. That last part is the one
-  every bug turned on, so `Timeline` is state: `.immediate` for an entry position or a finger,
-  `.spring(bounce:)` for a change nothing else owns, and `.carriedByKeyboard` for one the keyboard owns,
-  where we set the value and start nothing. The keyboard enters as **reports** (`closed`, `opening`,
-  `open`, `closing`) mapped from the guide rather than as something we command, because we cannot
-  command it — and `opening`/`closing` are exactly the states in which it owns the timeline. Effects it
-  cannot perform itself, like dismissing the keyboard on the way out, come back as `Effect` values.
-  Every rule is then a test with no window: twelve of them, each named for the state that broke.
-- **"Hold still" has to mean holding the old value, not the new one with the animation withheld.** The
-  first machine correctly said the keyboard owned the push, and still handed out a target computed with
-  the keyboard closed — the floor. The test that walks the whole journey and asserts the top never
-  reverses caught it: `[263, 448, 129, 129]`, with the dip sitting in the middle of the model. A tray
-  waiting for the keyboard keeps the height it is standing at until the keyboard reports.
-- **The tray's geometry is a value, and the views are a projection of it.** `PinTrayGeometry` takes
-  what the tray holds, the room, the keyboard, a drag and a phase, and answers height, clearance,
-  translation and corner — importing `CoreGraphics` and nothing else. Every rule discovered by filming
-  the reference is a plain test there (12 of them, 8ms, no window), and the chassis reads it in one
-  place and applies it in one closure. The bug that forced this: a transform assigned before the
-  animation rather than inside it, so a tray arrived already in place — invisible to every test, and
-  only findable by asserting on a `CALayer` animation key, which is testing the mechanism. With the
-  geometry extracted, "a tray arrives from below its own bottom edge" is a value comparison, and the
-  one place that applies it can no longer put half the state outside the animation.
-- **One geometry, one animator — a second curve on the same constraint reads as two steps.** The
-  card's height, how far it stands off the bottom, and its bottom corner are one state, settled by one
-  spring that every trigger re-targets. Leaving a tray with the keyboard up used to run our spring and
-  UIKit's keyboard curve over the same constraints at once, and the second replaced the first
-  mid-flight: the dismissal read as chained rather than continuous. The keyboard no longer brings its
-  own curve.
-- **Navigation is felt, content is not.** A push or pop springs with bounce and carries the zoom;
-  content resizing inside a standing tray moves the height alone, with `bounce: 0`, because an
-  overshoot there reverses direction under someone who is reading.
-- **A surface you browse stands at a detent; only a surface you read is sized by its rows.**
-  `PinTray.Detent.medium` takes half the screen (clamped by the room) and keeps it whether or not the
-  keyboard is up, so a list that filters as you type scrolls inside a still card. Measured on a search
-  that made a reviewer motion sick: the card's top edge travelled 13,174pt across 45 direction
-  reversals, and after these three changes travels 198pt across 1.
-- **The dissolve carries a zoom, and its direction is the depth.** Going deeper, the tray being left
-  grows as it fades; coming back, the one arriving starts grown and shrinks into place. The shallower
-  of the two always carries the zoom and the deeper sits at 1.0, so a sequence reads as depth rather
-  than as a plain cross-fade. Confirmed by tracking the leading icon's x across a transition: on a push
-  it travels outward and on a pop it starts outward and settles back. **The zoom rides the content
-  alone** — chrome holds still, which is why it lives on `PinTray`'s content section through a
-  `PinTrayPhase` in the environment rather than as a transform on the hosted view. Measured on the
-  reference, its leading icon does not move a point through its own push; ours held at 34.7pt once the
-  transform was scoped, having drifted to 28.3 while it scaled the whole tray. The factor is 1.08,
-  chosen by eye — the reference's own magnitude resisted measurement because every detector saturates
-  on the card edge once the content fades.
-- **A clamped tray scrolls, and a dissolve runs against a still picture.** Content is held at its full
-  height inside a scroll view, so a tray that outgrows the room scrolls instead of clipping; the tray
-  it is leaving is snapshotted and faded, which keeps the scroll view holding a single live tray and
-  guarantees neither side of the dissolve can re-lay itself out.
-- **A tray is sized by its content, and nothing else — there is no fill.** More content, taller tray;
-  less content, shorter one, down to a floor of the 48pt control plus the header's and the commit
-  button's own spacing. The available room is a *clamp*, never a target: a tray is measured against an
-  unbounded height and only capped when it would outgrow the screen or the keyboard. A search tray was
-  briefly made to fill the room the way the reference's does — the reference's stands 477pt tall with
-  roughly half of it blank — and that is a divergence we take deliberately, because a tray that
-  reserves space it has no content for is a tray lying about what it holds.
-- **`@FocusState` does not cross a hosting controller.** A tray's content renders in its own
-  `UIHostingController`, so focus declared on the presenting view silently never takes and the keyboard
-  never comes up; the field has to own its own `@FocusState` inside the tray's content. The symptom is
-  a text field that looks right, takes a tap to focus, and shows no caret on arrival.
-- **The top radius is 32.** Measured against the reference's corner profile; `.radiusL` (24) and a
-  first guess of 28 were both visibly tighter at every depth. Not a radius token.
-- **Compare a corner by its profile, not by one number.** "How far along the edge until it goes
-  straight" saturates and inverted the answer here — it said the reference corner was *smaller* than
-  ours when it was larger. Sampling the edge inset at a series of depths (4, 8, 12, 16, 24, 32, 40,
-  48pt from the corner) compares two curves honestly and solved the radius in one run.
-- **Read a radius by A/B against a known value, never by extrapolating one.** Edge detection on an
-  antialiased corner under-reads it — a known 12pt corner measured 8.3pt — so a single reading plus a
-  scale factor put the reference at ~19pt and would have picked the wrong token. Rendering `.radiusM` and
-  `.radiusL` and measuring both the same way settled it: `.radiusL` reads 12.7 against the reference's
-  13.0.
-- **A rule is drawn in `tertiaryText`, the faintest foreground token — a separator is not its own
-  token.** The palette is nine role tokens and stays nine: adding a `divider` beside them would be a
-  token per use, which is a list of colours rather than a system. `secondaryBackground` (242 on white)
-  was too faint to read at 1pt, so the hairline in `PinTray`, the one in `PinwheelSheet` and
-  `UIPinTableView`'s `separatorColor` all take `tertiaryText`. One rule colour, already in the
-  vocabulary.
-- **Open follow-up: the catalog's own sheets still use `PinwheelSheet`.** Two chassis for one idea is one
-  too many — the catalog's Tweaks/Device sequence is the natural second consumer and should move onto
-  `PinTray`, retiring `PinwheelSheet` and its detent measuring.
+A UIKit chassis (`PinTrayOverlay`) hosting SwiftUI content, driven by a pure `PinTrayMachine` over a
+pure `PinTrayGeometry`. Two rules carry most of it: **one place draws** (`apply`), and **anything
+arriving from SwiftUI mid-move is recorded, not drawn**. Everything else — why the keyboard is an
+actor, what a filling tray is, the dozen bugs behind each rule — is in `LEARNINGS.md`. Read it before
+changing the chassis.
 
 ### Bridging
 
@@ -404,51 +130,36 @@ These stay UIKit because no SwiftUI primitive matches their ergonomics/perf:
 
 ### Theme & shared vocabularies
 
-- **Theme is law.** Every surface resolves provider-backed tokens (a `PinwheelTheme`'s `ColorProvider`/`FontProvider`), never Apple's system styles. API is designed so the wrong (system-style) path is unrepresentable.
-- **A theme is a named value in the environment, plural by default.** `PinwheelTheme` is a `struct` (name + the two providers), supplied as `PinwheelCatalog(themes:)` and resolved through `EnvironmentValues.pinwheelTheme`, bridged to a `PinwheelThemeTrait` (`UITraitDefinition`) so UIKit-hosted items and the FAB's own window resolve the same selection. It replaced the single static `Config.colorProvider`/`Config.fontProvider` pair, which nothing observed — assigning it re-rendered nothing, so one catalog could only ever show one brand. Two or more themes put a palette picker in the toolbar beside the appearance menu; the selection persists (`Pinwheel.SelectedThemeName`) and a deep-link preview honours `-PinwheelPreviewTheme <name>` so a sweep captures each brand. Themes are `Equatable` **by name** — the providers are a theme's contents, not its identity.
-- **A theme carries component shape, not only tokens.** `PinwheelTheme.buttonShape` (`.rounded` / `.capsule`) exists because a silhouette is as much a brand's signature as its palette, and a capsule is half the button's height — a `CGFloat` corner radius cannot express one, which is why `RoundedRectangle(cornerRadius: .spacingM)` was hard-coded in `PinButtonStyle` before. The case stores *intent* and `PinButtonShape.shape` resolves the token at render, so a theme states what it wants and the render decides what that measures. It stays a lone property rather than a `components` bag until a second component needs one.
-- **Spacing and radius are constants, and stay global rather than per-theme.** `CGFloat.spacing*` / `.radius*` are `static let`. They were `static var`s forwarding to mutable `SpacingValues`/`RadiusValues` backing structs — the package's only mutable static state, publicly settable, observed by nothing, and assigned by nothing in the package, the Demo, or the tests. The whole indirection was dead configuration, so both backing structs went. They stay global on purpose: the design system Pinwheel is being built for generates one spacing scale across its brands and varies only *component* metrics, which is what `buttonShape` is for.
-- **A custom trait must declare `affectsColorAppearance` or dynamic colors go stale.** `UIKit` re-resolves a `UIColor(dynamicProvider:)` only for traits that say they change color appearance, and the default is `false` — so `PinwheelThemeTrait.affectsColorAppearance = true`. Without it a switch leaves views on the theme they were last drawn under, and the giveaway is a *mixed* result: a `backgroundColor` re-resolved while a `tintColor` assigned earlier did not, so the FAB showed one brand's wrench beside another brand's close. Guarded by `testSwitchingThemeCountsAsAColorAppearanceChange`, which asserts `hasDifferentColorAppearance(comparedTo:)` across two themes rather than the flag itself.
-- **A sheet or cover takes its traits from the window, so the theme is written there.** The theme environment value is trait-bridged, which means SwiftUI reads it back out of the UIKit trait collection — and a presentation's traits descend from the window rather than from the view that presented it. Applying `.environment(\\.pinwheelTheme,)` to sheet content therefore does nothing: measured, the playground held `Ember` while the settings sheet inside it resolved `Standard`. `PinwheelThemedWindow` writes `traitOverrides` on the catalog's own window (never the scene, so an embedded catalog can't theme its host), which every presentation then inherits. `PinwheelPreview` resolves its chrome in `init` rather than `onAppear`, or the window override lands before the requested theme is known. Guarded by `PresentedThemeUITests`, which is a UI test because the failure only exists across a real presentation.
-- **The display axes live in a native bottom toolbar; a presented item keeps the FAB.** Section, theme and appearance are global display axes, so they sit in `ToolbarItem(placement: .bottomBar)` — which on iOS 26 the system renders as glass capsules floating over scrolling content, split by `ToolbarSpacer` (guarded, since it is iOS 26 only). The section reads as text on the left, theme and appearance as SF Symbols grouped on the right, and the index carries no navigation title because the bar states it. Reaching the top of the screen and looking back down was the complaint; the bottom is also where iOS 26 moved system search, for one-handed reach. **`Menu` content cannot be themed but a toolbar item's can** — `Button("Tokens")` renders system sans, `Button { } label: { PinLabel("Tokens") }` takes the theme, which is why the pickers are sheets while the bar is native. A presented component has no `NavigationStack` of ours to hang a toolbar on, so it keeps the draggable FAB and its settings sheet.
-- **Every sheet is one chassis: `PinwheelSheet`, driven by a `PinwheelSheetModel`.** The leading slot always means get out — a cross at the root, a back chevron once pushed — with the title centred beside it and an optional trailing accessory (the tweak sheet's device button). The header stands at the 48pt control floor with one spacing-s each side, so 64pt, and both paddings are the same token because an asymmetric pair left the title off-centre in its own band. Guarded by `SheetHeaderHeightTests`, which reads the rendered DisplayList rather than the source.
-- **A commit button completes a flow; a tap that already took effect has nothing to complete.** Apple is explicit — *avoid using Done buttons for things other than completing the task* — and a Done with no Cancel was never a commit in the first place, since backing out is the whole point of deferring. So the model carries an optional `Commit` whose title the caller names (Done, Confirm, Pay) for flows that genuinely end in one, and every catalog picker leaves it nil: each tap applies immediately and is instantly reversible. NN/g sets the same bar from the other side — reserve a commit step for actions with serious consequences, never for routine ones.
-- **A picker sheet is a menu, so it closes on selection — every one of them.** Section, theme, appearance and device are each a flat list of mutually exclusive options opened from a control that shows the current value, which is Apple's pop-up button (its `Menu` on iOS): choosing an item closes it and the control reports the new value. One gesture has to mean one thing, and an earlier rule that kept a sheet open when its effect was visible behind it reasoned about visibility while the user reasons about the tap — comparing two themes is real, but a transient sheet is the wrong home for it (Apple puts the picker that most invites comparison, Appearance, on a persistent Settings screen). The cross still closes without choosing, and a `Toggle` inside the tweak sheet does not dismiss, which is consistent: a switch is not a single-select row.
-- **Open follow-up: the theme control does not show which theme is active.** A pop-up button is a pair — the menu closes *and* the control reports the selection — and the bar does that for section (its title) and appearance (its icon changes) but not theme, whose palette icon looks the same for every brand.
-- **The chosen row is outlined, not ticked.** A tinted row alone conveys state in colour, which WCAG 1.4.1 rejects unless the difference clears 3:1, and 1.4.11 names *selected* as a state needing 3:1 against its surroundings — so a soft fill cannot carry the meaning by itself. The border is a shape, which frees the fill to stay soft, and it reads in dark where the fill nearly vanishes. Radios are wrong here for a second reason: a radio is a form control promising a submit, so it advertises a commit button that isn't coming. Reach for a mark-free fill only if it is strong enough to clear 3:1 on its own.
-- **A sheet stands as tall as its rows, at every depth, and lets the system paint its own background.** There is no native fit-to-content sheet on iPhone — `presentationSizing(.fitted)` is iPad/macOS only — so `PinwheelSheet` measures its content with `onGeometryChange` and feeds `.presentationDetents([.height(h), .large])`. Three traps, all silent: a `List` cannot be measured (a scroll view takes all the height offered, so it reports the sheet back to itself, hence a `VStack`); an outer `.presentationDetents` on the *sheet call site* overrides the inner one, which is what left a pushed picker at its parent's height with a third of the sheet empty; and a sheet adds its bottom safe-area inset on top of the detent, so the ask discounts it. A *pushed* sheet does re-measure once no call site overrides it — measured, the device list sizes to its own rows inside the tweak sheet. iOS 26 applies Liquid Glass to any sheet declaring a partial-height detent, and an opaque `.background` paints over it — a view-hierarchy dump found the backdrop views (`_UILumaTrackingBackdropView`/`_UIVisualEffectBackdropView`) present under the fill. **We override it deliberately**: the sheets take `primaryBackground`, because a themed surface reads with more contrast against the dimmed catalog than the material does. Reach for the glass by removing that background, not by adding a modifier.
-- **A tweak is a command, a switch, or a choice.** `PinwheelTweak.Control` gained `.select(options:selection:)` because four demos were spelling a choice longhand — `PinStateViewDemo` and `PinTableViewDemo` each assigned one mutually-exclusive variable from four independent action tweaks, so nothing could report which state was live. The case ships with those two converted, and its options render as `PickerRow`s **inline in the tweak sheet**, the chosen one outlined. A pushed list was tried first and was wrong: the options were already flat rows, so the only thing missing was the selected state, and a push answered it by charging a second tap and a level of navigation for a component with one tweak. A device is a different axis and keeps its push; a variant is the sheet's own content. It stays non-generic — titles plus an `Int` binding — because `PinwheelTweak` is `Identifiable`/`Equatable` inside a `[PinwheelTweak]` behind a `PreferenceKey` and a result builder, and making it generic infects all four. **The trap it had to pay for:** the sweep addresses a variant by title (`-PinwheelPreviewTweak <title>`, enumerated from the dumped titles), so collapsing four tweaks into one would have silently dropped three captures from every sweep, light and dark. An option list therefore answers to each of its *options* rather than its own title — `previewVariantTitles` and `applyAsPreviewVariant(named:)` — guarded by two named tests. UIKit stays unbridged: `Tweak` has no selection member, and the seam waits for a real use.
-- **The wrench is the component's own tweaks, and nothing global.** It opens `Tweaks` — the vocabulary the code already uses (`PinwheelTweak`, `Tweakable`, `chrome.tweaks`) — with the device button in the header's trailing slot, since a simulated device frame is per-presentation rather than a global axis, and "No tweaks" centred when a component declares none. Theme and appearance live only in the index's bottom bar; changing brand with a component open means closing it, which is the accepted cost of one meaning per control. **Superseded:** the axes briefly lived here as rows and the sheet was called `Settings`, which left a per-component control opening a global screen while the same axes sat in the bottom bar — the duplication, not the rows, was the defect.
-- **Apple's controls are themed where they are ours, stock where they are the subject.** `UIPinTableViewCell`'s `UISwitch` takes `onTintColor = .actionText`, because a switch inside our component is ours and Apple's green is in no brand's palette. The `Apple Controls` demo keeps its system green and blue on purpose: it exists to capture stock controls as named placeholders for the Figma iOS UI Kit swap, so tinting it would make the capture misrepresent what it stands for.
-- **Menus cannot be themed, so a picker is a pushed list.** Menu items render through UIKit with the system font and tint, so every picker is a `PinwheelSheet` of `PickerRow`s instead — themed, and one shape for every axis.
-- **Colors are trait-reactive for free; fonts are not.** A color token is a `UIColor(dynamicProvider:)` reading `traits[PinwheelThemeTrait.self]`, the same mechanism that gives light/dark, so every existing `.primaryText`-style call site became brand-reactive with no change. `UIFont` has no dynamic-provider counterpart, so a font token resolves once against the traits current at the read — which is why SwiftUI font call sites take the theme explicitly (`PinTextStyle.font(in:)`) rather than reading a static.
-- **Label → `PinLabel`** (themed `Text`) + an independent trivial `UIPinLabel`. Both are fed by the same provider tokens; neither hosts the other (a label needs no hosting bridge). `PinLabel` exists because raw `Text(...).font(.body)` resolves to *Apple's* system style — a silent footgun that regressed the demos. `PinLabel.font` takes a themed `PinTextStyle`, not a raw `Font`, making the system-font path unrepresentable.
-- **Shared vocabularies are top-level types**, so no component owns what another reuses: `PinTextStyle` (typography, used by `PinLabel` and `PinButton`), `PinState` (content state, promoted out of `PinStateView.State`, used by `PinStateView` and `PinList`), `PinLabel.TextColor` (color roles).
-- **Color tokens have a SwiftUI-native shorthand.** A public `extension ShapeStyle where Self == Color` forwards the `UIColor` tokens, so any `ShapeStyle`/`Color` context takes a token the way it takes `.red` — `.background(.primaryBackground)`, `.foregroundStyle(.actionText)`. The `UIColor` extension stays the canonical definition (the shorthand just forwards, and `Color(uiColor:)` preserves the dynamic provider so the theme still resolves); prefer the leading-dot form at call sites. It can't reach `.listRowBackground(_:)` (parameter is a generic `View`, not a `ShapeStyle`), so those stay spelled out.
-- **`PinList` is greenfield SwiftUI** (themed `List` + `PinState`, value-based rows) — the counterpart of `UIPinTableView`, *not* a replacement: the UIKit table stays for recycling. Non-loaded states reuse `PinStateView`.
+- A theme is a named value in the environment, plural by default: `PinwheelTheme` (name + providers),
+  supplied as `PinwheelCatalog(themes:)`, resolved through `EnvironmentValues.pinwheelTheme`, and bridged
+  to a `PinwheelThemeTrait` so UIKit-hosted items resolve the same selection. Equatable **by name**.
+- A theme carries component shape as well as tokens (`buttonShape`), because a silhouette is as much a
+  brand's signature as its palette.
+- Spacing and radius are global `static let` constants, not per-theme.
+- Colours are trait-reactive for free; **fonts are not** — a font token resolves once against the traits
+  current at the read, so SwiftUI font call sites take the theme explicitly (`PinTextStyle.font(in:)`).
+- A custom trait must declare `affectsColorAppearance` or dynamic colours go stale.
+- A sheet takes its traits from the **window**, so the theme is written there, never on sheet content.
+- Menus cannot be themed, so every picker is a pushed list of themed rows.
+- Colour tokens have a `ShapeStyle` shorthand (`.background(.primaryBackground)`); the `UIColor`
+  extension stays canonical.
 
 ### Figma capture
 
-- **The capture toolchain is split: Swift engine in `Demo/FigmaCapture/`, Figma/JS half in `figma-plugin/`.** `figma-plugin/` (repo root, its own npm package) holds the "Pinwheel Capture Import" plugin (`code.ts` → `code.js`, `manifest.json`, `ui.html`) and `serve.mjs` — the local serve on `:8787` the sweep pushes to and the plugin reads from. It lives at the root, **not** under `Demo/` — that's a file-system-synchronized group and would bundle the JS into the app. Edit `code.ts` and `npm run build`; never hand-edit `code.js`. (The token variable collection is "Pinwheel Tokens".)
-- **A Figma-captured surface must render into SwiftUI's own tree — never a UIKit-backed `List`.** Capture reads SwiftUI's DisplayList off an *off-screen* host; a `List` (UIKit-backed — `UICollectionView` on iOS 16+, `UITableView` before) builds its rows lazily in the UIKit layer, which an off-screen host with no viewport never populates. So a `List` screen captures as an empty background shape (the rows are simply not in the DisplayList). Build capturable demos/components as `ScrollView { VStack { ForEach } }` — eager, fully in SwiftUI's tree, so every row renders and captures as editable text/color nodes (Numbers, Typography, Color). `LazyVStack` is pure SwiftUI but still lazy (viewport-gated), so it's not a safe capture bet either.
-- **Components capture with zero cooperation — every `Pin*` is byte-for-byte identical to `main`, no capture code, no markers.** The engine derives everything from what the component renders: structure from the DisplayList geometry, names from reflection, token bindings by value-matching the rendered `UIColor`/`CGFloat` against the `PinColorToken`/`PinFloatTokens` registries, and live UIKit controls (including a loading button's `UIActivityIndicatorView`) by cropping the on-screen render. A consumer drops their existing components in and they capture as-is — the contract that lets this scale. (The old marker apparatus — `pinCaptured*` modifiers, `PinCaptureKey`, `PinComponentStyle`, the `pinCapturing` fork — was proven dead and deleted; only `PinCaptureLayout` survives as the engine's layout IR.)
-- **A raw `List` — even with `Section`s and rich rows — captures fully, with zero cooperation.** A SwiftUI `List` is a recycled `UICollectionView` whose every row is its own `CellHostingView` DisplayList boundary the root host can't see. `PinSwiftUIListCapture` force-realizes the collection (sizes it to `contentSize`), then per cell gathers the leaves of every hosting view in that cell — shifted into cell coordinates — and builds one row by containment (`PinDisplayListCapture.containmentNode`, which seeds a transparent root spanning the union so a lone leaf still nests). A whole rich row (thumbnail, SALE pill, strikethrough was-price, stepper ±) lives in one `CellHostingView`, so this reassembles it 1:1. Section headers are supplementary views (`elementKindSectionHeader`), captured the same way and ordered by Y. The rows then run through `componentizeRepeatedChildren` like the DisplayList path, so repeated rows share one component. (`ProductListDemo` is a plain `List { Section { ForEach { row } } }` with `onDelete` — 2 headers + 6 rows → a header component + a 6-instance row component.) The earlier per-hosting-view `document(EmptyView())` path collapsed each cell to one text — the fix was to build from the cell's own leaves via containment, no reflection. Lazy stacks/grids (`LazyVStack`/`LazyVGrid`) already capture fully on the on-screen host. **This is why the demo stays a raw `List`, never rewritten to `ScrollView`/`VStack` to appease the capture** — reverse-engineer the real thing so a consumer's existing `List` just works. This also retired `PinList`'s old capture switch: it used to render an eager `ScrollView`/`VStack` under a `pinCapturing` environment because the DisplayList couldn't see `List` rows; now `PinList` is just a themed real `List` (one implementation) and the engine captures it — the `pinCapturing` environment and the `capturableStack` are gone.
-- **Repeated-cell componentization keys images by bytes and buckets size to ~16pt.** An image node's signature is its byte content, so identical icons/chevrons group (an instance shares the master's identical image) while per-row photos stay distinct (an instance can't override an image); size buckets to ~16pt so content-driven width jitter doesn't split one template while a real size difference still does.
-- **The capture engine is chosen by the item's hosted *world* (`PinwheelItem.isUIKitHosted`), never its display tag.** A `view:`/`viewController:` item walks the real `UIView` tree (`PinUIKitCapture`); a `content:` item reads its SwiftUI DisplayList. Routing on the `.uiKit` display chip instead misfires whenever the two diverge — a `.figma`-tagged UIKit demo (the `UICollectionView` grid in Screens) captured as one flat image because `.figma` isn't `.uiKit`, so it took the DisplayList path over a UIKit-hosted view. `isUIKitHosted` is set at construction (UIKit inits → `true`, SwiftUI → `false`), so the display tag stays a pure presentation axis. (A plain `UICollectionView` then captures with zero cooperation — force-realized cells → rounded token fills + centered editable labels — same as the UIKit table.)
-- **The sweep captures from the live *on-screen* host; auto-push captures off-screen.** A UIKit-backed control (`Toggle`/`Slider`/`Picker(.segmented)`/`Stepper`/`DatePicker`, and `ProgressView`) only populates the DisplayList once it has actually rendered on a window — an off-screen `UIHostingController` renders it incompletely and its leaf drops (reflection then falls to the containment path and loses it). So `FigmaCaptureSweepView` hosts the component on-screen (`LiveCaptureHost`) and reads leaves off that real render (`PinDisplayList.leaves(fromHost:)`); `document(_:liveHost:)` is that entry. Auto-push has no on-screen surface, so it keeps the off-screen `document(_:)` path (its controls are best-effort). Build capturable component demos that render eagerly (`ScrollView { VStack }`, not `List`/`LazyVStack`) so every node is present.
-- **Dark mode = two sweep rounds in the SIM's appearance, merged — a UIKit control can't be flipped in-app.** A UIKit control only paints in the *simulator's* appearance; neither `preferredColorScheme` nor a window/controller `overrideUserInterfaceStyle` repaints a SwiftUI-hosted control for the `drawHierarchy` crop (proven: window forced dark, control still cropped light). So the sweep runs the whole catalog twice — `simctl ui appearance light`, then `dark` — capturing a single-appearance document each round, and a Python step in `sweep.sh` grafts the dark round's `image`/`fill` onto the light one as `imageDark`/`fillDark`. Everything then adapts: controls, symbols, and untokenized fills via the merge; tokenized colours via the token's own light/dark value. (Round 1 must be *light* so text RGBA-matches the correct token.)
-- **Both themes are tokenized via per-theme variables (`color/light/<token>` + `color/dark/<token>`), NOT variable modes.** A Figma variable collection can't hold a second (Dark) mode without a paid plan — `collection.addMode('Dark')` throws `"Limited to 1 modes only"` on free/starter (confirmed via a debug probe). Modes are what give *automatic* light↔dark switching (paid). But *tokenization* (binding to named, editable variables instead of raw hex) needs no modes: `syncTokens` creates two variables per colour token, each with its value in the single mode, and `solid()` binds `color/dark/<token>` for a dark import, `color/light/<token>` for light. Dark colours are editable token references, just not auto-switching. Only an *explicit* token binds — a literal `.custom` colour (the black/white contrast labels in the Color demo) has no token and stays a static paint; value-matching it to a token would bind the wrong one (a white label → primaryBackground) and, post-split, the wrong theme. Flip: on a paid/Education plan, collapse to one `color/<token>` variable with Light+Dark modes for auto-switching. Golden-path researched; the round-trips that got here were only cut short once the probe surfaced `darkModeId: null` — instrument the real Figma failure, don't assume.
-- **The capture never forces a synchronous render-server commit — that's what exhausts the sim.** `drawHierarchy(in:afterScreenUpdates: true)` waits for the next screen-update cycle and makes the SimRenderServer allocate a fresh full-window surface it never reclaims; across a batch the server saturates and silently stops compositing heavy controls (they import as empty placeholders — the pixels genuinely aren't rendered). The control has already painted on the live window, so `keyWindowControlCrops` uses `afterScreenUpdates: false` (reads the existing front buffer) inside an `autoreleasepool` that releases the bitmap immediately; the host-layer crop is pooled too. Proven: 30 back-to-back control-screen captures on one boot stay complete. Rebooting (`simctl shutdown && boot`, or a full `simctl erase`) is a last-resort reset only if it ever recurs — it is no longer the fix.
-- **The live host sizes to `max(screen, content)` height, not the window.** A screen taller than the device (a long button list) clamped to the window drops its below-the-fold rows from the DisplayList; the reflected tree then outnumbers the rendered leaves, the order-zip fails, and the whole screen falls to the containment path — losing every reflected node (e.g. `PinButton` pills). `LiveCaptureHost` constrains the host to the taller of the screen and the content's `sizeThatFits` height, so tall content renders in full while a short screen stays screen-height (controls paint on-window; a centered empty state still centers). Symptom of the regression: `reflect=N > components=M` and the root imports as `tag=frame`.
-- **`PinUIKitCapture` walks the real `UIView` tree for any hosted UIKit component — `UILabel`/`UITextView` → text node (alignment-aware tight rect, plus a fill + radius when the label is a colored bar), `UISwitch`/`UIImageView` → live crop; a `UITableView`/`UICollectionView` force-realizes its cells first.** It's tried ahead of the SwiftUI DisplayList path in the sweep and claims a component only when the walk finds real text — so a **SwiftUI-hosting shell** (`UIPinButton`/`UIPinStateView` via `PinHostView`, which has no `UILabel`s of its own) falls back to the flat-image snapshot rather than a broken partial. That fallback is acceptable: the hosted component (`PinButton`, `PinStateView`) captures *editably* through its own SwiftUI catalog entry, so nothing editable is lost. 8 of 11 UIKit components capture as structured nodes (label, numbers, typography, color, both tables, tweakable, fullscreen); the 3 flat-image ones (button, stateView, viewController) all host SwiftUI. Reaching the hosted SwiftUI *through* the shell (reflect each nested `_UIHostingView`) is possible but low-value while the SwiftUI entries exist.
-- **A UIKit `UITableView`/`UICollectionView` captures by force-realizing every cell, then reading the real `UIView` tree — no DisplayList, no markers.** The DisplayList path sees nothing inside a UIKit-backed collection (its cells live in the UIKit layer), and a recycled collection only realizes its visible viewport. But a scroll view's cell-culling window *is* its `bounds`: `PinUIKitListCapture` sizes the scroll view to its full `contentSize` on the live host (demo data is small, so recycling is moot), which realizes every cell at once, then walks each cell — `UILabel.text`/`.font`/`.textColor` → editable text node (color value-matched to a token), `UISwitch`/`UIImageView` → live front-buffer crop (same `afterScreenUpdates: false` + `autoreleasepool` discipline). Wired ahead of the SwiftUI path in the sweep (`PinUIKitListCapture.document(...) ?? PinDisplayListCapture.document(...)`), so a component that isn't a UIKit collection falls through. This is the same zero-cooperation contract as the SwiftUI side — a consumer's existing UIKit table captures as-is. (Confirms the deleted marker apparatus was never needed for UIKit either.)
-- **Repeated cells capture as a Figma component + instances — edit the master, the copies follow.** Cells of the same class *and* structure share a `component` key (`\(type(of: cell))#t<textCount>f<fillCount>`, assigned in `realizedRows` only to groups of ≥2); the plugin imports the first as a main component and the rest as instances, overriding just per-instance text/fill (`applyInstanceContent`). A cell carrying a live crop (a `UISwitch`/icon image) is *excluded* — an instance's text/fill override can't reproduce a bitmap, so it stays an independent frame (also why the table's toggle rows don't collapse onto a text-row master). Class is part of the key because Pinwheel's `UIPinTableView` uses one polymorphic cell class for every row, so structure alone would merge unrelated templates. `FigmaNode.component` and the plugin's `masters`/`createInstance` path were dormant plumbing (a marker-apparatus survivor) until the capture began stamping the key. (`CollectionViewGridDemo` shows it: two card templates → two components, four instances each.)
-- **The SwiftUI DisplayList path does the same, but keys on a structural signature (no cell class exists).** A post-pass (`componentizeRepeatedChildren`) stamps sibling frames that share a signature — tag, size bucket, layout *axis*, fill/radius tokens, and recursive child shape (text nodes contribute only their style, never content). It deliberately drops inferred `justify`/`align`/`gap`: those wobble with text width across otherwise-identical cards and would falsely split one template (instances inherit the master's layout regardless). Size is bucketed to ~4pt (sub-pixel text heights mustn't split a template) but *is* in the signature, so genuinely different-sized cards don't merge — that's what makes a grouping faithful, since an instance can override only text/fill, not size. The pass only *adds* the `component` field (never restructures), so it can't regress an existing capture. (`CardsDemo` shows it: two SwiftUI card templates → two components, four instances each.)
-- **Table-drawn chrome (separators, disclosure chevrons) lives *outside* `contentView`, so reconstruct it from the table's own state.** A `UITableView` draws its separators itself and renders the disclosure indicator as `accessoryType` — neither is in any cell's `contentView`, so the walk misses both (the capture came back with no dividers and no chevrons). `PinUIKitListCapture` rebuilds them: a hairline separator between consecutive rows colored from the table's `separatorColor` (tokenizes, so it adapts in dark), and an SF Symbol `chevron.right` for each cell whose `accessoryType == .disclosureIndicator`. Derived from what the table exposes, not a marker.
-- **Capturing a UIKit label: read the tight text rect, not the label frame.** A `UILabel` in a fill-aligned `UIStackView` gets a frame as wide as the widest sibling, so a short string ("subtitle") captured at that width makes Figma justify it across the box ("s u b t i t l e"). Capture `label.sizeThatFits(...)` (the glyph rect) at the label's leading origin so the text node hugs the glyphs.
-- **A UIKit collection sits below the safe-area inset; lift the capture to the top.** The table's first cell starts ~62pt down (the safe-area content inset), a gap the SwiftUI capture already trims. `PinUIKitListCapture` shifts the whole list up by the first row's offset so content begins at the top, matching the SwiftUI side.
-- **The sweep owns a dedicated simulator, resolved by UDID — never "whichever is booted".** `resolve_udid` finds (or creates) a persistent sim named `Pinwheel Sweep` and ignores every other device, so a stray booted sim can't be built/captured against by accident (the bug that silently shipped stale captures: the sweep grabbed the wrong sim, built there, and the serve never updated). It's created on the newest available iOS runtime + newest iPhone (a capability, not a pinned model, so it survives runner/Xcode bumps), reused across runs to stay warm, and `bootstatus -b` waits for boot. Override the name with `PINWHEEL_SIM`. Modeled on `tienda-ios`'s `bin/screenshot-sweep` (the `elvis/screenshot-harness` "dedicated, pinned simulator" pattern).
-- **A stale sweep build silently ships an old capture.** The sweep's incremental `xcodebuild` (derived data at `/tmp/pinwheel-sweep-dd`) sometimes doesn't recompile a changed *package* source, so the app captures with the pre-fix binary and the serve looks unchanged while the fix is real (proven by unit tests). When a capture doesn't reflect a just-made source change, `rm -rf /tmp/pinwheel-sweep-dd` and re-sweep for a clean build before believing the capture over the test.
+- **Components capture with zero cooperation.** Every `Pin*` is byte-for-byte identical to `main`: no
+  capture code, no markers. The engine derives structure from the DisplayList, names from reflection, and
+  token bindings by value-matching what was rendered. A consumer drops their components in and they work.
+- **The engine is chosen by the item's hosted world** (`PinwheelItem.isUIKitHosted`), never its display
+  tag: `view:`/`viewController:` walk the real `UIView` tree, `content:` reads the DisplayList.
+- **Build capturable demos eagerly** — `ScrollView { VStack { ForEach } }`. A raw `List` captures too (the
+  engine force-realizes its cells), but `LazyVStack`/`LazyVGrid` are viewport-gated.
+- **Capture from the live on-screen host**: a UIKit-backed control only populates the DisplayList once it
+  has rendered on a window.
+- **Never force a synchronous render-server commit** — `drawHierarchy(afterScreenUpdates: true)` exhausts
+  the simulator's render server and controls silently stop compositing. Read the front buffer instead.
+- **The sweep owns a dedicated simulator, resolved by UDID**, and a stale sweep build silently ships an
+  old capture — `rm -rf /tmp/pinwheel-sweep-dd` when a capture contradicts a test.
+- Dark mode is two sweep rounds merged; both themes tokenize via per-theme variables, not modes.
 
 ### Project layout
 
@@ -459,19 +170,18 @@ These stay UIKit because no SwiftUI primitive matches their ergonomics/perf:
 
 ### Catalog, FAB & settings
 
-- **One pure-SwiftUI catalog + one SwiftUI settings sheet.** The legacy UIKit-first catalog (`PinwheelTableViewController`, section/split VCs, the item-hosting `PinwheelViewController`/`PinwheelHostingViewController`, `TweakingOptionsTableViewController`, helpers) was removed — public-but-dead (instantiated nowhere; the Demo/README lead with the SwiftUI `PinwheelCatalog`, and `MIGRATION.md` exists to move off it). That removed the second (UIKit) settings sheet; `PinwheelItem.viewController` and the `makeViewController` path went with it. UIKit *components*, the bridges (`PinHostView`, `PinwheelUIKitCompatibility`), and the `PinwheelItem(view:)`/`(viewController:)` initializers that drop UIKit content *into* the SwiftUI catalog all stay.
-- **Ids derive from title + tags; there is no manual `id:`.** `PinwheelItem.id`/`PinwheelSection.id` are computed — an item slugs `tags + title` (`Button`+`.uiKit` → `uikit-button`), a section slugs its title. Persistence (selected section/item/device) and deep-links key off these. The contract: title (plus tags, for an item) must be unique within its scope — two same-titled items are disambiguated by tags, which is why the `id:` override and its `explicitID` backing were removed. `PinwheelItem.generatedID(title:tags:)` is the public builder (used to form a deep-link without hardcoding the slug); it's `nonisolated` (pure) despite the package's `.defaultIsolation(MainActor.self)`.
-- **Catalog groups by concept, axes are tags.** Sections are concept buckets (`Tokens`/`Components`/`Screens`), not `SwiftUI`-vs-`UIKit` splits; each component's SwiftUI and UIKit takes share a section and are told apart by a `PinTag` chip. `PinTag` is an **open** `RawRepresentable` struct, not a closed enum — the library ships `.swiftUI`/`.uiKit`, and a consumer adds its own axis with a static extension (`DemoCatalog` adds `.figma` for the capture-demo screens in `Screens`), mirroring how `PinwheelComponent` is a consumer-implemented protocol rather than a fixed list. Tags also drive a horizontal filter-pill bar under the section picker (shown only when a section has >1 distinct tag; resets on section change). The row is `.contentShape(Rectangle())` so the whole width taps, and carries `.accessibilityIdentifier(item.id)` so UI tests navigate by stable id, not title (titles now repeat within a section).
-- **Typed catalog identifiers: `PinwheelComponent` (library) + a consumer enum in a shared module.** The library ships `PinwheelComponent` (a `RawRepresentable where RawValue == String` refinement) plus generic `PinwheelItem`/`PinwheelSection` inits and a `id(_ tags:)` default — so any consumer declares one `String` enum (`enum Catalog: String, PinwheelComponent { case button = "Button" }`) and gets typed authoring (`PinwheelItem(Catalog.button)`) *and* a typed deep-link id (`Catalog.button.id(.uiKit)`), with no id/slug literal. Leading-dot at the call site (`.button`) isn't possible because the init is generic over the consumer's type — write `Catalog.button`; that's the price of the library not knowing your enum.
-- **The consumer enum lives in a module both the app and its UI tests import — this is why `DemoCatalog` exists.** A UI-test target runs in a separate process and can't `@testable import` the app, so the identifier enum can't live in the app target. The demo models the fix a real consumer would use: a small local SwiftPM package (`DemoCatalog/`, `@_exported import Pinwheel`) holding `Catalog`/`CatalogSection`, depended on by both the Demo app and DemoUITests. The launch-arg is still a string at the boundary, but both sides *derive* it from the same enum (`Catalog.stateView.id(.swiftUI)`) — one source of truth, not a hand-copied `"swiftui-stateview"`. `DemoCatalog` is demo-only and not part of the distributable `Pinwheel` product; the library ships only the protocol.
-- **Registry doubles as the preview index.** `PinwheelPreview(id, sections:)` renders any catalog item in isolation; the Demo deep-links to one component via the `-PinwheelPreview <id>` launch arg.
-- **One FAB, hosted in a pass-through overlay window.** The floating tweak/close controls are the single UIKit `CornerAnchoringView` (direct-manipulation drag + velocity throw + corner persistence), now used only by the SwiftUI catalog/preview, hosted in a `UIWindow` above the app (`PinwheelFloatingControlsHost`) so they float over sheet presentations and are never clipped to a `.medium`/`.large` detent; the window's `hitTest` surfaces only the FAB buttons, so content below stays interactive.
-- **`PinwheelChrome` is the SwiftUI↔window seam** — an `@Observable` the catalog/preview owns and the window observes (tweaks, presented-state, settings visibility, selected device, close action). State lives here, not in playground `@State`, so the sheet, the playground resize, and the pill share one source of truth and survive re-renders.
-- **Hosted items are built once** (`PinwheelHostedItem`) so playground re-renders (e.g. opening settings) don't recreate the hosted view or reset its emitted tweak preference.
-- **Settings: tweaks and devices are separate screens.** A `NavigationStack` — an "Options" root (tweaks only) with a trailing device-icon button that pushes a "Device" list (oversized devices dimmed, the selected one checked).
-- **The simulated device shows as a floating pill** (`PinwheelDevicePill`) — a top-anchored SwiftUI `.overlay` *on the playground itself* (not the FAB's overlay window), persisting after the settings sheet is dismissed. It's an indicator — only a reset `×` is interactive (returns to the real device). A simulated (smaller) device is letterboxed against `primaryText` (inverse-of-surface) so the frame is visible in light and dark. The pill rides the playground rather than the window so its shrink+fade is a plain SwiftUI `.transition` — hosting it in the window (`UIHostingController` + `.intrinsicContentSize`, top-pinned) collapsed its frame on the way out instead of scaling in place. Trade-off: behind the `.large` settings detent it's covered (fine — the device list shows the active checkmark); at `.medium` it still peeks above. The FAB still fades independently (the FAB hides while settings is open; the pill doesn't).
-- **The device-frame resize snaps, never implicitly animated.** An `.animation(_:value: selectedDeviceIndex)` on the playground (to animate the resize/letterbox crossfade) overflowed SwiftUI's layout engine into a stack-overflow crash on *every* device pick — it animates the whole subtree, including the hosted item and the tweak-preference plumbing. The crash reproduced with and without the old `GeometryReader`/`.position` letterboxing, so the animation modifier itself is the cause, not the geometry math. The playground now centers a fixed-size frame inside an infinity frame (no `GeometryReader`/`.position`) and the resize snaps. Guarded by `TweakableUITests.testSelectingSimulatedDeviceDoesNotCrash`.
-- **iPad device presets dropped** — the Device preset list was simplified.
+- One pure-SwiftUI catalog and one SwiftUI settings sheet; the legacy UIKit catalog is gone.
+- **Ids derive from title + tags** — there is no manual `id:`. `PinwheelItem.generatedID(title:tags:)` is
+  the public builder; persistence and deep links key off these, so titles must be unique within scope.
+- **Sections are concept buckets, axes are tags.** `PinTag` is an open `RawRepresentable` struct so a
+  consumer adds its own axis.
+- **Typed identifiers**: the library ships `PinwheelComponent`; the consumer declares one `String` enum in
+  a module both the app and its UI tests import (`DemoCatalog`) — a UI test cannot `@testable import` the
+  app, which is the whole reason that package exists.
+- One FAB, hosted in a pass-through overlay window so it floats over presentations.
+- `PinwheelChrome` is the SwiftUI↔window seam; hosted items are built once.
+- **The device-frame resize snaps, never implicitly animated** — an `.animation(_:value:)` on the
+  playground overflows SwiftUI's layout engine into a stack overflow.
 
 ### Open follow-ups
 
