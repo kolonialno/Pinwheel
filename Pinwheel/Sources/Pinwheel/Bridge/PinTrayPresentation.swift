@@ -135,7 +135,8 @@ final class PinTrayOverlay: UIView {
     private var lastContent: AnyView?
     private var rest: NSLayoutConstraint?
     private lazy var machine = PinTrayMachine(room: room)
-    /// Whether the standing tray takes the room rather than its content's height. The tray says so.
+    /// Whether the standing tray takes the room rather than its content's height. The tray says so, and
+    /// the next event carries it — drawing it here would be a second animation nothing else knows about.
     var fills = false {
         didSet {
             guard fills != oldValue else { return }
@@ -143,7 +144,6 @@ final class PinTrayOverlay: UIView {
             // as tall as its card, so leaving it enabled hands it the drag meant for the content and
             // carries the header off the top.
             scroll.isScrollEnabled = !fills
-            settleGeometry(animated: true)
         }
     }
 
