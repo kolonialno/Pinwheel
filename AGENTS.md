@@ -154,6 +154,24 @@ Durable design decisions and why they were made.
   tray to it. Watching the hosted view's `intrinsicContentSize` from `layoutSubviews` does **not**
   work — a required height constraint means nothing in the overlay's own layout is dirtied, so it
   fires only at mount.
+- **The keyboard lays the tray out; the tray does not react to the keyboard.** On iOS 17+ the keyboard
+  runs in its own process and "will *asynchronously* initialize the keyboard UI and then
+  *asynchronously* post the notifications and perform the animations" (WWDC23, *Keep up with the
+  keyboard*) — so anything driven off `keyboardWillChangeFrame` is racing an animation it cannot join,
+  which is why our own spring read as staggered no matter how it was tuned. The tray constrains its
+  bottom to `keyboardLayoutGuide.topAnchor` with `usesBottomSafeArea = false`, and hands the two
+  margins to `setConstraints(_:activeWhenNearEdge:)` / `activeWhenAwayFrom:` so UIKit swaps them inside
+  the keyboard's own animation. Interactive dismissal comes free — the guide tracks the dismiss gesture.
+  **Never toggle those constraints by hand from `layoutSubviews`**: it re-enters layout and UIKit throws
+  `_setActive:mutuallyExclusiveConstraints:`. Only the corner radius is read there, because a corner is
+  not expressible as a constraint.
+- **Leaving a tray that was editing, the card takes its resting place at once and the keyboard slides
+  off it.** Studied frame by frame, the reference never squeezes a card into the room a departing
+  keyboard still occupies and never walks it down: at the moment back is tapped the full-height card is
+  already at the screen's bottom, *behind* the keyboard, and the keyboard alone moves, uncovering it.
+  One moving object rather than two is what makes it read as a single motion. A required `rest`
+  constraint pinned to the view's bottom, activated on a pop and released when the transition ends,
+  outranks the guide's own (priority 999) for exactly that span.
 - **One geometry, one animator — a second curve on the same constraint reads as two steps.** The
   card's height, how far it stands off the bottom, and its bottom corner are one state, settled by one
   spring that every trigger re-targets. Leaving a tray with the keyboard up used to run our spring and
