@@ -6,9 +6,6 @@ import Foundation
 let trayResizeDuration: TimeInterval = 0.30
 let trayResizeBounce: CGFloat = 0.10
 let trayDismissVelocity: CGFloat = 800
-/// How long a tray holds still for a keyboard before deciding it is not coming. A software keyboard
-/// answers a focus within a frame or two; a hardware one never answers at all.
-let trayKeyboardGrace: TimeInterval = 0.25
 
 /// The tray as a machine. Every rule learned by filming the reference lives here as state, including
 /// the one that is easiest to get wrong: *which animation owns a change*.
@@ -99,8 +96,6 @@ struct PinTrayMachine: Equatable {
         /// A move has started. Sent the moment it does, because what the arriving tray says about
         /// itself lands before the move that describes it resolves.
         case moveBegan(isPush: Bool)
-        /// The wait is a bet that the keyboard is coming. A hardware keyboard means it never does.
-        case keyboardNeverCame
         /// The tray saying how it stands. It arrives from SwiftUI whenever SwiftUI gets round to it.
         case fillsReported(Bool)
         case contentResized(CGFloat)
@@ -229,8 +224,10 @@ struct PinTrayMachine: Equatable {
             arriving = nil
             self.edits = edits
             // A tray about to raise the keyboard holds still until it does: shrinking with no keyboard
-            // under it sends the top down to the floor and back up again.
-            if isPush, edits, keyboard == .closed {
+            // under it sends the top down to the floor and back up again. A filling tray is sized by the
+            // room rather than by what it holds, so its top is the same before and after the keyboard
+            // arrives — there is no dip available to it and nothing to wait for.
+            if isPush, edits, !arrivingFills, keyboard == .closed {
                 contentHeight = wasStanding
                 fills = wasFilling
                 arriving = Arriving(contentHeight: height, fills: arrivingFills)
@@ -274,15 +271,6 @@ struct PinTrayMachine: Equatable {
                 to: geometry(.resting),
                 timeline: keyboard.ownsTheTimeline || waited ? .carriedByKeyboard : .spring(bounce: 0)
             )
-
-        case .keyboardNeverCame:
-            guard phase == .awaitingKeyboard else {
-                return Reaction(to: geometry(.resting), timeline: .carriedByKeyboard)
-            }
-            phase = .standing
-            adoptWhatArrived()
-            // Nothing else is moving now, so this one is ours to animate.
-            return Reaction(to: geometry(.resting), timeline: .spring(bounce: trayResizeBounce))
 
         case .roomChanged(let room):
             self.room = room

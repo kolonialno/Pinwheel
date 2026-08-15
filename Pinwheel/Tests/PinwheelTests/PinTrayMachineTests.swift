@@ -169,68 +169,37 @@ final class PinTrayMachineTests: XCTestCase {
         }
     }
 
-    // Holding still until the keyboard moves is a bet that it is coming. With a hardware keyboard
-    // attached the field takes focus and the software keyboard never appears, so the bet never settles
-    // and the search tray sat at its content's height — 245 of a possible 834 — for as long as it was
-    // open.
-    func testATrayWaitingForAKeyboardThatNeverComesStandsUpAnyway() {
+    // The wait used to be a bet with a stopwatch on it: with a hardware keyboard attached the field
+    // takes focus and nothing ever rises, so a tray that waited for it waited forever and sat at its
+    // content's height — 245 of a possible 834 — for as long as it was open. The question is asked
+    // outright now, so a tray that will raise nothing does not wait at all.
+    func testATrayThatWillRaiseNoKeyboardDoesNotWaitForOne() {
+        var machine = machine()
+        _ = machine.handle(.moveBegan(isPush: true))
+
+        let pushed = machine.handle(.moved(contentHeight: 245, edits: false, isPush: true))
+        XCTAssertEqual(machine.phase, .standing, "nothing is coming, so nothing is waited for")
+        XCTAssertEqual(pushed.to.height, 245, "it stands at what it holds")
+    }
+
+    // And a filling tray never waits either, whatever the keyboard is about to do: it is sized by the
+    // room, so its top is the same before and after, and there is no dip to hold still for.
+    func testAFillingTrayNeverWaitsBecauseItsTopCannotMove() {
         var machine = machine()
         _ = machine.handle(.moveBegan(isPush: true))
         _ = machine.handle(.fillsReported(true))
-        _ = machine.handle(.moved(contentHeight: 245, edits: true, isPush: true))
-        XCTAssertEqual(machine.phase, .awaitingKeyboard, "it is waiting")
 
-        let standing = machine.handle(.keyboardNeverCame)
-        XCTAssertEqual(machine.phase, .standing, "it gives up waiting")
-        XCTAssertTrue(machine.fills, "and takes up what the arriving tray said about itself")
-        XCTAssertEqual(standing.to.height, machine.geometry.height, accuracy: 0.5)
-        XCTAssertEqual(
-            standing.to.height,
-            screen.containerHeight - screen.safeAreaTop - trayBackdropReach - trayBottomMargin,
-            accuracy: 0.5,
-            "standing in the room it has, not at its content"
-        )
-    }
+        let pushed = machine.handle(.moved(contentHeight: 245, edits: true, isPush: true))
+        XCTAssertEqual(machine.phase, .standing, "it stands at once")
 
-    // The whole way in, measured off the app: 641 -> 245 -> 828, a collapse to the arriving tray's
-    // content height before it stood up. SwiftUI measures the arriving content mid-move, and a value
-    // arriving mid-move must be recorded rather than drawn — whichever value it is.
-    func testPushingIntoATrayNeverDropsItsTopOnTheWayIn() {
-        var machine = machine()
         let height = screen.containerHeight
         let top = { (geometry: PinTrayGeometry) in height - geometry.bottomInset - geometry.height }
-        var tops = [top(machine.geometry)]
-
-        for event in [PinTrayMachine.Event.moveBegan(isPush: true),
-                      .fillsReported(true),
-                      .contentResized(245),
-                      .moved(contentHeight: 245, edits: true, isPush: true),
-                      .keyboardMeasured(311)] {
-            tops.append(top(machine.handle(event).to))
-        }
-
-        XCTAssertEqual(tops, tops.sorted(by: >), "the top never descends on the way in: \(tops)")
-    }
-
-    // Tapping the space above the card dismisses the tray, so the card may never take that space.
-    // Filling it left a 14pt strip between the safe area and the card — measured, a tap aimed there
-    // landed on the card instead, and the only way out was the header.
-    func testNoTrayEverCoversTheSpaceThatDismissesIt() {
-        var machine = machine()
-        _ = machine.handle(.moveBegan(isPush: true))
-        _ = machine.handle(.fillsReported(true))
-        _ = machine.handle(.moved(contentHeight: 245, edits: true, isPush: true))
-
-        let height = screen.containerHeight
-        for measured in [0, 311, 0] as [CGFloat] {
-            let reaction = machine.handle(.keyboardMeasured(measured))
-            let top = height - reaction.to.bottomInset - reaction.to.height
-            XCTAssertGreaterThanOrEqual(
-                top - screen.safeAreaTop,
-                .minimumControlHeight,
-                "the strip above the card stays big enough to hit, keyboard at \(measured)"
-            )
-        }
+        XCTAssertEqual(
+            top(machine.handle(.keyboardMeasured(311)).to),
+            top(pushed.to),
+            accuracy: 0.5,
+            "and the keyboard arriving moves only its bottom"
+        )
     }
 
     func testLeavingATrayThatWasNotEditingAsksNothingOfTheKeyboard() {

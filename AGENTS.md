@@ -23,6 +23,9 @@ to change, add to it as you learn, and keep *this* file to what a session needs 
 - **Dependencies arrive through `init`** — no optionals, no defaults, no two-phase setup. If a thing
   cannot exist without a container, a clock and something to show, it takes all three at birth. Every
   protocol ships a real implementation and a stub, so the seam is usable from a test the day it is made.
+- **No behaviour behind a delay.** A timer is a guess about the world. If something must happen when a
+  motion ends, use the animation's completion; if it depends on what the world is doing, ask the world —
+  a private API answering outright beats a stopwatch estimating. Delays are for logging and for tests.
 - **One place draws, one place decides.** Most bugs here have been the same shape: a second copy of some
   state, or a second path that animates. Delete the copy rather than syncing it.
 

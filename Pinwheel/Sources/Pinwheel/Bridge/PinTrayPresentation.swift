@@ -111,7 +111,7 @@ final class PinTrayCoordinator<Item: Hashable> {
         guard var container = presenter.view.window?.rootViewController else { return }
         while let presented = container.presentedViewController { container = presented }
 
-        let created = PinTrayOverlay(in: container, clock: PinTrayMainClock(), showing: content)
+        let created = PinTrayOverlay(in: container, showing: content)
         created.onBackgroundDismiss = { [weak self] in self?.dismissAll() }
         overlay = created
     }
@@ -142,13 +142,8 @@ final class PinTrayOverlay: UIView {
     /// Given, not hunted. The overlay used to climb from its own window to the root view controller and
     /// on through whatever it had presented, looking for somewhere to live.
     private unowned let container: UIViewController
-    /// Later, injectable: a wait for a keyboard that may never speak, and the pause before a leaving
-    /// tray is torn down.
-    private let clock: PinTrayClock
-
-    init(in container: UIViewController, clock: PinTrayClock, showing content: AnyView) {
+    init(in container: UIViewController, showing content: AnyView) {
         self.container = container
-        self.clock = clock
         super.init(frame: container.view.bounds)
         build()
         present(content)
@@ -194,37 +189,28 @@ final class PinTrayOverlay: UIView {
                 + (reaction.effects.isEmpty ? "" : "  effects=\(reaction.effects)")
                 + (reaction.dismisses ? "  dismisses" : "")
         )
+        let finish: () -> Void = reaction.dismisses ? { [weak self] in self?.tearDown() } : {}
         switch reaction.timeline {
         case .immediate:
-            place(reaction.to, animated: false)
+            place(reaction.to, animated: false, then: finish)
         case .carriedByKeyboard:
             // Set the values and let the keyboard's own animation carry them; starting one of ours
             // beside it is what reads as two steps.
             write(reaction.to)
+            finish()
         case .spring(let bounce):
-            place(reaction.to, animated: true, bounce: bounce)
+            place(reaction.to, animated: true, bounce: bounce, then: finish)
         case .matching(let timing):
-            place(reaction.to, matching: timing)
+            place(reaction.to, matching: timing, then: finish)
         }
-        // A wait needs a deadline: the keyboard is not ours to command and may never speak at all.
-        if machine.phase == .awaitingKeyboard {
-            clock.after(trayKeyboardGrace) { [weak self] in
-                guard let self, self.machine.phase == .awaitingKeyboard else { return }
-                self.apply(self.machine.handle(.keyboardNeverCame))
-            }
-        }
-        if reaction.dismisses {
-            let travel: TimeInterval
-            switch reaction.timeline {
-            case .matching(let timing): travel = timing.duration
-            default: travel = trayResizeDuration
-            }
-            clock.after(travel) {
-                self.mounted.map { self.unmount($0.hosting) }
-                self.removeFromSuperview()
-                PinwheelRecorder.stopFollowing()
-            }
-        }
+    }
+
+    /// Torn down when the travel that carries it away actually ends, which the animation knows and a
+    /// timer beside it can only estimate.
+    private func tearDown() {
+        mounted.map { unmount($0.hosting) }
+        removeFromSuperview()
+        PinwheelRecorder.stopFollowing()
     }
 
     /// How tall the content stands inside a card of this height. Arriving, or filling, it is exactly the
@@ -253,7 +239,11 @@ final class PinTrayOverlay: UIView {
 
     /// Drawn on the keyboard's own clock and curve, started in the same turn the keyboard was asked to
     /// leave — so the two are one motion rather than one following the other.
-    private func place(_ geometry: PinTrayGeometry, matching timing: PinTrayMachine.KeyboardTiming) {
+    private func place(
+        _ geometry: PinTrayGeometry,
+        matching timing: PinTrayMachine.KeyboardTiming,
+        then finish: @escaping () -> Void
+    ) {
         write(geometry)
         UIView.animate(
             withDuration: timing.duration,
@@ -264,11 +254,17 @@ final class PinTrayOverlay: UIView {
                 self.tray.layer.cornerRadius = geometry.bottomCornerRadius
                 self.dimming.alpha = 0
                 self.layoutIfNeeded()
-            }
+            },
+            completion: { _ in finish() }
         )
     }
 
-    private func place(_ geometry: PinTrayGeometry, animated: Bool, bounce: CGFloat = trayResizeBounce) {
+    private func place(
+        _ geometry: PinTrayGeometry,
+        animated: Bool,
+        bounce: CGFloat = trayResizeBounce,
+        then finish: @escaping () -> Void = {}
+    ) {
         write(geometry)
         let draw = {
             self.tray.transform = CGAffineTransform(translationX: 0, y: geometry.translation)
@@ -276,8 +272,8 @@ final class PinTrayOverlay: UIView {
             self.dimming.alpha = geometry.translation > 0 && self.machine.phase == .leaving ? 0 : 1
             self.layoutIfNeeded()
         }
-        guard animated else { return draw() }
-        UIView.animate(springDuration: trayResizeDuration, bounce: bounce, animations: draw)
+        guard animated else { draw(); return finish() }
+        UIView.animate(springDuration: trayResizeDuration, bounce: bounce, animations: draw) { _ in finish() }
     }
 
 
@@ -419,8 +415,13 @@ final class PinTrayOverlay: UIView {
         tray.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(drag)))
     }
 
-    // Whether the card is still nested in the display's corner is the one thing no constraint can
-    // express, so it is read where the guide has already been laid out.
+    /// Whether this tray will raise a keyboard: something in it has focus, and a keyboard would appear.
+    /// With a hardware keyboard attached the first half is true and the second is not, and a tray that
+    /// believed the first alone waited forever for a keyboard that was never coming.
+    private var raisesTheKeyboard: Bool {
+        holdsFirstResponder && PinTrayKeyboardPresence.aKeyboardWouldAppear
+    }
+
     private var holdsFirstResponder: Bool {
         func search(_ view: UIView) -> Bool {
             view.isFirstResponder || view.subviews.contains(where: search)
@@ -491,7 +492,7 @@ final class PinTrayOverlay: UIView {
         DispatchQueue.main.async {
             self.apply(self.machine.handle(.moved(
                 contentHeight: self.fittedHeight,
-                edits: self.holdsFirstResponder,
+                edits: self.raisesTheKeyboard,
                 isPush: isPush
             )))
         }
