@@ -197,6 +197,7 @@ struct PinTrayDemo: View {
             .overlay(alignment: .bottom) {
                 SearchField(text: $query)
                     .padding(.horizontal, .spacingXL)
+                    .padding(.bottom, .spacingL)
             }
             .animation(.trayContent, value: matches)
         }
