@@ -7,7 +7,7 @@ private let trayDismissVelocity: CGFloat = 800
 private let trayDimming: CGFloat = 0.35
 private let trayMargin: CGFloat = .spacingS
 private let trayBottomMargin: CGFloat = .spacingS
-private let trayTopRadius: CGFloat = 28
+private let trayTopRadius: CGFloat = 32
 
 extension UIScreen {
     /// The display's own corner radius, which a bottom-anchored card has to nest inside to look
@@ -103,6 +103,8 @@ final class PinTrayOverlay: UIView {
     private var offset = NSLayoutConstraint()
     private var current: UIHostingController<AnyView>?
     private weak var parent: UIViewController?
+    private var displayRadius: CGFloat = .radiusL
+    private var keyboardInset: CGFloat = 0
     private var standingHeight: CGFloat = 0
 
     var onBackgroundDismiss: () -> Void = {}
@@ -125,8 +127,9 @@ final class PinTrayOverlay: UIView {
         )
 
         let screen = controller.view.window?.screen ?? UIScreen.main
+        displayRadius = screen.pinDisplayCornerRadius
         tray.translatesAutoresizingMaskIntoConstraints = false
-        tray.layer.cornerRadius = screen.pinDisplayCornerRadius
+        tray.layer.cornerRadius = displayRadius
         tray.layer.maskedCorners = [.layerMinXMaxYCorner, .layerMaxXMaxYCorner]
         tray.layer.cornerCurve = .continuous
         tray.clipsToBounds = true
@@ -154,6 +157,33 @@ final class PinTrayOverlay: UIView {
         ])
 
         tray.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(drag)))
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(keyboardChanged),
+            name: UIResponder.keyboardWillChangeFrameNotification,
+            object: nil
+        )
+    }
+
+    // Standing clear of the bottom edge, the card is no longer nested in the display's corner, so its
+    // bottom pair drops to the same radius as its top.
+    @objc private func keyboardChanged(_ note: Notification) {
+        guard let end = (note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue else { return }
+        let overlap = max(0, bounds.maxY - convert(end, from: nil).minY)
+        guard overlap != keyboardInset else { return }
+        keyboardInset = overlap
+
+        let duration = note.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? TimeInterval ?? trayResizeDuration
+        let curve = (note.userInfo?[UIResponder.keyboardAnimationCurveUserInfoKey] as? Int).map {
+            UIView.AnimationOptions(rawValue: UInt($0) << 16)
+        } ?? []
+
+        offset.constant = -(trayBottomMargin + keyboardInset)
+        UIView.animate(withDuration: duration, delay: 0, options: curve) {
+            self.tray.layer.cornerRadius = self.keyboardInset > 0 ? trayTopRadius : self.displayRadius
+            self.layoutIfNeeded()
+        }
     }
 
     func present(_ content: AnyView) {
@@ -162,7 +192,7 @@ final class PinTrayOverlay: UIView {
         offset.constant = standingHeight
         layoutIfNeeded()
 
-        offset.constant = -trayBottomMargin
+        offset.constant = -(trayBottomMargin + keyboardInset)
         UIView.animate(springDuration: trayResizeDuration, bounce: trayResizeBounce) {
             self.dimming.alpha = 1
             self.layoutIfNeeded()
@@ -218,7 +248,7 @@ final class PinTrayOverlay: UIView {
         ])
 
         current = hosting
-        let ceiling = bounds.height - safeAreaInsets.top - trayBottomMargin - .spacingXXL
+        let ceiling = bounds.height - safeAreaInsets.top - trayBottomMargin - keyboardInset - .spacingXXL
         standingHeight = min(fitted, ceiling)
     }
 
@@ -237,14 +267,14 @@ final class PinTrayOverlay: UIView {
 
         switch gesture.state {
         case .changed:
-            offset.constant = -trayBottomMargin + max(0, travelled)
+            offset.constant = -(trayBottomMargin + keyboardInset) + max(0, travelled)
             dimming.alpha = 1 - (max(0, travelled) / max(height.constant, 1)) * 0.6
         case .ended, .cancelled:
             let velocity = gesture.velocity(in: self).y
             if velocity > trayDismissVelocity || travelled > height.constant / 3 {
                 onBackgroundDismiss()
             } else {
-                offset.constant = -trayBottomMargin
+                offset.constant = -(trayBottomMargin + keyboardInset)
                 UIView.animate(springDuration: trayResizeDuration, bounce: trayResizeBounce) {
                     self.dimming.alpha = 1
                     self.layoutIfNeeded()

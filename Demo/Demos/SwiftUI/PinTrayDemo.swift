@@ -6,6 +6,7 @@ struct PinTrayDemo: View {
         case boost
         case howItWorks
         case payWith
+        case region
     }
 
     private struct Tier: Hashable {
@@ -31,9 +32,12 @@ struct PinTrayDemo: View {
 
     private let methods = [("applelogo", "Pay with Apple"), ("xmark.square", "Pay with X Money")]
 
+    @Environment(\.pinwheelTheme) private var theme
     @State private var path: [Route] = []
     @State private var selectedTier = 2
     @State private var selectedMethod = 0
+    @State private var selectedRegion = "United Kingdom"
+    @State private var query = ""
 
     var body: some View {
         VStack(spacing: .spacingL) {
@@ -50,6 +54,7 @@ struct PinTrayDemo: View {
             case .boost: boost
             case .howItWorks: howItWorks
             case .payWith: payWith
+            case .region: region
             }
         }
     }
@@ -63,7 +68,7 @@ struct PinTrayDemo: View {
 
                 wheel(tiers, selected: selectedTier) { selectedTier = $0 }
 
-                pill("Region", value: "United Kingdom") {}
+                pill("Region", value: selectedRegion) { path.append(.region) }
                     .padding(.top, .spacingXL)
                 pill("Pay with", value: methods[selectedMethod].1) { path.append(.payWith) }
                     .padding(.top, .spacingS)
@@ -135,6 +140,49 @@ struct PinTrayDemo: View {
         }
     }
 
+
+    private var region: some View {
+        PinTray("Region") {
+            VStack(spacing: .spacingXL) {
+                HStack(spacing: .spacingS) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondaryText)
+                    TextField("Search Country, City, or Region", text: $query)
+                        .font(PinTextStyle.body.font(in: theme))
+                        .foregroundStyle(.primaryText)
+                        .accessibilityIdentifier("pinwheel.tray.search")
+                }
+                .padding(.horizontal, .spacingL)
+                .frame(minHeight: .minimumControlHeight)
+                .background(
+                    RoundedRectangle(cornerRadius: .radiusL)
+                        .fill(Color.secondaryBackground)
+                )
+
+                VStack(spacing: .spacingL) {
+                    PinLabel("Search for a location or boost globally")
+                        .color(.secondary)
+                    Button {
+                        selectedRegion = "Global"
+                        path.removeLast()
+                    } label: {
+                        PinLabel("Boost Global")
+                            .padding(.horizontal, .spacingL)
+                            .frame(minHeight: .minimumControlHeight)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: .radiusL)
+                                    .strokeBorder(Color.tertiaryText, lineWidth: 1)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.bottom, .spacingXXL * 3)
+            }
+            .padding(.horizontal, .spacingXL)
+            .padding(.top, .spacingXL)
+        }
+    }
+
     /// The reference shows five rows with the edges faded out, so the list reads as a wheel that
     /// runs past the tray rather than a list that ends there.
     private func wheel(_ rows: [Tier], selected: Int, select: @escaping (Int) -> Void) -> some View {
@@ -188,5 +236,6 @@ struct PinTrayDemo: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("pinwheel.tray.pill.\(title)")
     }
 }
