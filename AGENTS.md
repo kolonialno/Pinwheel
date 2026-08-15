@@ -179,11 +179,12 @@ Durable design decisions and why they were made.
   scale factor put the reference at ~19pt and would have picked the wrong token. Rendering `.radiusM` and
   `.radiusL` and measuring both the same way settled it: `.radiusL` reads 12.7 against the reference's
   13.0.
-- **The hairline needs a separator colour the palette does not have.** `secondaryBackground` is
-  `#F2F2F7` (242 on white) against the reference's 224, which at 1pt is the difference between a visible
-  rule and none — the tray uses `tertiaryText` to be visible at all, which overshoots to ~178. A
-  dedicated `separator` token would land it, but `ColorProvider` is public API, so that is a decision
-  rather than a fix.
+- **`secondaryBackground` is the separator colour, and there is no other.** It draws the hairline in
+  `PinwheelSheet` and is `UIPinTableView`'s `separatorColor`, so a tray's hairline takes it too. It is
+  `#F2F2F7`, 242 on white, against the reference's 224 — fainter by a shade, which is a property of the
+  token rather than of any one component. If it should read stronger, the value moves once in the
+  provider and every rule in the library follows; reaching for a darker colour in a single component
+  splits the vocabulary for no gain.
 - **Open follow-up: the catalog's own sheets still use `PinwheelSheet`.** Two chassis for one idea is one
   too many — the catalog's Tweaks/Device sequence is the natural second consumer and should move onto
   `PinTray`, retiring `PinwheelSheet` and its detent measuring.

@@ -51,7 +51,7 @@ public struct PinTray<Content: SwiftUI.View, Accessory: SwiftUI.View>: SwiftUI.V
             header
             Divider()
                 .frame(height: 1)
-                .overlay(Color.tertiaryText)
+                .overlay(Color.secondaryBackground)
                 .padding(.horizontal, .spacingXL)
             content()
                 .scaleEffect(phase?.contentZoom ?? 1)
