@@ -412,7 +412,11 @@ final class PinTrayOverlay: UIView {
             scroll.bottomAnchor.constraint(equalTo: card.bottomAnchor),
         ])
 
-        tray.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(drag)))
+        let pan = UIPanGestureRecognizer(target: self, action: #selector(drag))
+        // The list's own scrolling recogniser must keep working: this one watches alongside it and only
+        // takes over when the list has nothing left to give.
+        pan.delegate = self
+        tray.addGestureRecognizer(pan)
     }
 
     /// Whether anything in the tray has focus, and so whether it stands on the keyboard.
@@ -574,12 +578,49 @@ final class PinTrayOverlay: UIView {
         onBackgroundDismiss()
     }
 
+    /// The list inside the tray, if it has one. SwiftUI builds it, so it is found rather than held.
+    private var list: UIScrollView? {
+        func search(_ view: UIView) -> UIScrollView? {
+            if let found = view as? UIScrollView, found !== scroll { return found }
+            for subview in view.subviews {
+                if let found = search(subview) { return found }
+            }
+            return nil
+        }
+        return mounted.flatMap { search($0.hosting.view) }
+    }
+
+    private var listIsAtTheTop: Bool {
+        guard let list else { return true }
+        return list.contentOffset.y <= -list.adjustedContentInset.top + 0.5
+    }
+
+    /// Held at the top while the card has the drag, so the list cannot rubber-band underneath it and
+    /// then snap back when the card takes over.
+    private func holdListAtTheTop() {
+        guard let list, list.contentOffset.y > -list.adjustedContentInset.top else { return }
+        list.contentOffset.y = -list.adjustedContentInset.top
+    }
+
+    private var cardHasTheDrag = false
+
     @objc private func drag(_ gesture: UIPanGestureRecognizer) {
         let travelled = gesture.translation(in: self).y
         switch gesture.state {
+        case .began:
+            cardHasTheDrag = false
         case .changed:
+            cardHasTheDrag = PinTrayMachine.cardTakesTheDrag(
+                listIsAtTheTop: listIsAtTheTop,
+                travelled: travelled,
+                alreadyDragging: cardHasTheDrag
+            )
+            guard cardHasTheDrag else { return }
+            holdListAtTheTop()
             apply(machine.handle(.dragged(travelled)))
         case .ended, .cancelled:
+            guard cardHasTheDrag else { return }
+            cardHasTheDrag = false
             let reaction = machine.handle(.released(
                 velocity: gesture.velocity(in: self).y,
                 dismissBeyond: height.constant / 3
@@ -592,5 +633,16 @@ final class PinTrayOverlay: UIView {
         default:
             break
         }
+    }
+}
+
+extension PinTrayOverlay: UIGestureRecognizerDelegate {
+    /// Alongside the list's own scrolling, never instead of it: which of them the drag belongs to is
+    /// decided per movement, not by one of them winning the gesture outright.
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer
+    ) -> Bool {
+        true
     }
 }

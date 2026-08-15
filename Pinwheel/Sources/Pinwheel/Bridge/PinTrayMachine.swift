@@ -139,6 +139,20 @@ struct PinTrayMachine: Equatable {
         self.room = room
     }
 
+    /// Who a downward drag belongs to. The list is the thing that scrolls and the card is the thing
+    /// that dismisses, and at the top of the list a downward drag has nothing left to reveal — so it
+    /// belongs to the card. Anywhere else in the list, and in any upward drag, the list keeps it.
+    ///
+    /// Once the card has taken a gesture it keeps it to the end, because a drag that changed hands half
+    /// way would stop under the finger.
+    static func cardTakesTheDrag(
+        listIsAtTheTop: Bool,
+        travelled: CGFloat,
+        alreadyDragging: Bool
+    ) -> Bool {
+        alreadyDragging || (listIsAtTheTop && travelled > 0)
+    }
+
     /// What a measured height means, read against what the keyboard was last doing. Moving or settled
     /// is a conclusion rather than an observation, so it is drawn here — anywhere else is a second copy
     /// of the keyboard's state, and the two go out of step the moment we ask it to leave.
