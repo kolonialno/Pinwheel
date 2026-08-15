@@ -123,8 +123,9 @@ Durable design decisions and why they were made.
   same radius as its top — measured on the reference, the two corners are then identical. The overlay
   watches `keyboardWillChangeFrame`, lifts by the overlap, and animates the corner with the keyboard's
   own duration and curve so the two move as one.
-- **A tray clears the keyboard by more than it clears the screen edge.** Measured on the reference:
-  20pt above the keyboard against 8pt above the bottom of the display. The overlay carries both, and
+- **A tray clears the keyboard by more than it clears the screen edge.** `.spacingL` above the
+  keyboard against `.spacingS` above the bottom of the display — the reference measures 20pt there, and
+  the token is taken over the exact number. The overlay carries both, and
   recomputes its ceiling when the keyboard moves so a tray that fills shrinks to the new room rather
   than being pushed off the top.
 - **The hosted content is held at its own height from the top, never stretched to the card.** Pinning
