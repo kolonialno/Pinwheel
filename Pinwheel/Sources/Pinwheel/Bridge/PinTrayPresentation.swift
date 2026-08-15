@@ -107,6 +107,7 @@ final class PinTrayOverlay: UIView {
     private var displayRadius: CGFloat = .radiusL
     private var keyboardInset: CGFloat = 0
     private var fittedHeight: CGFloat = 0
+    private var currentHeight: NSLayoutConstraint?
     private var standingHeight: CGFloat = 0
 
     var onBackgroundDismiss: () -> Void = {}
@@ -191,7 +192,9 @@ final class PinTrayOverlay: UIView {
         } ?? []
 
         offset.constant = -bottomInset
-        height.constant = min(fittedHeight, ceiling)
+        standingHeight = min(fittedHeight, ceiling)
+        height.constant = standingHeight
+        currentHeight?.constant = standingHeight
         UIView.animate(withDuration: duration, delay: 0, options: curve) {
             self.tray.layer.cornerRadius = self.keyboardInset > 0 ? trayTopRadius : self.displayRadius
             self.layoutIfNeeded()
@@ -254,18 +257,22 @@ final class PinTrayOverlay: UIView {
             in: CGSize(width: bounds.width - trayMargin * 2, height: ceiling)
         ).height
 
-        // Filling the card rather than carrying its own height, so a tray that asks for more room than
-        // there is lands at the ceiling and lays its content out at that height.
+        fittedHeight = fitted
+        standingHeight = min(fitted, ceiling)
+
+        // Held at its own height from the top, never stretched to the card. Pinning the bottom too
+        // would re-lay the content out on every frame of the height spring, and a cross-fade between
+        // two reflowing views reads as a stutter rather than a dissolve.
+        let contentHeight = hosting.view.heightAnchor.constraint(equalToConstant: standingHeight)
         NSLayoutConstraint.activate([
             hosting.view.leadingAnchor.constraint(equalTo: card.leadingAnchor),
             hosting.view.trailingAnchor.constraint(equalTo: card.trailingAnchor),
             hosting.view.topAnchor.constraint(equalTo: card.topAnchor),
-            hosting.view.bottomAnchor.constraint(equalTo: card.bottomAnchor),
+            contentHeight,
         ])
 
         current = hosting
-        fittedHeight = fitted
-        standingHeight = min(fitted, ceiling)
+        currentHeight = contentHeight
     }
 
     private func unmount(_ hosting: UIHostingController<AnyView>) {

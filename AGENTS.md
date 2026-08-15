@@ -127,6 +127,12 @@ Durable design decisions and why they were made.
   20pt above the keyboard against 8pt above the bottom of the display. The overlay carries both, and
   recomputes its ceiling when the keyboard moves so a tray that fills shrinks to the new room rather
   than being pushed off the top.
+- **The hosted content is held at its own height from the top, never stretched to the card.** Pinning
+  its bottom to the card as well re-lays the content out on every frame of the height spring, and a
+  cross-fade between two reflowing views reads as a stutter rather than a dissolve. Measured after the
+  fix: the body's first ink sits a constant 192.3pt below the card's top for the whole transition while
+  the card springs 264 -> 402pt. The constraint stays updatable so a filling tray still re-lays out when
+  the keyboard moves.
 - **A tray fills by being offered the ceiling, not infinity.** `sizeThatFits` with an infinite height
   returns the ideal size, so `.frame(maxHeight: .infinity)` reports the same number as content-sized
   rows and nothing fills. Offering the ceiling instead lets a tray that wants the room report the
