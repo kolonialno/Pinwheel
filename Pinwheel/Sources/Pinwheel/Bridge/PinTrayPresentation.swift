@@ -200,7 +200,10 @@ final class PinTrayOverlay: UIView {
         // The chassis scrolls only to rescue a tray taller than its card. A filling tray is exactly as
         // tall as its card, so leaving it enabled hands it the drag meant for the content.
         scroll.isScrollEnabled = !machine.fills
-        currentHeight?.constant = machine.fills ? geometry.height : fittedHeight
+        // Never shorter than the card: a tray taller than its card keeps its own height and scrolls,
+        // but one shorter is stretched to fill, so anything anchored to the content's bottom edge stays
+        // on the card's bottom edge rather than floating mid-card until the move resolves.
+        currentHeight?.constant = max(fittedHeight, geometry.height)
         currentPhase?.standingRoom = geometry.height
     }
 
@@ -234,6 +237,10 @@ final class PinTrayOverlay: UIView {
     }
 
 
+
+    /// The card, and the content laid out inside it. Read by tests asserting the two agree.
+    var cardHeight: CGFloat { tray.bounds.height }
+    var contentHeight: CGFloat { current?.view.bounds.height ?? 0 }
 
     var onBackgroundDismiss: () -> Void = {}
 
@@ -397,39 +404,6 @@ final class PinTrayOverlay: UIView {
         )
     }
 
-    private func settleGeometry(
-        animated: Bool,
-        phase: PinTrayGeometry.Phase = .resting,
-        bounce: CGFloat = trayResizeBounce,
-        alongside: (() -> Void)? = nil,
-        completion: (() -> Void)? = nil
-    ) {
-        let geometry = geometry(phase)
-        standingHeight = geometry.height
-        height.constant = geometry.height
-        currentHeight?.constant = fittedHeight
-
-        // Applied together and only here, so nothing can be assigned outside the animation and arrive
-        // already in place.
-        let apply = {
-            self.tray.transform = CGAffineTransform(translationX: 0, y: geometry.translation)
-            self.tray.layer.cornerRadius = geometry.bottomCornerRadius
-            alongside?()
-            self.layoutIfNeeded()
-        }
-
-        guard animated else {
-            apply()
-            completion?()
-            return
-        }
-        UIView.animate(springDuration: trayResizeDuration, bounce: bounce) {
-            apply()
-        } completion: { _ in
-            completion?()
-        }
-    }
-
     func present(_ content: AnyView) {
         mount(content)
         apply(machine.handle(.presented(contentHeight: fittedHeight)))
@@ -519,9 +493,14 @@ final class PinTrayOverlay: UIView {
         fittedHeight = fitted
         standingHeight = fitted
 
-        // Held at its full height inside the scroll view, so a tray clamped by the room it has
-        // scrolls rather than clipping, and neither view re-lays out during a dissolve.
-        let contentHeight = hosting.view.heightAnchor.constraint(equalToConstant: fitted)
+        // Held at its full height inside the scroll view, so a tray clamped by the room it has scrolls
+        // rather than clipping, and neither view re-lays out during a dissolve. Never shorter than the
+        // card it is arriving into: anything anchored to the content's bottom edge would otherwise sit
+        // at the arriving tray's own measured height until the move resolved, which is where the search
+        // field was appearing — mid-card, then travelling down.
+        let contentHeight = hosting.view.heightAnchor.constraint(
+            equalToConstant: max(fitted, tray.bounds.height)
+        )
         NSLayoutConstraint.activate([
             hosting.view.widthAnchor.constraint(equalTo: scroll.frameLayoutGuide.widthAnchor),
             hosting.view.leadingAnchor.constraint(equalTo: scroll.contentLayoutGuide.leadingAnchor),

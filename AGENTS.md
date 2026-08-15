@@ -191,6 +191,14 @@ Durable design decisions and why they were made.
   One moving object rather than two is what makes it read as a single motion. A required `rest`
   constraint pinned to the view's bottom, activated on a pop and released when the transition ends,
   outranks the guide's own (priority 999) for exactly that span.
+- **The arriving content is laid out to the card, never to itself.** The chassis mounted an arriving
+  tray at its own measured height and `write` kept re-setting it there — 245 inside a 642 card — so the
+  search field, which rides the content's bottom edge, appeared mid-card and travelled down once the move
+  resolved. The card's own geometry was clean throughout, which is why every tape of the *card* said the
+  push was fine: 794pt of field travel, invisible in the column being sampled. `currentHeight` is now
+  `max(fittedHeight, geometry.height)` — taller than its card it keeps its height and scrolls, shorter it
+  stretches to fill — and the field's bottom edge no longer moves at all during a push. `settleGeometry`,
+  a second place that drew the same constant and had no callers left, is gone with it.
 - **No tray ever covers the space that dismisses it.** Tapping the backdrop above the card dismisses the
   whole tray, so `trayBackdropReach` reserves a strip of it — `.minimumControlHeight`, because tapping it
   is a control and takes a control's target size. A filling tray taking *all* the room left 8pt between
