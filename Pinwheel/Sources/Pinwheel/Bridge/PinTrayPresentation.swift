@@ -606,11 +606,12 @@ extension PinTrayOverlay: PinTrayBodyCoordinating {
 }
 
 extension PinTrayOverlay: UIGestureRecognizerDelegate {
-    /// The card is dragged by its chrome; a touch in the body belongs to the body.
+    /// The card is dragged by its chrome; a touch in the body belongs to the body — but only while the
+    /// body has somewhere to go. Rows that already fit never scroll, so the drag is the card's.
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
         var view = touch.view
         while let candidate = view, candidate !== tray {
-            if candidate is UIScrollView { return false }
+            if let scroll = candidate as? UIScrollView, scroll.isScrollEnabled { return false }
             view = candidate.superview
         }
         return true

@@ -22,6 +22,17 @@ final class LookProbe: XCTestCase {
         XCTAssertEqual(region.frame.minY, before, accuracy: 0.5,
                        "the first tray bounced over content that already fits")
 
+        // A body that cannot scroll hands the drag to the card, so a fitting tray still drags away.
+        let down = region.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        down.press(forDuration: 0.15, thenDragTo: down.withOffset(CGVector(dx: 0, dy: 420)))
+        Thread.sleep(forTimeInterval: 2.5)
+        XCTAssertFalse(region.exists, "dragging down a tray that does not scroll must dismiss it")
+        XCTAssertTrue(open.exists, "and leave the screen behind")
+
+        open.tap()
+        XCTAssertTrue(region.waitForExistence(timeout: 5), "the tray never came back")
+        Thread.sleep(forTimeInterval: 1.5)
+
         var rows: [(CGRect, String)] = []
         for kind in [XCUIElement.ElementType.staticText, .button, .image, .other] {
             for element in app.descendants(matching: kind).allElementsBoundByIndex {

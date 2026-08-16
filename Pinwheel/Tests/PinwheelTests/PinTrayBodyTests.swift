@@ -65,14 +65,14 @@ final class PinTrayBodyTests: XCTestCase {
         )
     }
 
-    func testAListWithNothingBelowTheFoldIsHeldStillWhenDraggedUp() {
-        XCTAssertTrue(
-            PinTrayBodyView.isHeld(at: -30, overflowing: false),
-            "rows that already fit reveal nothing by scrolling up, so the list must not move"
-        )
+    func testOnlyABodyOutgrowingItsRoomScrolls() {
         XCTAssertFalse(
-            PinTrayBodyView.isHeld(at: -30, overflowing: true),
-            "a list with more below the fold still scrolls"
+            attachedBody(showing: rows(2)).scrolls,
+            "rows that already fit have nowhere to go, so the body must not scroll at all"
+        )
+        XCTAssertTrue(
+            attachedBody(showing: rows(60)).scrolls,
+            "rows that outgrow the body still scroll"
         )
     }
 
