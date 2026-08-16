@@ -37,13 +37,13 @@ to change, add to it as you learn, and keep *this* file to what a session needs 
 - **One place draws, one place decides.** Most bugs here have been the same shape: a second copy of some
   state, or a second path that animates. Delete the copy rather than syncing it.
 - **A scroll view scrolls only when its content outgrows its room.**
-- **Set a capability; never cancel its effects.** State that merely looks right reads as wrong to
-  everything that asks the object instead of watching it. And a capability withdrawn is a capability
-  reassigned — whatever stops answering, something else has to start, or the input belongs to nobody.
-- **A value the platform owns is derived, never copied.** Where it exposes one, read it, and the layout
-  is right on hardware and OS versions you will never see. Where it exposes nothing, what you write down
-  is an observation with no expiry printed on it: it may decorate, but it carries no contract, no test
-  and no layout rule.
+- **If something should be off, turn it off — don't leave it on and undo what it does.** Undoing hides
+  the effect from you, not from the code that reads the flag. And whatever it used to handle is now
+  handled by nobody, so say who handles it instead.
+- **A value the platform owns is read, never copied.** Read it and the layout is right on hardware and
+  OS versions you will never see. When the platform won't tell you and you measure it off the screen
+  yourself, any OS update can change that number without warning — so it can nudge how something looks,
+  but nothing may depend on it.
 
 ## Testing
 
