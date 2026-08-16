@@ -54,11 +54,9 @@ struct PinTrayDemo: View {
         PinTray("Boost Post") {
             VStack(spacing: 0) {
                 PinTrayLink("Get up to 3x more likes.", phrase: "Learn more") {}
-                PinTraySection("Reach") {
-                    ForEach(Array(tiers.enumerated()), id: \.offset) { index, offer in
-                        PinTrayChoice(offer.reach, detail: offer.price, isChosen: index == tier) {
-                            tier = index
-                        }
+                ForEach(Array(tiers.enumerated()), id: \.offset) { index, offer in
+                    PinTrayChoice(offer.reach, detail: offer.price, isChosen: index == tier) {
+                        tier = index
                     }
                 }
                 PinTrayValue("Region", value: region) { path.append(.region) }

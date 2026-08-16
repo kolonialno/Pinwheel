@@ -22,11 +22,14 @@ public struct PinTrayValue: SwiftUI.View {
                     .imageScale(.small)
                     .foregroundStyle(.tertiaryText)
             }
+            .padding(.horizontal, .spacingL)
             .frame(minHeight: .minimumControlHeight)
+            .background(RoundedRectangle(cornerRadius: .radiusL).fill(Color.secondaryBackground))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .padding(.horizontal, .spacingXL)
+        .padding(.vertical, .spacingXM)
         .accessibilityIdentifier("pinwheel.tray.value.\(label)")
     }
 }

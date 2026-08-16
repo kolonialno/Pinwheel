@@ -28,11 +28,17 @@ public struct PinTrayChoice: SwiftUI.View {
                     .foregroundStyle(.primaryText)
                     .opacity(isChosen ? 1 : 0)
             }
+            .padding(.horizontal, .spacingL)
             .frame(minHeight: .minimumControlHeight)
+            .background(
+                RoundedRectangle(cornerRadius: .radiusL)
+                    .fill(isChosen ? Color.secondaryBackground : Color.clear)
+            )
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .padding(.horizontal, .spacingXL)
+        .padding(.vertical, .spacingXXS)
         .accessibilityIdentifier("pinwheel.tray.choice.\(label)")
     }
 }
