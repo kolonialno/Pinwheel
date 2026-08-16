@@ -40,6 +40,9 @@ to change, add to it as you learn, and keep *this* file to what a session needs 
 - **If something should be off, turn it off — don't leave it on and undo what it does.** Undoing hides
   the effect from you, not from the code that reads the flag. And whatever it used to handle is now
   handled by nobody, so say who handles it instead.
+- **A gesture and the animation that follows it are one motion.** It leaves at the speed the finger let
+  go at, it stays catchable until it settles, and what decides where it ends up is where it would come
+  to rest if left alone — never how fast it happened to be moving when it was released.
 - **A value the platform owns is read, never copied.** Read it and the layout is right on hardware and
   OS versions you will never see.
 
