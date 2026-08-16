@@ -10,11 +10,6 @@ struct PinTrayDemo: View {
         case region
     }
 
-    private struct Tier: Hashable {
-        let reach: String
-        let price: String
-    }
-
     private let tiers = [
         Tier(reach: "692 – 1.1K impressions", price: "$1"),
         Tier(reach: "6.4K – 12K impressions", price: "$10"),
@@ -87,21 +82,9 @@ struct PinTrayDemo: View {
 
     /// A wheel, as the reference has it: the tiers are a scale rather than a list, and the system picker
     /// already draws the banded selection this needs.
-    private func reach(selection: Binding<Int>) -> some View {
-        Picker("Reach", selection: selection) {
-            ForEach(Array(tiers.enumerated()), id: \.offset) { index, offer in
-                HStack {
-                    PinLabel(offer.reach)
-                    Spacer()
-                    PinLabel(offer.price).font(.titleSemibold)
-                }
-                .padding(.horizontal, .spacingL)
-                .tag(index)
-            }
-        }
-        .pickerStyle(.wheel)
-        .labelsHidden()
-        .frame(height: 156)
+    private func reach(selection: Binding<Int>, travels: Bool = false) -> some View {
+        TierWheel(tiers: tiers, selection: selection, travels: travels)
+            .frame(height: 156)
         // The wheel insets its own selection band inside its frame, so this stands off the card by less
         // than the rows do and the band still lands on their edge.
         .padding(.horizontal, .spacingL)
@@ -112,7 +95,7 @@ struct PinTrayDemo: View {
     private var howItWorks: PinTray {
         PinTray("How it works") {
             VStack(spacing: 0) {
-                reach(selection: .constant(tutorialTier))
+                reach(selection: .constant(tutorialTier), travels: true)
                     .allowsHitTesting(false)
                     .padding(.bottom, .spacingL)
                 PinTrayText(
