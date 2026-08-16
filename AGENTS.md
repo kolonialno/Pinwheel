@@ -36,6 +36,17 @@ to change, add to it as you learn, and keep *this* file to what a session needs 
   a private API answering outright beats a stopwatch estimating.
 - **One place draws, one place decides.** Most bugs here have been the same shape: a second copy of some
   state, or a second path that animates. Delete the copy rather than syncing it.
+- **A scroll view scrolls only when its content outgrows its room.** Turn it off otherwise. Leaving it on
+  and undoing the movement in the delegate looks identical and is not the same thing: `isScrollEnabled`
+  then lies to everything else that reads it, gestures included. Expect the switch to come in pairs —
+  whatever a still body stops taking, its container has to start taking, or a drag ends up owned by
+  nobody.
+- **Agree with what the system draws by deriving from it; where you cannot, mark the number as a
+  measurement.** A tray's corner is the display's own radius, so the shapes stay concentric on any phone
+  rather than on the one it was eyeballed against. Read the value wherever the platform exposes it. Where
+  it does not — a picker insets its selection band inside its own frame and documents that nowhere — what
+  you compensate with is a measurement, not a token: say so where it sits, keep it to visual polish, and
+  never let a contract, a test or a layout rule rest on it. An OS update moves it and nothing warns you.
 
 ## Testing
 
