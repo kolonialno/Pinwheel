@@ -59,6 +59,33 @@ final class PinTrayChassisTests: XCTestCase {
         return view.subviews.flatMap { accessories(in: $0) }
     }
 
+    // Both trays draw the same button in the same place, so it holds through a move: solid from the
+    // first frame and at its own size. Dissolving one into the other lightened the pill to 0.75 half way
+    // through, and the zoom that gives the content its depth drew it at 1.10.
+    func testTheCommitButtonHoldsItsSizeAndOpacityThroughAMove() throws {
+        let deeper = PinTray("How it works") { Color.clear.frame(height: 300) }.commit("Got It") {}
+        let boost = PinTray("Boost") { Color.clear.frame(height: 300) }.commit("Boost Post") {}
+
+        let (overlay, window) = standing(deeper)
+        window.layoutIfNeeded()
+        overlay.show(boost, isPush: false)
+        window.layoutIfNeeded()
+
+        // What a move settles on is the same either way; what separates holding from dissolving is what
+        // is in flight, so the animations themselves are what this reads.
+        let buttons = accessories(in: overlay)
+        let inFlight = buttons.map { Set($0.layer.animationKeys() ?? []) }
+        XCTAssertEqual(buttons.count, 2, "the button arriving and the one being left")
+        XCTAssertEqual(
+            inFlight.filter(\.isEmpty).count, 1,
+            "the arriving button holds, so nothing about it is in flight: \(inFlight)"
+        )
+        XCTAssertTrue(
+            inFlight.allSatisfy { !$0.contains("transform") },
+            "and neither carries the content's zoom: \(inFlight)"
+        )
+    }
+
     // A button standing where a search field stood is a different thing arriving, so it fades in like
     // the rest of the tray. Only where both trays put the same button in the same place does it hold.
     func testAButtonArrivingWhereSomethingElseStoodFadesInRatherThanAppearing() throws {
@@ -73,8 +100,13 @@ final class PinTrayChassisTests: XCTestCase {
         overlay.show(boost, isPush: false)
         window.layoutIfNeeded()
 
-        let standing = try XCTUnwrap(accessories(in: overlay).first, "the arriving tray stands a button")
-        XCTAssertEqual(standing.alpha, 0, "it starts invisible and fades in, rather than appearing solid")
+        let buttons = accessories(in: overlay)
+        let inFlight = buttons.map { Set($0.layer.animationKeys() ?? []) }
+        XCTAssertEqual(buttons.count, 2, "the button arriving and the field being left")
+        XCTAssertEqual(
+            inFlight.filter(\.isEmpty).count, 0,
+            "neither holds: what arrives is a different thing, so it fades in: \(inFlight)"
+        )
     }
 
     // A leaving tray is torn down when its travel ends, not on a timer beside it.
