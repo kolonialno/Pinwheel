@@ -122,6 +122,10 @@ final class PinTrayOverlay: UIView {
         }
 
         var views: [UIView] { [titleBar, divider, body, accessory].compactMap { $0 } }
+
+        /// What a move dissolves and zooms. The button that ends the flow is not among them: it is a
+        /// control, and a control that changes size while you are aiming at it is a moving target.
+        var dissolving: [UIView] { [titleBar, divider, body] }
     }
 
     private var standing: Standing?
@@ -479,10 +483,24 @@ final class PinTrayOverlay: UIView {
         // its own timeline, never waiting on a keyboard. Going deeper the tray being left grows as it
         // fades; coming back the one arriving shrinks into place, so a sequence reads as depth.
         let zoom = CGAffineTransform(scaleX: trayZoom, y: trayZoom)
-        standing?.views.forEach { $0.transform = isPush ? .identity : zoom }
+        standing?.dissolving.forEach { $0.transform = isPush ? .identity : zoom }
+
+        // Where both trays put the same button in the same place there is only one button as far as
+        // anyone watching is concerned, so the arriving one stands solid from the first frame and the
+        // one being left fades off it — leaving the labels to dissolve and the pill to hold. Fading the
+        // two against each other instead lightens it to 0.75 half way through, because two
+        // half-transparent blacks over one another are grey.
+        let arriving = standing?.accessory
+        let left = leaving?.accessory
+        if let arriving, let left, left.frame == arriving.frame {
+            arriving.alpha = 1
+            card.bringSubviewToFront(left)
+        }
+
         UIView.animate(springDuration: trayResizeDuration, bounce: trayResizeBounce) {
             self.standing?.views.forEach { $0.alpha = 1; $0.transform = .identity }
-            leaving?.views.forEach { $0.alpha = 0; $0.transform = isPush ? zoom : .identity }
+            leaving?.views.forEach { $0.alpha = 0 }
+            leaving?.dissolving.forEach { $0.transform = isPush ? zoom : .identity }
         } completion: { _ in
             leaving?.detach()
         }
