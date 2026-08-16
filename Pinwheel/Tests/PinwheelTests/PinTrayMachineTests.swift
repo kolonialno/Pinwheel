@@ -240,12 +240,23 @@ final class PinTrayMachineTests: XCTestCase {
         XCTAssertEqual(machine.handle(.contentResized(300)).timeline, .spring(bounce: 0))
     }
 
-    func testADragTracksTheFingerWithNoAnimationAndNeverLiftsPastItsPlace() {
+    func testADragTracksTheFingerDownAndResistsItUp() {
         var machine = machine()
         XCTAssertEqual(machine.handle(.dragged(120)).timeline, .immediate)
         XCTAssertEqual(machine.geometry.translation, 120)
+
         _ = machine.handle(.dragged(-80))
-        XCTAssertEqual(machine.geometry.translation, 0, "a drag upward does not lift it")
+        let lifted = machine.geometry.translation
+        XCTAssertLessThan(lifted, 0, "a drag upward lifts it")
+        XCTAssertGreaterThan(lifted, -80, "by less than the finger came")
+    }
+
+    func testAPullUpSpringsBackRatherThanDismissing() {
+        var machine = machine()
+        _ = machine.handle(.dragged(-200))
+        let released = machine.handle(.released(velocity: -900, dismissBeyond: 200))
+        XCTAssertFalse(released.dismisses, "a tray pulled away from the exit does not take it")
+        XCTAssertEqual(released.to.translation, 0, "it comes back to where it stood")
     }
 
     func testAReleasedDragSpringsBackUnlessItWentFarEnough() {

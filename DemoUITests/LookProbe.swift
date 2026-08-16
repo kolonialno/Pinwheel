@@ -5,7 +5,7 @@ import XCTest
 final class LookProbe: XCTestCase {
     func testTheBoostTray() {
         let app = XCUIApplication()
-        app.launchArguments = ["-PinwheelPreview", Catalog.tray.id(.swiftUI)]
+        app.launchArguments = ["-PinwheelRecord", "-PinwheelPreview", Catalog.tray.id(.swiftUI)]
         app.launch()
         let open = app.buttons["Boost Post"].firstMatch
         XCTAssertTrue(open.waitForExistence(timeout: 10))
@@ -14,13 +14,13 @@ final class LookProbe: XCTestCase {
         XCTAssertTrue(region.waitForExistence(timeout: 5), "the boost tray never assembled")
         Thread.sleep(forTimeInterval: 1.5)
 
-        // A tray whose rows already fit has nothing below the fold, so dragging up must move nothing.
+        // A pull up has nowhere to go, so the card resists and comes back to where it stood.
         let before = region.frame.minY
         let middle = region.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
         middle.press(forDuration: 0.2, thenDragTo: middle.withOffset(CGVector(dx: 0, dy: -160)))
         Thread.sleep(forTimeInterval: 1.5)
         XCTAssertEqual(region.frame.minY, before, accuracy: 0.5,
-                       "the first tray bounced over content that already fits")
+                       "a pull up must leave the tray where it stood")
 
         // A body that cannot scroll hands the drag to the card, so a fitting tray still drags away.
         let down = region.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))

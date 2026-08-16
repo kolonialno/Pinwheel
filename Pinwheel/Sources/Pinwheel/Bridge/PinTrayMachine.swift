@@ -297,7 +297,7 @@ struct PinTrayMachine: Equatable {
             return Reaction(to: geometry(.resting), timeline: .spring(bounce: 0))
 
         case .dragged(let offset):
-            dragOffset = max(0, offset)
+            dragOffset = PinTrayGeometry.travel(forDrag: offset)
             return Reaction(to: geometry(.resting), timeline: .immediate)
 
         case .released(let velocity, let dismissBeyond):

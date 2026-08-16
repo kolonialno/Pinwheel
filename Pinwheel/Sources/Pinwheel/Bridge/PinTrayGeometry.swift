@@ -4,6 +4,10 @@ let trayMargin: CGFloat = .spacingS
 let trayBottomMargin: CGFloat = .spacingS
 let trayKeyboardMargin: CGFloat = .spacingL
 let trayTopRadius: CGFloat = 32
+/// How far a pull that has nowhere to go can lift a tray, however hard it is pulled.
+let trayLift: CGFloat = .spacingXXL
+/// How much of a pull past the end survives as travel, at the start of it. A scroll view's own figure.
+let trayRubberBanding: CGFloat = 0.55
 /// The strip of backdrop left above every tray. Tapping it dismisses the tray, so it is a control and
 /// takes a control's minimum height — a tray that grew over it left 8pt and swallowed the taps aimed
 /// there, which took the only way out that isn't the header.
@@ -80,7 +84,29 @@ struct PinTrayGeometry: Equatable {
         case .arriving, .leaving:
             translation = height + bottomInset
         case .resting:
-            translation = max(0, dragOffset)
+            translation = dragOffset
         }
+    }
+}
+
+extension PinTrayGeometry {
+    /// How far a tray travels for a finger that has come `offset` from where it began. Downward it
+    /// follows exactly, because it is on its way out. Upward it has nowhere to go, so it resists.
+    ///
+    /// A scroll view would give the resistance for free, and gives none here: what has to move is the
+    /// card rather than the list, and on a tray whose rows already fit there is no scrolling to bounce.
+    ///
+    /// This is Apple's own curve rather than something like it — `(x·d·c) / (d + c·x)`, checked against
+    /// `-[UIScrollView _rubberBandOffsetForOffset:maxOffset:minOffset:range:outside:]` and equal to the
+    /// penny at every pull, with `_currentRubberBandCoefficient` reading 0.55. Calling the private one
+    /// would buy nothing and would put a private selector in every app that links this library.
+    ///
+    /// The one divergence is `d`. Apple passes the view's own dimension, which puts the limit out of
+    /// reach; a tray passes `trayLift`, so however hard it is pulled it stops short and the strip above
+    /// it that dismisses it stays tappable.
+    static func travel(forDrag offset: CGFloat) -> CGFloat {
+        guard offset < 0 else { return offset }
+        let pulled = -offset * trayRubberBanding
+        return -(pulled * trayLift / (trayLift + pulled))
     }
 }

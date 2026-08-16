@@ -41,9 +41,23 @@ final class PinTrayGeometryTests: XCTestCase {
         XCTAssertEqual(geometry(phase: .resting).translation, 0)
     }
 
-    func testADragCarriesTheTrayDownAndNeverUp() {
+    func testADragDownCarriesTheTrayWithIt() {
         XCTAssertEqual(geometry(dragOffset: 120).translation, 120)
-        XCTAssertEqual(geometry(dragOffset: -120).translation, 0, "dragging up does not lift a tray past its place")
+    }
+
+    func testAPullUpResistsAndIsBounded() {
+        XCTAssertEqual(PinTrayGeometry.travel(forDrag: 200), 200, "a tray on its way out follows the finger")
+
+        let gentle = PinTrayGeometry.travel(forDrag: -40)
+        XCTAssertLessThan(gentle, 0, "a pull up lifts the tray")
+        XCTAssertGreaterThan(gentle, -40, "but by less than the finger came")
+
+        XCTAssertLessThan(PinTrayGeometry.travel(forDrag: -400), gentle, "pulling harder lifts it further")
+        XCTAssertGreaterThan(
+            PinTrayGeometry.travel(forDrag: -4000),
+            -trayLift,
+            "however hard it is pulled, the strip above the tray stays reachable"
+        )
     }
 
     func testATrayStandingOnTheKeyboardClearsItByMoreThanTheScreensEdge() {
