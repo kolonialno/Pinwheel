@@ -27,6 +27,7 @@ struct PinTrayDemo: View {
 
     @State private var path: [Route] = []
     @State private var tier = 2
+    @State private var tutorialStep = 0
     @State private var method = 0
     @State private var region = "United Kingdom"
     @State private var query = ""
@@ -55,7 +56,7 @@ struct PinTrayDemo: View {
             VStack(spacing: 0) {
                 PinTrayLink("Get up to 3x more likes.", phrase: "Learn more") {}
                     .padding(.bottom, .spacingL)
-                reach
+                reach(selection: $tier)
                     .padding(.bottom, .spacingXL)
                 PinTrayValue("Region", value: region) { path.append(.region) }
                 PinTrayValue("Pay with", value: methods[method]) { path.append(.payWith) }
@@ -76,10 +77,18 @@ struct PinTrayDemo: View {
         .commit("Boost Post") { path.removeAll() }
     }
 
+    /// The tier the tutorial is showing. It walks up the tiers and back down rather than round, because
+    /// wrapping from the last to the first is a jump backwards where every other step is a step.
+    private var tutorialTier: Int {
+        let last = tiers.count - 1
+        let phase = tutorialStep % (last * 2)
+        return phase <= last ? phase : last * 2 - phase
+    }
+
     /// A wheel, as the reference has it: the tiers are a scale rather than a list, and the system picker
     /// already draws the banded selection this needs.
-    private var reach: some View {
-        Picker("Reach", selection: $tier) {
+    private func reach(selection: Binding<Int>) -> some View {
+        Picker("Reach", selection: selection) {
             ForEach(Array(tiers.enumerated()), id: \.offset) { index, offer in
                 HStack {
                     PinLabel(offer.reach)
@@ -98,12 +107,27 @@ struct PinTrayDemo: View {
         .padding(.horizontal, .spacingL)
     }
 
+    /// The tutorial: the same wheel, turning itself, over the sentence that says what it is for. It takes
+    /// no input — a demonstration someone can grab stops demonstrating.
     private var howItWorks: PinTray {
         PinTray("How it works") {
-            PinTrayText(
-                "Select your boost tier and watch your post go viral. Boosted posts are labelled as boosted."
-            )
+            VStack(spacing: 0) {
+                reach(selection: .constant(tutorialTier))
+                    .allowsHitTesting(false)
+                    .padding(.bottom, .spacingL)
+                PinTrayText(
+                    "Select your boost tier and watch your post go viral. Boosted posts are labelled as boosted."
+                )
+                .centred()
+            }
+            .task {
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(1.1))
+                    withAnimation { tutorialStep += 1 }
+                }
+            }
         }
+        .commit("Got It") { path.removeLast() }
     }
 
     private var payWith: PinTray {
