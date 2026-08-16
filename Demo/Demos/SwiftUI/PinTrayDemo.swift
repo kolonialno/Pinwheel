@@ -54,15 +54,16 @@ struct PinTrayDemo: View {
         PinTray("Boost Post") {
             VStack(spacing: 0) {
                 PinTrayLink("Get up to 3x more likes.", phrase: "Learn more") {}
-                ForEach(Array(tiers.enumerated()), id: \.offset) { index, offer in
-                    PinTrayChoice(offer.reach, detail: offer.price, isChosen: index == tier) {
-                        tier = index
-                    }
-                }
+                    .padding(.bottom, .spacingL)
+                reach
+                    .padding(.bottom, .spacingXL)
                 PinTrayValue("Region", value: region) { path.append(.region) }
                 PinTrayValue("Pay with", value: methods[method]) { path.append(.payWith) }
-                PinTrayText("By clicking Boost Post below you agree to our Terms and Conditions.")
-                    .centred()
+                PinTrayText(
+                    "By clicking the Boost Post button below, you agree to our Terms and Conditions."
+                )
+                .centred()
+                .padding(.top, .spacingM)
             }
         }
         .titleAccessory {
@@ -72,6 +73,25 @@ struct PinTrayDemo: View {
             .accessibilityLabel("How it works")
         }
         .commit("Boost Post") { path.removeAll() }
+    }
+
+    /// A wheel, as the reference has it: the tiers are a scale rather than a list, and the system picker
+    /// already draws the banded selection this needs.
+    private var reach: some View {
+        Picker("Reach", selection: $tier) {
+            ForEach(Array(tiers.enumerated()), id: \.offset) { index, offer in
+                HStack {
+                    PinLabel(offer.reach)
+                    Spacer()
+                    PinLabel(offer.price).font(.titleSemibold)
+                }
+                .tag(index)
+            }
+        }
+        .pickerStyle(.wheel)
+        .labelsHidden()
+        .frame(height: 156)
+        .padding(.horizontal, .spacingXL)
     }
 
     private var howItWorks: PinTray {

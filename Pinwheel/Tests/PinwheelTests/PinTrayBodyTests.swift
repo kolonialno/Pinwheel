@@ -44,10 +44,35 @@ final class PinTrayBodyTests: XCTestCase {
         body.superview?.layoutIfNeeded()
 
         XCTAssertEqual(
-            body.scrollableHeight,
+            body.scrollableHeight + .spacingL,
             body.contentHeight(fitting: 400),
             accuracy: 1,
             "rows swapped in after the body is standing still have to be laid out, or none can be touched"
+        )
+    }
+
+    func testABodyGivenExactlyTheHeightItAskedForHasNothingLeftToScroll() {
+        let body = attachedBody(showing: rows(3))
+        body.clearance = 24
+
+        let asked = body.contentHeight(fitting: 400)
+        body.window?.frame = CGRect(x: 0, y: 0, width: 400, height: asked)
+        body.superview?.layoutIfNeeded()
+
+        XCTAssertFalse(
+            body.overflows,
+            "a card built to the height the body asked for leaves the body nothing to scroll"
+        )
+    }
+
+    func testAListWithNothingBelowTheFoldIsHeldStillWhenDraggedUp() {
+        XCTAssertTrue(
+            PinTrayBodyView.isHeld(at: -30, overflowing: false),
+            "rows that already fit reveal nothing by scrolling up, so the list must not move"
+        )
+        XCTAssertFalse(
+            PinTrayBodyView.isHeld(at: -30, overflowing: true),
+            "a list with more below the fold still scrolls"
         )
     }
 

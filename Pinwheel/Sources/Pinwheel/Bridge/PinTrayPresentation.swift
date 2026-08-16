@@ -551,7 +551,6 @@ final class PinTrayOverlay: UIView {
         return standing.titleBar.height(fitting: width)
             + 1
             + standing.body.contentHeight(fitting: width)
-            + standing.body.clearance
     }
 
     private var accessoryInset: CGFloat { .spacingL }

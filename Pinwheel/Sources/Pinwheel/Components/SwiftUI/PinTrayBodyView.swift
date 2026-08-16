@@ -67,13 +67,23 @@ final class PinTrayBodyView: UIView {
 
     /// How tall the rows draw at this width, before any clearance. What a tray sized by its content is
     /// sized by.
+    /// What the body needs to show everything at once: the rows, plus the room it keeps above and below
+    /// them. Reporting the rows alone leaves the card short by those insets, and a tray sized to fit its
+    /// content is then permanently scrollable by exactly that much.
     func contentHeight(fitting width: CGFloat) -> CGFloat {
         hosting.sizeThatFits(in: CGSize(width: width, height: .greatestFiniteMagnitude)).height
+            + scroll.contentInset.top
+            + scroll.contentInset.bottom
     }
 
     /// How much there is to scroll. Zero means the rows never sized, and nothing can be pulled past a
     /// top that is also the bottom.
     var scrollableHeight: CGFloat { scroll.contentSize.height }
+
+    /// Whether there is more content than there is room to show it.
+    var overflows: Bool {
+        scroll.contentSize.height > scroll.bounds.height - scroll.contentInset.top - scroll.contentInset.bottom
+    }
 
     /// Fades with the tray it belongs to.
     var fade: CGFloat {
@@ -98,13 +108,23 @@ extension PinTrayBodyView {
     }
 }
 
+extension PinTrayBodyView {
+    /// Whether the list is held at its top, having been taken `past` points beyond it. Held while it is
+    /// being pulled down, because there is nothing above the first row and the pull belongs to whoever
+    /// is coordinating, and held in both directions when the rows already fit, since there is nothing
+    /// below the fold for a bounce to reveal. Separate from the delegate so it can be driven directly:
+    /// a scroll view will not pretend to be tracking for a test.
+    static func isHeld(at past: CGFloat, overflowing: Bool) -> Bool {
+        past > 0 || !overflowing
+    }
+}
+
 extension PinTrayBodyView: UIScrollViewDelegate {
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
         let past = -(scrollView.contentOffset.y + scrollView.contentInset.top)
-        guard scrollView.isTracking, past > 0 else { return }
-        // Held at its top: there is nothing above the first row, so the pull belongs to whoever is
-        // coordinating and the list must not rubber-band over nothing underneath it.
+        guard scrollView.isTracking, Self.isHeld(at: past, overflowing: overflows) else { return }
         scrollView.contentOffset.y = -scrollView.contentInset.top
+        guard past > 0 else { return }
         wasPulled(pastTheTop: past)
     }
 

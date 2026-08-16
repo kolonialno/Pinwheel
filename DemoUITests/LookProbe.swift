@@ -14,6 +14,14 @@ final class LookProbe: XCTestCase {
         XCTAssertTrue(region.waitForExistence(timeout: 5), "the boost tray never assembled")
         Thread.sleep(forTimeInterval: 1.5)
 
+        // A tray whose rows already fit has nothing below the fold, so dragging up must move nothing.
+        let before = region.frame.minY
+        let middle = region.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        middle.press(forDuration: 0.2, thenDragTo: middle.withOffset(CGVector(dx: 0, dy: -160)))
+        Thread.sleep(forTimeInterval: 1.5)
+        XCTAssertEqual(region.frame.minY, before, accuracy: 0.5,
+                       "the first tray bounced over content that already fits")
+
         var rows: [(CGRect, String)] = []
         for kind in [XCUIElement.ElementType.staticText, .button, .image, .other] {
             for element in app.descendants(matching: kind).allElementsBoundByIndex {
