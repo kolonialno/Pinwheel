@@ -18,20 +18,18 @@ public struct PinTrayChoice: SwiftUI.View {
     public var body: some SwiftUI.View {
         SwiftUI.Button(action: choose) {
             HStack(spacing: .spacingS) {
-                PinLabel(label)
+                PinLabel(label).color(isChosen ? .primary : .secondary)
                 Spacer(minLength: .spacingL)
                 if let detail {
-                    PinLabel(detail).color(.secondary)
+                    PinLabel(detail)
+                        .font(.titleSemibold)
+                        .color(isChosen ? .primary : .secondary)
                 }
-                Image(systemName: "checkmark")
-                    .imageScale(.small)
-                    .foregroundStyle(.primaryText)
-                    .opacity(isChosen ? 1 : 0)
             }
             .padding(.horizontal, .spacingL)
             .frame(minHeight: .minimumControlHeight)
             .background(
-                RoundedRectangle(cornerRadius: .radiusL)
+                RoundedRectangle(cornerRadius: .radiusM)
                     .fill(isChosen ? Color.secondaryBackground : Color.clear)
             )
             .contentShape(Rectangle())
@@ -39,6 +37,9 @@ public struct PinTrayChoice: SwiftUI.View {
         .buttonStyle(.plain)
         .padding(.horizontal, .spacingXL)
         .padding(.vertical, .spacingXXS)
+        // The fill is the only thing marking the choice on screen, so the trait is what carries it to
+        // anyone who cannot see the fill.
+        .accessibilityAddTraits(isChosen ? [.isSelected] : [])
         .accessibilityIdentifier("pinwheel.tray.choice.\(label)")
     }
 }
