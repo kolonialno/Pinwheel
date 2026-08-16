@@ -45,7 +45,7 @@ struct PinwheelTweaksView: SwiftUI.View {
                 dismiss()
             } label: {
                 tweakLabels(tweak)
-                    .padding(.horizontal, .spacingXL)
+                    .padding(.horizontal, .spacingXXL)
                     .padding(.vertical, .spacingM)
                     .frame(maxWidth: .infinity, minHeight: .minimumControlHeight, alignment: .leading)
                     .contentShape(Rectangle())
@@ -54,7 +54,7 @@ struct PinwheelTweaksView: SwiftUI.View {
         case .toggle(let isOn):
             Toggle(isOn: isOn) { tweakLabels(tweak) }
                 .tint(.actionText)
-                .padding(.horizontal, .spacingXL)
+                .padding(.horizontal, .spacingXXL)
                 .padding(.vertical, .spacingM)
                 .frame(maxWidth: .infinity, minHeight: .minimumControlHeight, alignment: .leading)
         case .select(let options, let selection):

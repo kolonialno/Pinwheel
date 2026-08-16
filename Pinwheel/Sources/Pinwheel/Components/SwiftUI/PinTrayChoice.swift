@@ -30,7 +30,7 @@ public struct PinTrayChoice: SwiftUI.View {
                     Image(systemName: systemImage)
                         .foregroundStyle(.primaryText)
                         // A fixed width, so every label starts at the same place whatever its icon.
-                        .frame(width: .spacingXL, alignment: .center)
+                        .frame(width: .spacingXXL, alignment: .center)
                 }
                 PinLabel(label)
                 Spacer(minLength: .spacingL)

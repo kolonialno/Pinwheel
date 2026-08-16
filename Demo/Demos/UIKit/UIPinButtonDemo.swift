@@ -66,7 +66,7 @@ class UIPinButtonDemo: UIPinView {
             custom,
             customDisabled
         ])
-        addSubview(stackView, filling: safeAreaLayoutGuide, edges: [.top, .leading, .trailing], margin: .spacingXXL)
+        addSubview(stackView, filling: safeAreaLayoutGuide, edges: [.top, .leading, .trailing], margin: .spacingXXXL)
 
         addSubview(primaryFloating)
         NSLayoutConstraint.activate([

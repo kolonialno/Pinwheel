@@ -137,9 +137,8 @@ struct FigmaToken: Encodable {
 // Names use the plugin's dashed convention (`spacing-s` → the `spacing/s` Figma variable).
 enum PinFloatTokens {
     static var spacing: [(name: String, value: CGFloat)] {
-        [("spacing-xxs", .spacingXXS), ("spacing-xs", .spacingXS), ("spacing-xm", .spacingXM),
-         ("spacing-s", .spacingS), ("spacing-m", .spacingM), ("spacing-l", .spacingL),
-         ("spacing-xl", .spacingXL), ("spacing-xxl", .spacingXXL)]
+        [("spacing-xxs", .spacingXXS), ("spacing-xs", .spacingXS), ("spacing-s", .spacingS), ("spacing-m", .spacingM), ("spacing-l", .spacingL),
+         ("spacing-xl", .spacingXL), ("spacing-xxl", .spacingXXL), ("spacing-xxxl", .spacingXXXL)]
     }
     static var radius: [(name: String, value: CGFloat)] { [("radius-m", .radiusM), ("radius-l", .radiusL)] }
 

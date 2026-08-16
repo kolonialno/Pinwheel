@@ -37,7 +37,7 @@ struct PinTrayDemo: View {
                 .multilineTextAlignment(.center)
             PinButton("Boost Post") { path = [.boost] }
         }
-        .padding(.spacingXL)
+        .padding(.spacingXXL)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .pinwheelTray(path: $path) { route in
             switch route {

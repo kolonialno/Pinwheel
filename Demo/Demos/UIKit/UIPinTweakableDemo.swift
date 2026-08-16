@@ -35,8 +35,8 @@ class UIPinTweakableDemo: UIPinView, Tweakable {
         stack.translatesAutoresizingMaskIntoConstraints = false
         addSubview(stack)
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: .spacingXXL),
-            stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -.spacingXXL),
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: .spacingXXXL),
+            stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -.spacingXXXL),
             stack.centerYAnchor.constraint(equalTo: centerYAnchor)
         ])
     }

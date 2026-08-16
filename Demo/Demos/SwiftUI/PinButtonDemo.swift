@@ -80,7 +80,7 @@ struct PinButtonDemo: SwiftUI.View {
                     .disabled(true)
             }
             .padding(.horizontal, .spacingL)
-            .padding(.vertical, .spacingXXL)
+            .padding(.vertical, .spacingXXXL)
             .frame(maxWidth: .infinity)
         }
         .background(.primaryBackground)

@@ -54,17 +54,17 @@ struct PinwheelSheet<Content: SwiftUI.View, Trailing: SwiftUI.View>: SwiftUI.Vie
                 Divider()
                     .frame(height: 1)
                     .overlay(Color.tertiaryText)
-                    .padding(.horizontal, .spacingXL)
+                    .padding(.horizontal, .spacingXXL)
                 content()
                 if let commit = model.commit {
                     PinButton(commit.title, action: commit.action)
                         .style(.primary)
                         .fullWidth()
-                        .padding(.horizontal, .spacingXL)
-                        .padding(.top, .spacingXL)
+                        .padding(.horizontal, .spacingXXL)
+                        .padding(.top, .spacingXXL)
                 }
             }
-            .padding(.bottom, .spacingXL)
+            .padding(.bottom, .spacingXXL)
             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
         }
         .scrollBounceBehavior(.basedOnSize)
@@ -99,7 +99,7 @@ struct PinwheelSheet<Content: SwiftUI.View, Trailing: SwiftUI.View>: SwiftUI.Vie
             }
         }
         .frame(maxWidth: .infinity, minHeight: .minimumControlHeight)
-        .padding(.horizontal, .spacingXL)
+        .padding(.horizontal, .spacingXXL)
         .padding(.vertical, .spacingS)
     }
 }

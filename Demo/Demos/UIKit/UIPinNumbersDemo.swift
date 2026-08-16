@@ -5,12 +5,12 @@ class UIPinNumbersDemo: UIPinView {
     private let spacings: [(String, CGFloat)] = [
         ("spacingXXS", .spacingXXS),
         ("spacingXS", .spacingXS),
-        ("spacingXM", .spacingXM),
         ("spacingS", .spacingS),
         ("spacingM", .spacingM),
         ("spacingL", .spacingL),
         ("spacingXL", .spacingXL),
-        ("spacingXXL", .spacingXXL)
+        ("spacingXXL", .spacingXXL),
+        ("spacingXXXL", .spacingXXXL)
     ]
 
     private let radii: [(String, CGFloat)] = [
@@ -24,7 +24,7 @@ class UIPinNumbersDemo: UIPinView {
     override func setup() {
         let stackView = UIStackView(withAutoLayout: true)
         stackView.axis = .vertical
-        stackView.spacing = .spacingXXL
+        stackView.spacing = .spacingXXXL
 
         stackView.addArrangedSubview(header("Spacing"))
         for (title, spacing) in spacings {
@@ -45,7 +45,7 @@ class UIPinNumbersDemo: UIPinView {
         // back to a flat image. A pinned stack always lays out, so every row captures.
         addSubview(stackView)
         NSLayoutConstraint.activate([
-            stackView.topAnchor.constraint(equalTo: topAnchor, constant: .spacingXXL),
+            stackView.topAnchor.constraint(equalTo: topAnchor, constant: .spacingXXXL),
             stackView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: .spacingL),
             stackView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -.spacingL)
         ])

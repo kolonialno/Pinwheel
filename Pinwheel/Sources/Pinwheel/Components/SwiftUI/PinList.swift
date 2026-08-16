@@ -81,7 +81,7 @@ public extension PinList {
         private func iconView(_ image: Image, enabled: Bool) -> some SwiftUI.View {
             image
                 .foregroundStyle(enabled ? Color.actionText : Color.secondaryText)
-                .frame(width: .spacingXL)
+                .frame(width: .spacingXXL)
         }
 
         private func labels(subtitle: String?, enabled: Bool) -> some SwiftUI.View {

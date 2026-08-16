@@ -7,7 +7,7 @@ struct PinStepperDemo: SwiftUI.View {
 
     var body: some SwiftUI.View {
         ScrollView {
-            VStack(alignment: .leading, spacing: .spacingXL) {
+            VStack(alignment: .leading, spacing: .spacingXXL) {
                 VStack(alignment: .leading, spacing: .spacingS) {
                     PinLabel("Quantity").font(.subtitleSemibold)
                     PinStepper(value: quantity)
@@ -23,7 +23,7 @@ struct PinStepperDemo: SwiftUI.View {
                 }
             }
             .padding(.horizontal, .spacingL)
-            .padding(.vertical, .spacingXXL)
+            .padding(.vertical, .spacingXXXL)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(.primaryBackground)

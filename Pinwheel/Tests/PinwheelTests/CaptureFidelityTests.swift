@@ -145,7 +145,8 @@ final class CaptureFidelityTests: XCTestCase {
         XCTAssertEqual(FigmaLayout(PinCaptureLayout(axis: .row, spacing: 9.33)).gapToken, "spacing-s")
         XCTAssertEqual(FigmaLayout(PinCaptureLayout(axis: .row, spacing: 10.33)).gapToken, "spacing-s")
         XCTAssertEqual(FigmaLayout(PinCaptureLayout(axis: .row, spacing: 16)).gapToken, "spacing-l")
-        XCTAssertNil(FigmaLayout(PinCaptureLayout(axis: .row, spacing: 20)).gapToken)
+        XCTAssertNil(FigmaLayout(PinCaptureLayout(axis: .row, spacing: 28)).gapToken,
+                     "a gap that is no token's value binds nothing")
     }
 
     func testMultilineTextCapturesItsCenterAlignment() throws {

@@ -5,12 +5,12 @@ struct PinNumbersDemo: SwiftUI.View {
     private let spacings: [(String, CGFloat)] = [
         ("spacingXXS", .spacingXXS),
         ("spacingXS", .spacingXS),
-        ("spacingXM", .spacingXM),
         ("spacingS", .spacingS),
         ("spacingM", .spacingM),
         ("spacingL", .spacingL),
         ("spacingXL", .spacingXL),
-        ("spacingXXL", .spacingXXL)
+        ("spacingXXL", .spacingXXL),
+        ("spacingXXXL", .spacingXXXL)
     ]
 
     private let radii: [(String, CGFloat)] = [
@@ -23,7 +23,7 @@ struct PinNumbersDemo: SwiftUI.View {
 
     var body: some SwiftUI.View {
         ScrollView {
-            VStack(alignment: .leading, spacing: .spacingXXL) {
+            VStack(alignment: .leading, spacing: .spacingXXXL) {
                 PinLabel("Spacing").font(.title)
                 ForEach(spacings, id: \.0) { title, spacing in
                     VStack(alignment: .leading, spacing: .spacingS) {
@@ -51,7 +51,7 @@ struct PinNumbersDemo: SwiftUI.View {
                 concentricStack()
             }
             .padding(.spacingL)
-            .padding(.top, .spacingXXL)
+            .padding(.top, .spacingXXXL)
         }
         .background(.primaryBackground)
     }

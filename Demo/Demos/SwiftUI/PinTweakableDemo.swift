@@ -8,7 +8,7 @@ struct PinTweakableDemo: SwiftUI.View {
     var body: some SwiftUI.View {
         PinLabel(selection)
             .multilineTextAlignment(.center)
-            .padding(.spacingXXL)
+            .padding(.spacingXXXL)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(.primaryBackground)
             .pinwheelTweaks {

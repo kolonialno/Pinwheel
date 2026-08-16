@@ -168,8 +168,8 @@ open class UIPinTableViewCell: UITableViewCell {
 
         NSLayoutConstraint.activate([
             iconImageView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
-            iconImageView.widthAnchor.constraint(equalToConstant: .spacingXL),
-            iconImageView.heightAnchor.constraint(equalToConstant: .spacingXL),
+            iconImageView.widthAnchor.constraint(equalToConstant: .spacingXXL),
+            iconImageView.heightAnchor.constraint(equalToConstant: .spacingXXL),
 
             stackViewTopAnchorConstraint,
             stackViewLeadingAnchorConstraint,
