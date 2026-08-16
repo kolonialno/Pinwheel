@@ -31,9 +31,11 @@ public struct PinTray {
     private(set) var commit: Commit?
     private(set) var detent: Detent = .fitting
 
+    /// The tray stacks what it is given, so its sections stand apart by one number decided here rather
+    /// than by every caller remembering it.
     public init<Content: SwiftUI.View>(_ title: String, @ViewBuilder content: () -> Content) {
         self.title = title
-        self.content = AnyView(content())
+        self.content = AnyView(VStack(spacing: traySectionGap) { content() })
     }
 
     public func detent(_ detent: Detent) -> PinTray {

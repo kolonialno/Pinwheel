@@ -30,7 +30,7 @@ final class PinTrayBodyView: UIView {
         scroll.alwaysBounceVertical = true
         scroll.contentInsetAdjustmentBehavior = .never
         scroll.keyboardDismissMode = .interactive
-        scroll.contentInset.top = .spacing2
+        scroll.contentInset.top = traySectionGap
         scroll.showsVerticalScrollIndicator = true
         scroll.translatesAutoresizingMaskIntoConstraints = false
         addSubview(scroll)

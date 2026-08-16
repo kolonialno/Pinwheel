@@ -51,20 +51,17 @@ struct PinTrayDemo: View {
 
     private var boost: PinTray {
         PinTray("Boost Post") {
-            VStack(spacing: .spacing5) {
-                PinTrayLink("Get up to 3x more likes.", phrase: "Learn more") {}
-                reach(selection: $tier)
-                VStack(spacing: .spacing3) {
-                    PinTrayValue("Region", value: region) { path.append(.region) }
-                    PinTrayValue("Pay with", value: methods[method].name) { path.append(.payWith) }
-                }
-                PinTrayLink(
-                    "By clicking the Boost Post button below, you agree to our",
-                    phrase: "Terms and Conditions"
-                ) {}
-                .font(.footnote)
+            PinTrayLink("Get up to 3x more likes.", phrase: "Learn more") {}
+            reach(selection: $tier)
+            PinTraySection {
+                PinTrayValue("Region", value: region) { path.append(.region) }
+                PinTrayValue("Pay with", value: methods[method].name) { path.append(.payWith) }
             }
-            .padding(.top, .spacing3)
+            PinTrayLink(
+                "By clicking the Boost Post button below, you agree to our",
+                phrase: "Terms and Conditions"
+            ) {}
+            .font(.footnote)
         }
         .titleAccessory {
             SwiftUI.Button { path.append(.howItWorks) } label: {
@@ -97,14 +94,12 @@ struct PinTrayDemo: View {
     /// no input — a demonstration someone can grab stops demonstrating.
     private var howItWorks: PinTray {
         PinTray("How it works") {
-            VStack(spacing: .spacing5) {
-                reach(selection: .constant(tutorialTier), travels: true)
-                    .allowsHitTesting(false)
-                PinTrayText(
-                    "Select your boost tier and watch your post go viral. Boosted posts are labelled as boosted."
-                )
-                .centred()
-            }
+            reach(selection: .constant(tutorialTier), travels: true)
+                .allowsHitTesting(false)
+            PinTrayText(
+                "Select your boost tier and watch your post go viral. Boosted posts are labelled as boosted."
+            )
+            .centred()
             .task {
                 while !Task.isCancelled {
                     try? await Task.sleep(for: .seconds(1.1))
@@ -117,7 +112,7 @@ struct PinTrayDemo: View {
 
     private var payWith: PinTray {
         PinTray("Pay with") {
-            VStack(spacing: .spacing3) {
+            PinTraySection {
                 ForEach(Array(methods.enumerated()), id: \.offset) { index, way in
                     PinTrayChoice(way.name, systemImage: way.icon, isChosen: index == method) {
                         method = index
@@ -130,7 +125,7 @@ struct PinTrayDemo: View {
 
     private var regions: PinTray {
         PinTray("Region") {
-            VStack(spacing: .spacing3) {
+            PinTraySection {
                 if matches.isEmpty {
                     PinTrayText("No regions match “\(query)”").centred()
                 } else {

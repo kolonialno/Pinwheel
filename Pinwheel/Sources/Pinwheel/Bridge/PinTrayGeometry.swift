@@ -4,6 +4,10 @@ let trayMargin: CGFloat = .spacing2
 let trayBottomMargin: CGFloat = .spacing2
 let trayKeyboardMargin: CGFloat = .spacing4
 let trayTopRadius: CGFloat = 32
+/// How far apart a tray's sections stand, and how far apart the items within one. A tray and a section
+/// are the only things that can see both sides of a gap, so these are the only two spacings in a tray.
+let traySectionGap: CGFloat = .spacing5
+let trayItemGap: CGFloat = .spacing3
 /// How far a tray's contents stand off its edges. The card decides this for everything it holds — a row
 /// only decides what happens inside itself.
 let trayContentMargin: CGFloat = .spacing5

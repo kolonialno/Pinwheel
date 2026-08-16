@@ -574,7 +574,7 @@ final class PinTrayOverlay: UIView {
         // Content passes behind something that floats, so it needs only a hairline of clearance from it.
         // A commit button is not floated over — it stands under the content, so it stands off it by what
         // any other group does.
-        let clearing: CGFloat = tray.floating == nil ? trayContentMargin : .spacing2
+        let clearing: CGFloat = tray.floating == nil ? traySectionGap : .spacing2
         body.clearance = accessory
             .map { accessoryInset + $0.height(fitting: width) + clearing } ?? contentBottomInset
         standing = Standing(
