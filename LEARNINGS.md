@@ -546,3 +546,45 @@ is what proved the attribution — then keep narrowing the test until it reprodu
 assertions that were never red.
 
 *— Elvis, 2026-08-16*
+
+## Containment was the cause behind most of the tray's bugs
+
+The tray was built with SwiftUI holding the pieces and UIKit supplying the card around them. Nearly every
+hard bug traced back to that one choice, and each was fixed locally until the list of local fixes became
+the argument:
+
+- Gestures fought across the seam. The card's pan and the list's own scrolling both wanted a downward
+  drag, and neither could see the other, so ownership had to be arbitrated by a rule written twice.
+- Children were findable only by walking somebody else's tree. Reaching the scroll view inside a hosted
+  list meant a recursive `subviews` search for `UIScrollView`, which is a search that silently returns
+  nothing the day SwiftUI changes what it builds.
+- Content laid out against itself rather than against the card. An arriving tray measured its own fitting
+  height and drew a search field at the middle of a card twice that tall, which was patched with
+  `max(fittedHeight, geometry.height)` — a patch that only ever hid a structural mistake.
+- A representable with no scene rendered nothing, so anything presented was unreachable from a test.
+
+Moving containment to UIKit deleted all four rather than fixing them. `PinTrayOverlay` holds a title bar,
+a body, an accessory and a divider as plain `UIView`s it constrains itself; SwiftUI supplies only leaves —
+a row, a title, a field — hosted by `PinTrayLeafView`. The body owns its own scroll view outright, so
+there is nothing to search for, the pan and the scroll are siblings under one owner, and every child is
+laid out against the card because the card is what constrains it.
+
+The rule that came out of it: SwiftUI is a leaf technology here. Anything that holds, lays out, scrolls
+or routes a gesture is a `UIView` we own.
+
+## A pinned offset destroys the quantity you are deriving from it
+
+Pull-to-dismiss moved the card nine points over a four-hundred-point drag. The body was doing two things
+in `scrollViewDidScroll`: reporting how far the offset had gone past the top, and then pinning the offset
+back to the top so the list would not rubber-band. The pin is right; reporting after it is not. Each frame
+measured only the slice travelled since the previous pin, which is a frame's worth of movement rather than
+the gesture's, so the card followed a few points and stopped.
+
+The report has to be a running total the gesture owns — `pulled` accumulates every slice, resets on
+`scrollViewWillBeginDragging`, and what the tray hears is "the finger has come 417 points down", never
+"the offset moved 9 just now".
+
+The general shape: whenever a value is both *read from* and *written to* the same property in one pass,
+the read stops being cumulative and nobody notices, because the number is still plausible. The test names
+the fact directly — `testAPullReportsHowFarTheFingerHasComeNotTheLastFrame` pushes three equal slices and
+demands their sum, red at 10 against 30.
