@@ -265,8 +265,8 @@ private struct PinwheelIndexView: SwiftUI.View {
                                             PinLabel(tag.rawValue)
                                                 .font(.caption)
                                                 .color(.secondary)
-                                                .padding(.horizontal, .spacingXS)
-                                                .padding(.vertical, .spacingXXS)
+                                                .padding(.horizontal, .spacing1)
+                                                .padding(.vertical, .spacing1)
                                                 .background(.secondaryBackground, in: Capsule())
                                         }
                                     }

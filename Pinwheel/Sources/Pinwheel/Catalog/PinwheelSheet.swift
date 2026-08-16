@@ -54,17 +54,17 @@ struct PinwheelSheet<Content: SwiftUI.View, Trailing: SwiftUI.View>: SwiftUI.Vie
                 Divider()
                     .frame(height: 1)
                     .overlay(Color.tertiaryText)
-                    .padding(.horizontal, .spacingXXL)
+                    .padding(.horizontal, .spacing6)
                 content()
                 if let commit = model.commit {
                     PinButton(commit.title, action: commit.action)
                         .style(.primary)
                         .fullWidth()
-                        .padding(.horizontal, .spacingXXL)
-                        .padding(.top, .spacingXXL)
+                        .padding(.horizontal, .spacing6)
+                        .padding(.top, .spacing6)
                 }
             }
-            .padding(.bottom, .spacingXXL)
+            .padding(.bottom, .spacing6)
             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
         }
         .scrollBounceBehavior(.basedOnSize)
@@ -99,8 +99,8 @@ struct PinwheelSheet<Content: SwiftUI.View, Trailing: SwiftUI.View>: SwiftUI.Vie
             }
         }
         .frame(maxWidth: .infinity, minHeight: .minimumControlHeight)
-        .padding(.horizontal, .spacingXXL)
-        .padding(.vertical, .spacingS)
+        .padding(.horizontal, .spacing6)
+        .padding(.vertical, .spacing2)
     }
 }
 
@@ -123,8 +123,8 @@ struct PickerRow: SwiftUI.View {
                 PinLabel(title).color(isSelected ? .action : .primary)
                 Spacer()
             }
-            .padding(.horizontal, .spacingM)
-            .padding(.vertical, .spacingM)
+            .padding(.horizontal, .spacing3)
+            .padding(.vertical, .spacing3)
             .frame(maxWidth: .infinity, minHeight: .minimumControlHeight, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: .radiusM)
@@ -135,7 +135,7 @@ struct PickerRow: SwiftUI.View {
                     .strokeBorder(isSelected ? Color.actionText : Color.clear, lineWidth: 1)
             )
             .contentShape(Rectangle())
-            .padding(.horizontal, .spacingM)
+            .padding(.horizontal, .spacing3)
         }
         .buttonStyle(.plain)
     }

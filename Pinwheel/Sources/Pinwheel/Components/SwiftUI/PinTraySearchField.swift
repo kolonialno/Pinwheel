@@ -15,7 +15,7 @@ public struct PinTraySearchField: SwiftUI.View {
     }
 
     public var body: some SwiftUI.View {
-        HStack(spacing: .spacingS) {
+        HStack(spacing: .spacing2) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondaryText)
             TextField(prompt, text: $text)
@@ -24,7 +24,7 @@ public struct PinTraySearchField: SwiftUI.View {
                 .focused($focused)
                 .accessibilityIdentifier("pinwheel.tray.search")
         }
-        .padding(.horizontal, .spacingL)
+        .padding(.horizontal, .spacing4)
         .frame(minHeight: .minimumControlHeight)
         .background(
             RoundedRectangle(cornerRadius: .radiusL)

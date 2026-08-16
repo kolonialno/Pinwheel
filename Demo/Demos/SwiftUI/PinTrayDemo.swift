@@ -31,13 +31,13 @@ struct PinTrayDemo: View {
     @State private var query = ""
 
     var body: some View {
-        VStack(spacing: .spacingL) {
+        VStack(spacing: .spacing4) {
             PinLabel("A tray sequence, each one as tall as its own content.")
                 .color(.secondary)
                 .multilineTextAlignment(.center)
             PinButton("Boost Post") { path = [.boost] }
         }
-        .padding(.spacingXXL)
+        .padding(.spacing6)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .pinwheelTray(path: $path) { route in
             switch route {
@@ -54,10 +54,10 @@ struct PinTrayDemo: View {
             // The wheel carries empty space above and below its rows, so everything touching it comes
             // in a step: the same gap that reads right beside a row reads roomy beside a wheel. Only
             // the stack can see that, which is why it is set here and not in the wheel or the rows.
-            VStack(spacing: .spacingL) {
+            VStack(spacing: .spacing4) {
                 PinTrayLink("Get up to 3x more likes.", phrase: "Learn more") {}
                 reach(selection: $tier)
-                VStack(spacing: .spacingM) {
+                VStack(spacing: .spacing3) {
                     PinTrayValue("Region", value: region) { path.append(.region) }
                     PinTrayValue("Pay with", value: methods[method].name) { path.append(.payWith) }
                 }
@@ -67,9 +67,9 @@ struct PinTrayDemo: View {
                 ) {}
                 .font(.footnote)
                 // Nothing of the wheel's between them, so this is a plain section gap.
-                .padding(.top, .spacingS)
+                .padding(.top, .spacing2)
             }
-            .padding(.top, .spacingS)
+            .padding(.top, .spacing2)
         }
         .titleAccessory {
             SwiftUI.Button { path.append(.howItWorks) } label: {
@@ -95,14 +95,14 @@ struct PinTrayDemo: View {
             .frame(height: 156)
         // The wheel insets its own selection band inside its frame, so it reaches back out by that much
         // to put the band on the same edge as its siblings.
-        .padding(.horizontal, -.spacingS)
+        .padding(.horizontal, -.spacing2)
     }
 
     /// The tutorial: the same wheel, turning itself, over the sentence that says what it is for. It takes
     /// no input — a demonstration someone can grab stops demonstrating.
     private var howItWorks: PinTray {
         PinTray("How it works") {
-            VStack(spacing: .spacingL) {
+            VStack(spacing: .spacing4) {
                 reach(selection: .constant(tutorialTier), travels: true)
                     .allowsHitTesting(false)
                 PinTrayText(
@@ -122,7 +122,7 @@ struct PinTrayDemo: View {
 
     private var payWith: PinTray {
         PinTray("Pay with") {
-            VStack(spacing: .spacingXS) {
+            VStack(spacing: .spacing1) {
                 ForEach(Array(methods.enumerated()), id: \.offset) { index, way in
                     PinTrayChoice(way.name, systemImage: way.icon, isChosen: index == method) {
                         method = index
@@ -135,7 +135,7 @@ struct PinTrayDemo: View {
 
     private var regions: PinTray {
         PinTray("Region") {
-            VStack(spacing: .spacingXS) {
+            VStack(spacing: .spacing1) {
                 if matches.isEmpty {
                     PinTrayText("No regions match “\(query)”").centred()
                 } else {

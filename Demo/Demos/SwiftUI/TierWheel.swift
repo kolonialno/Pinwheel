@@ -76,7 +76,7 @@ struct TierWheel: UIViewRepresentable {
             content.alignment = .center
             content.isLayoutMarginsRelativeArrangement = true
             content.directionalLayoutMargins = NSDirectionalEdgeInsets(
-                top: 0, leading: .spacingL, bottom: 0, trailing: .spacingL
+                top: 0, leading: .spacing4, bottom: 0, trailing: .spacing4
             )
             return content
         }

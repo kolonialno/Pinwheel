@@ -14,15 +14,15 @@ public struct PinTrayValue: SwiftUI.View {
 
     public var body: some SwiftUI.View {
         SwiftUI.Button(action: open) {
-            HStack(spacing: .spacingS) {
+            HStack(spacing: .spacing2) {
                 PinLabel(label).color(.secondary)
-                Spacer(minLength: .spacingL)
+                Spacer(minLength: .spacing4)
                 PinLabel(value).font(.bodySemibold)
                 Image(systemName: "chevron.forward")
                     .imageScale(.small)
                     .foregroundStyle(.secondaryText)
             }
-            .padding(.horizontal, .spacingL)
+            .padding(.horizontal, .spacing4)
             .frame(minHeight: .minimumControlHeight)
             .background(RoundedRectangle(cornerRadius: .radiusM).fill(Color.secondaryBackground))
             .contentShape(Rectangle())

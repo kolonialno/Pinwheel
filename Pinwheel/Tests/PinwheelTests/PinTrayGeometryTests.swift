@@ -62,7 +62,7 @@ final class PinTrayGeometryTests: XCTestCase {
 
     func testATrayStandingOnTheKeyboardClearsItByMoreThanTheScreensEdge() {
         let lifted = geometry(keyboardInset: 336)
-        XCTAssertEqual(lifted.bottomInset, 336 + .spacingL)
+        XCTAssertEqual(lifted.bottomInset, 336 + .spacing4)
         XCTAssertGreaterThan(lifted.bottomInset - 336, geometry().bottomInset)
     }
 
@@ -98,6 +98,6 @@ final class PinTrayGeometryTests: XCTestCase {
             contentHeight: 300,
             room: PinTrayGeometry.Room(containerHeight: 912, safeAreaTop: 20, safeAreaBottom: 0)
         )
-        XCTAssertEqual(noIndicator.contentBottomInset, .spacingL)
+        XCTAssertEqual(noIndicator.contentBottomInset, .spacing4)
     }
 }

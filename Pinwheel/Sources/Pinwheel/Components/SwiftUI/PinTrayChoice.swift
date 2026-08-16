@@ -25,20 +25,20 @@ public struct PinTrayChoice: SwiftUI.View {
 
     public var body: some SwiftUI.View {
         SwiftUI.Button(action: choose) {
-            HStack(spacing: .spacingM) {
+            HStack(spacing: .spacing3) {
                 if let systemImage {
                     Image(systemName: systemImage)
                         .foregroundStyle(.primaryText)
                         // A fixed width, so every label starts at the same place whatever its icon.
-                        .frame(width: .spacingXXL, alignment: .center)
+                        .frame(width: .spacing6, alignment: .center)
                 }
                 PinLabel(label)
-                Spacer(minLength: .spacingL)
+                Spacer(minLength: .spacing4)
                 Image(systemName: "checkmark")
                     .foregroundStyle(.primaryText)
                     .opacity(isChosen ? 1 : 0)
             }
-            .padding(.horizontal, .spacingL)
+            .padding(.horizontal, .spacing4)
             .frame(minHeight: .minimumControlHeight)
             .contentShape(Rectangle())
         }

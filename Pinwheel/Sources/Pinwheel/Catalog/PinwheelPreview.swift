@@ -138,14 +138,14 @@ private struct PinwheelPreviewNotFound: SwiftUI.View {
 
     var body: some SwiftUI.View {
         ScrollView {
-            VStack(alignment: .leading, spacing: .spacingL) {
+            VStack(alignment: .leading, spacing: .spacing4) {
                 PinLabel("No component with id “\(requestedID)”").font(.title)
 
                 PinLabel("Available ids — pass a bare item id, or a qualified sectionID/itemID:")
                     .font(.footnote).color(.secondary)
 
                 ForEach(sections) { section in
-                    VStack(alignment: .leading, spacing: .spacingXS) {
+                    VStack(alignment: .leading, spacing: .spacing1) {
                         PinLabel(section.title).font(.subtitleSemibold)
 
                         ForEach(section.items) { item in
@@ -155,7 +155,7 @@ private struct PinwheelPreviewNotFound: SwiftUI.View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.spacingL)
+            .padding(.spacing4)
         }
         .background(.primaryBackground)
     }

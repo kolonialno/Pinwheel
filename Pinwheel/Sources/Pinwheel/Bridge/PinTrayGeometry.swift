@@ -1,14 +1,14 @@
 import CoreGraphics
 
-let trayMargin: CGFloat = .spacingS
-let trayBottomMargin: CGFloat = .spacingS
-let trayKeyboardMargin: CGFloat = .spacingL
+let trayMargin: CGFloat = .spacing2
+let trayBottomMargin: CGFloat = .spacing2
+let trayKeyboardMargin: CGFloat = .spacing4
 let trayTopRadius: CGFloat = 32
 /// How far a tray's contents stand off its edges. The card decides this for everything it holds — a row
 /// only decides what happens inside itself.
-let trayContentMargin: CGFloat = .spacingXXL
+let trayContentMargin: CGFloat = .spacing6
 /// How far a pull that has nowhere to go can lift a tray, however hard it is pulled.
-let trayLift: CGFloat = .spacingXXXL
+let trayLift: CGFloat = .spacing8
 /// How much of a pull past the end survives as travel, at the start of it. A scroll view's own figure.
 let trayRubberBanding: CGFloat = 0.55
 /// What a let-go tray decelerates at, and the speed below which a release is a hand coming to rest
@@ -86,7 +86,7 @@ struct PinTrayGeometry: Equatable {
         height = max(0, fills ? available : min(contentHeight, available))
 
         // The home indicator's strip, less the margin the tray already stands off the screen by.
-        contentBottomInset = max(room.safeAreaBottom - trayBottomMargin, .spacingL)
+        contentBottomInset = max(room.safeAreaBottom - trayBottomMargin, .spacing4)
 
         switch phase {
         case .arriving, .leaving:

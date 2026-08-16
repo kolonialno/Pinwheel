@@ -552,8 +552,8 @@ final class PinTrayOverlay: UIView {
             titleBar.trailingAnchor.constraint(equalTo: card.trailingAnchor),
             divider.topAnchor.constraint(equalTo: titleBar.bottomAnchor),
             divider.heightAnchor.constraint(equalToConstant: 1),
-            divider.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: .spacingXXL),
-            divider.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -.spacingXXL),
+            divider.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: .spacing6),
+            divider.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -.spacing6),
             body.topAnchor.constraint(equalTo: divider.bottomAnchor),
             body.leadingAnchor.constraint(equalTo: card.leadingAnchor),
             body.trailingAnchor.constraint(equalTo: card.trailingAnchor),
@@ -574,7 +574,7 @@ final class PinTrayOverlay: UIView {
         // Content passes behind something that floats, so it needs only a hairline of clearance from it.
         // A commit button is not floated over — it stands under the content, so it stands off it by what
         // any other group does.
-        let clearing: CGFloat = tray.floating == nil ? trayContentMargin : .spacingS
+        let clearing: CGFloat = tray.floating == nil ? trayContentMargin : .spacing2
         body.clearance = accessory
             .map { accessoryInset + $0.height(fitting: width) + clearing } ?? contentBottomInset
         standing = Standing(
