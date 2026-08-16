@@ -571,8 +571,12 @@ final class PinTrayOverlay: UIView {
         let width = bounds.width - trayMargin * 2
         // Measured up from the card's bottom: the room the accessory stands off, its own height, and a
         // gap so the last row does not sit against it.
+        // Content passes behind something that floats, so it needs only a hairline of clearance from it.
+        // A commit button is not floated over — it stands under the content, so it stands off it by what
+        // any other group does.
+        let clearing: CGFloat = tray.floating == nil ? trayContentMargin : .spacingS
         body.clearance = accessory
-            .map { accessoryInset + $0.height(fitting: width) + .spacingS } ?? contentBottomInset
+            .map { accessoryInset + $0.height(fitting: width) + clearing } ?? contentBottomInset
         standing = Standing(
             description: tray,
             titleBar: titleBar,

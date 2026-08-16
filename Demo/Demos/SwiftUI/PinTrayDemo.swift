@@ -64,6 +64,8 @@ struct PinTrayDemo: View {
                 ) {}
                 .font(.footnote)
             }
+            // Its first group stands off the chrome by what its groups stand off each other.
+            .padding(.top, .spacingL)
         }
         .titleAccessory {
             SwiftUI.Button { path.append(.howItWorks) } label: {
