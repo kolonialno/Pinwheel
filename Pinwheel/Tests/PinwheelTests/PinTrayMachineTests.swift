@@ -254,7 +254,7 @@ final class PinTrayMachineTests: XCTestCase {
     func testAThrowIsJudgedByWhereItWouldLandNotByHowFastItLeft() {
         var machine = machine()
         _ = machine.handle(.dragged(10))
-        let thrown = machine.handle(.released(velocity: 500, dismissBeyond: 400))
+        let thrown = machine.handle(.released(velocity: 500))
         XCTAssertTrue(
             thrown.dismisses,
             "ten points let go at five hundred a second coasts far past four hundred, whatever a speed"
@@ -265,14 +265,14 @@ final class PinTrayMachineTests: XCTestCase {
     func testAReleaseTooSlowToBeAThrowIsJudgedOnHowFarItCame() {
         var machine = machine()
         _ = machine.handle(.dragged(10))
-        let nudged = machine.handle(.released(velocity: 100, dismissBeyond: 400))
+        let nudged = machine.handle(.released(velocity: 100))
         XCTAssertFalse(nudged.dismisses, "a hand coming to rest is not a throw, so ten points is ten points")
     }
 
     func testAPullUpSpringsBackRatherThanDismissing() {
         var machine = machine()
         _ = machine.handle(.dragged(-200))
-        let released = machine.handle(.released(velocity: -900, dismissBeyond: 200))
+        let released = machine.handle(.released(velocity: -900))
         XCTAssertFalse(released.dismisses, "a tray pulled away from the exit does not take it")
         XCTAssertEqual(released.to.translation, 0, "it comes back to where it stood")
     }
@@ -280,19 +280,30 @@ final class PinTrayMachineTests: XCTestCase {
     func testAReleasedDragSpringsBackUnlessItWentFarEnough() {
         var machine = machine()
         _ = machine.handle(.dragged(40))
-        let held = machine.handle(.released(velocity: 0, dismissBeyond: 200))
+        let held = machine.handle(.released(velocity: 0))
         XCTAssertFalse(held.dismisses)
 
-        _ = machine.handle(.dragged(300))
-        let let_go = machine.handle(.released(velocity: 0, dismissBeyond: 200))
-        XCTAssertTrue(let_go.dismisses)
+        _ = machine.handle(.dragged(machine.geometry.height))
+        let let_go = machine.handle(.released(velocity: 0))
+        XCTAssertTrue(let_go.dismisses, "carried its own height down, the way out is the nearer place")
         XCTAssertGreaterThan(let_go.to.translation, 0, "it leaves the way it arrived")
+    }
+
+    func testATrayCaughtOnItsWayOutStopsLeaving() {
+        var machine = machine()
+        _ = machine.handle(.dragged(machine.geometry.height))
+        XCTAssertTrue(machine.handle(.released(velocity: 0)).dismisses)
+        XCTAssertEqual(machine.phase, .leaving)
+
+        _ = machine.handle(.caught(at: 200))
+        XCTAssertEqual(machine.phase, .standing, "a hand on a leaving tray is a hand bringing it back")
+        XCTAssertEqual(machine.geometry.translation, 200, "and it carries on from where it had got to")
     }
 
     func testAFlickDismissesEvenFromCloseBy() {
         var machine = machine()
         _ = machine.handle(.dragged(20))
-        XCTAssertTrue(machine.handle(.released(velocity: 2_000, dismissBeyond: 200)).dismisses)
+        XCTAssertTrue(machine.handle(.released(velocity: 2_000)).dismisses)
     }
 
     // Tapping the backdrop over an editing tray lurched the card two thirds of the way down and then

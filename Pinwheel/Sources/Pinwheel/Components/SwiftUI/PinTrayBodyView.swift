@@ -134,8 +134,8 @@ extension PinTrayBodyView: UIScrollViewDelegate {
     }
 
     func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
-        pulled = 0
-        pulling = false
+        pulled = coordinating?.bodyWillBeginPulling() ?? 0
+        pulling = pulled > 0
     }
 
     func scrollViewWillEndDragging(

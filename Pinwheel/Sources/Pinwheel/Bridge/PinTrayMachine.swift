@@ -100,7 +100,10 @@ struct PinTrayMachine: Equatable {
         case contentResized(CGFloat)
         case keyboardMeasured(CGFloat)
         case dragged(CGFloat)
-        case released(velocity: CGFloat, dismissBeyond: CGFloat)
+        /// A finger landed on a tray that was still travelling. Where it is now becomes where the next
+        /// drag starts from, so the motion carries on from under the hand rather than starting again.
+        case caught(at: CGFloat)
+        case released(velocity: CGFloat)
         case dismissed
         /// The room changed under it — rotation, a split view, a resized container.
         case roomChanged(PinTrayGeometry.Room)
@@ -302,11 +305,20 @@ struct PinTrayMachine: Equatable {
             dragOffset = PinTrayGeometry.travel(forDrag: offset)
             return Reaction(to: geometry(.resting), timeline: .immediate)
 
-        case .released(let velocity, let dismissBeyond):
+        case .caught(let translation):
+            // A tray on its way out that is caught is no longer on its way out.
+            phase = .standing
+            dragOffset = max(0, translation)
+            return Reaction(to: geometry(.resting), timeline: .immediate)
+
+        case .released(let velocity):
             let travelled = dragOffset
             dragOffset = 0
             let lands = travelled + PinTrayGeometry.coast(atSpeed: velocity)
-            guard lands > dismissBeyond else {
+            // A tray has two places it can come to rest — where it stands, and off the bottom — and a
+            // throw goes to whichever its landing point is nearer. That is what a sheet does with its
+            // detents, and it means no threshold has to be chosen: the halfway mark is one.
+            guard lands > geometry(.leaving).translation / 2 else {
                 return Reaction(
                     to: geometry(.resting),
                     timeline: .spring(bounce: trayResizeBounce),

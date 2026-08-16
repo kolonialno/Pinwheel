@@ -7,6 +7,9 @@ import CoreGraphics
 /// the body needs to know a scroll view exists.
 @MainActor
 protocol PinTrayBodyCoordinating: AnyObject {
+    /// A drag is starting. Whoever is coordinating stops whatever the card was doing and answers how
+    /// far down it already is, so a pull that lands on a moving tray carries on from where it got to.
+    func bodyWillBeginPulling() -> CGFloat
     /// Pulled downward with nothing above the first row to reveal.
     func bodyWasPulledDown(by amount: CGFloat)
     /// That pull ended. Positive velocity is downward.
@@ -18,7 +21,10 @@ protocol PinTrayBodyCoordinating: AnyObject {
 final class PinTrayBodyReports: PinTrayBodyCoordinating {
     private(set) var pulls: [CGFloat] = []
     private(set) var releases: [CGFloat] = []
+    /// Where a caught tray already stood. Nought unless a test says otherwise.
+    var standing: CGFloat = 0
 
+    func bodyWillBeginPulling() -> CGFloat { standing }
     func bodyWasPulledDown(by amount: CGFloat) { pulls.append(amount) }
     func bodyStoppedBeingPulled(velocity: CGFloat) { releases.append(velocity) }
 }

@@ -211,6 +211,9 @@ final class PinTrayOverlay: UIView {
 
     /// Drawn on the keyboard's own clock and curve, started in the same turn the keyboard was asked to
     /// leave — so the two are one motion rather than one following the other.
+    /// The animation the tray is running, kept so a finger can stop it and take over.
+    private var motion: UIViewPropertyAnimator?
+
     private func place(
         _ geometry: PinTrayGeometry,
         matching timing: PinTrayMachine.KeyboardTiming,
@@ -246,16 +249,38 @@ final class PinTrayOverlay: UIView {
             self.dimming.alpha = geometry.translation > 0 && self.machine.phase == .leaving ? 0 : 1
             self.layoutIfNeeded()
         }
+        // Whatever was moving the tray stops here: two animations on one property is the oldest bug in
+        // this file.
+        motion?.stopAnimation(true)
+        motion = nil
         guard animated else { draw(); return finish() }
         // A spring takes its starting speed as a fraction of the distance it has to cover, so the
         // points a second a finger let go at only mean something once divided by how far is left.
         let starting = abs(travelling) > 1 ? velocity / travelling : 0
-        UIView.animate(
-            springDuration: trayResizeDuration,
-            bounce: bounce,
-            initialSpringVelocity: starting,
-            animations: draw
-        ) { _ in finish() }
+        let animator = UIViewPropertyAnimator(
+            duration: trayResizeDuration,
+            timingParameters: UISpringTimingParameters(
+                duration: trayResizeDuration,
+                bounce: bounce,
+                initialVelocity: CGVector(dx: 0, dy: starting)
+            )
+        )
+        animator.addAnimations(draw)
+        animator.addCompletion { position in
+            // Stopped by a finger is not arrived: only a motion that reached its end has finished.
+            guard position == .end else { return }
+            finish()
+        }
+        motion = animator
+        animator.startAnimation()
+    }
+
+    /// A finger landing on a tray that is still moving takes it over from where it has got to. Without
+    /// this the running spring keeps its own mind and the drag fights it — or worse, a tray already on
+    /// its way out is torn down under a hand that was bringing it back.
+    private func catchTheMotion() {
+        guard motion?.isRunning == true else { return }
+        apply(machine.handle(.caught(at: tray.transform.ty)))
     }
 
 
@@ -589,10 +614,13 @@ final class PinTrayOverlay: UIView {
     @objc private func drag(_ gesture: UIPanGestureRecognizer) {
         let travelled = gesture.translation(in: self).y
         switch gesture.state {
+        case .began:
+            catchTheMotion()
+            gesture.setTranslation(CGPoint(x: 0, y: machine.dragOffset), in: self)
         case .changed:
             apply(machine.handle(.dragged(travelled)))
         case .ended, .cancelled:
-            release(velocity: gesture.velocity(in: self).y, dismissBeyond: height.constant / 3)
+            release(velocity: gesture.velocity(in: self).y)
         default:
             break
         }
@@ -600,8 +628,8 @@ final class PinTrayOverlay: UIView {
 
     /// A drag let go of. Every drag ends here whoever was carrying it, so a tray cannot leave one way
     /// from its chrome and another way from its list.
-    private func release(velocity: CGFloat, dismissBeyond: CGFloat) {
-        let reaction = machine.handle(.released(velocity: velocity, dismissBeyond: dismissBeyond))
+    private func release(velocity: CGFloat) {
+        let reaction = machine.handle(.released(velocity: velocity))
         if reaction.dismisses {
             onBackgroundDismiss()
         } else {
@@ -613,12 +641,17 @@ final class PinTrayOverlay: UIView {
 extension PinTrayOverlay: PinTrayBodyCoordinating {
     /// The body says it was pulled with nothing left to scroll. What that means for the card is the
     /// chassis's to decide — the body never knew there was one.
+    func bodyWillBeginPulling() -> CGFloat {
+        catchTheMotion()
+        return machine.dragOffset
+    }
+
     func bodyWasPulledDown(by amount: CGFloat) {
         apply(machine.handle(.dragged(amount)))
     }
 
     func bodyStoppedBeingPulled(velocity: CGFloat) {
-        release(velocity: velocity, dismissBeyond: cardHeight / 3)
+        release(velocity: velocity)
     }
 }
 
