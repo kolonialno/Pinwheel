@@ -20,12 +20,16 @@ struct PinTrayTitleBar: SwiftUI.View {
                     Image(systemName: isRoot ? "xmark" : "chevron.backward")
                         .font(PinTextStyle.body.font(in: theme))
                         .symbolRenderingMode(.monochrome)
-                        .imageScale(.large)
+                        .imageScale(.medium)
                 }
                 .tint(.primaryText)
                 .accessibilityLabel(isRoot ? "Close" : "Back")
                 Spacer()
+                // The bar sizes what it is handed, so both sides of it match whatever a caller passes.
                 accessory
+                    .font(PinTextStyle.body.font(in: theme))
+                    .symbolRenderingMode(.monochrome)
+                    .imageScale(.medium)
                     .tint(.primaryText)
             }
         }

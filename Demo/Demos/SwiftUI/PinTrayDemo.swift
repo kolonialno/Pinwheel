@@ -69,7 +69,7 @@ struct PinTrayDemo: View {
         }
         .titleAccessory {
             SwiftUI.Button { path.append(.howItWorks) } label: {
-                Image(systemName: "questionmark.circle").imageScale(.large)
+                Image(systemName: "questionmark.circle")
             }
             .accessibilityLabel("How it works")
         }
