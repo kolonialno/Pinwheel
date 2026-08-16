@@ -18,7 +18,10 @@ struct PinTrayDemo: View {
         Tier(reach: "60K – 119K impressions", price: "$100"),
     ]
 
-    private let methods = ["Pay with Apple", "Pay with X Money"]
+    private let methods = [
+        (name: "Pay with Apple", icon: "apple.logo"),
+        (name: "Pay with X Money", icon: "dollarsign.circle"),
+    ]
 
     @State private var path: [Route] = []
     @State private var tier = 2
@@ -54,7 +57,7 @@ struct PinTrayDemo: View {
                 reach(selection: $tier)
                     .padding(.bottom, .spacingXL)
                 PinTrayValue("Region", value: region) { path.append(.region) }
-                PinTrayValue("Pay with", value: methods[method]) { path.append(.payWith) }
+                PinTrayValue("Pay with", value: methods[method].name) { path.append(.payWith) }
                 PinTrayLink(
                     "By clicking the Boost Post button below, you agree to our",
                     phrase: "Terms and Conditions"
@@ -116,8 +119,8 @@ struct PinTrayDemo: View {
     private var payWith: PinTray {
         PinTray("Pay with") {
             VStack(spacing: 0) {
-                ForEach(Array(methods.enumerated()), id: \.offset) { index, name in
-                    PinTrayChoice(name, isChosen: index == method) {
+                ForEach(Array(methods.enumerated()), id: \.offset) { index, way in
+                    PinTrayChoice(way.name, systemImage: way.icon, isChosen: index == method) {
                         method = index
                         path.removeLast()
                     }
