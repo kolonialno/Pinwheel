@@ -2,8 +2,6 @@ import SwiftUI
 import XCTest
 @testable import Pinwheel
 
-/// The body is a plain `UIView`, so what it does is testable without an app, a scene or a host. That is
-/// the whole reason containment is UIKit's job here.
 @MainActor
 final class PinTrayBodyTests: XCTestCase {
     private func rows(_ count: Int) -> AnyView {
@@ -16,8 +14,8 @@ final class PinTrayBodyTests: XCTestCase {
         )
     }
 
-    /// Sized by constraints inside a window, the way the card sizes it — not by a frame written on it,
-    /// which hands the hosting view a height it never had to work out for itself.
+    /// Sized by constraints, the way the card sizes it. A frame written on it hands the hosting view a
+    /// height it never had to work out, so the test stops measuring what it claims to.
     private func attachedBody(showing content: AnyView) -> PinTrayBodyView {
         let parent = UIViewController()
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 400, height: 500))
@@ -104,9 +102,6 @@ final class PinTrayBodyTests: XCTestCase {
         )
     }
 
-    // The card follows the finger, so what the body reports is how far the finger has come — not how far
-    // it moved since the last frame. Reporting the frame's slice moved the card 9pt across a 430pt drag,
-    // because the offset is pinned back to the top between every one of them.
     func testAPullReportsHowFarTheFingerHasComeNotTheLastFrame() {
         let body = attachedBody(showing: rows(60))
         let reports = PinTrayBodyReports()

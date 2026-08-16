@@ -1,7 +1,6 @@
 import SwiftUI
 import Pinwheel
 
-/// Boost Post, mocked: a flow of four trays built from data the screen already holds.
 struct PinTrayDemo: View {
     private enum Route: Hashable {
         case boost
@@ -72,26 +71,20 @@ struct PinTrayDemo: View {
         .commit("Boost Post") { path.removeAll() }
     }
 
-    /// The tier the tutorial is showing. It walks up the tiers and back down rather than round, because
-    /// wrapping from the last to the first is a jump backwards where every other step is a step.
     private var tutorialTier: Int {
         let last = tiers.count - 1
         let phase = tutorialStep % (last * 2)
         return phase <= last ? phase : last * 2 - phase
     }
 
-    /// A wheel, as the reference has it: the tiers are a scale rather than a list, and the system picker
-    /// already draws the banded selection this needs.
     private func reach(selection: Binding<Int>, travels: Bool = false) -> some View {
         TierWheel(tiers: tiers, selection: selection, travels: travels)
             .frame(height: 156)
-        // The wheel insets its own selection band inside its frame, so it reaches back out by that much
-        // to put the band on the same edge as its siblings.
+        // The wheel insets its own selection band inside its frame, so it reaches back out by that
+        // much to put the band on the same edge as its siblings.
         .padding(.horizontal, -.spacing2)
     }
 
-    /// The tutorial: the same wheel, turning itself, over the sentence that says what it is for. It takes
-    /// no input — a demonstration someone can grab stops demonstrating.
     private var howItWorks: PinTray {
         PinTray("How it works") {
             reach(selection: .constant(tutorialTier), travels: true)
@@ -143,7 +136,6 @@ struct PinTrayDemo: View {
         .floating { PinTraySearchField("Search Country, City, or Region", text: $query) }
     }
 
-    /// Ranked so a typed prefix wins.
     private var matches: [String] {
         guard !query.isEmpty else { return Self.countries }
         let needle = query.lowercased()
@@ -156,7 +148,6 @@ struct PinTrayDemo: View {
             }
     }
 
-    // A region's own subRegions are its states, so those cannot filter it out.
     private static let countries: [String] = Locale.Region.isoRegions
         .filter { $0.subRegions.isEmpty }
         .compactMap { Locale.current.localizedString(forRegionCode: $0.identifier) }

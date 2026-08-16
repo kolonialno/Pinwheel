@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// The tray's title row, drawn: the way out on the leading edge, the title centred, an optional control
-/// trailing. A leaf — it holds nothing and reports its taps to whoever handed it the closures.
 struct PinTrayTitleBar: SwiftUI.View {
     let title: String
     let isRoot: Bool
@@ -25,7 +23,6 @@ struct PinTrayTitleBar: SwiftUI.View {
                 .tint(.primaryText)
                 .accessibilityLabel(isRoot ? "Close" : "Back")
                 Spacer()
-                // The bar sizes what it is handed, so both sides of it match whatever a caller passes.
                 accessory
                     .font(PinTextStyle.body.font(in: theme))
                     .symbolRenderingMode(.monochrome)
@@ -35,8 +32,6 @@ struct PinTrayTitleBar: SwiftUI.View {
         }
         .frame(maxWidth: .infinity, minHeight: .minimumControlHeight)
         .padding(.horizontal, trayContentMargin)
-        // The control keeps its floor; the band around it is what comes in. Both sides take the same
-        // token, or the title sits off-centre in its own bar.
         .padding(.vertical, .spacing1)
     }
 }

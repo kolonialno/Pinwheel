@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// A paragraph in a tray. Leading by default; centred when it is a caption under a heading rather than
-/// a body of text.
 public struct PinTrayText: SwiftUI.View {
     private let text: String
     private var isCentred = false

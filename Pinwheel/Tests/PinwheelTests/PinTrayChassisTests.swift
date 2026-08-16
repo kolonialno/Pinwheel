@@ -2,8 +2,6 @@ import SwiftUI
 import XCTest
 @testable import Pinwheel
 
-/// Facts about the chassis, read off the views it builds. Containment is its job, so these are ordinary
-/// objects with ordinary frames and nothing has to be inferred from a picture.
 @MainActor
 final class PinTrayChassisTests: XCTestCase {
     private func standing(_ tray: PinTray) -> (PinTrayOverlay, UIWindow) {
@@ -25,8 +23,6 @@ final class PinTrayChassisTests: XCTestCase {
         return nil
     }
 
-    // The body is the only thing in a tray that scrolls, and it takes everything under the title bar —
-    // which is what puts anything standing at its bottom on the card's bottom edge.
     func testTheBodyTakesEverythingBelowTheTitleBar() throws {
         let (overlay, window) = standing(
             PinTray("Region") { Color.clear.frame(height: 2_000) }.detent(.filling)
@@ -40,8 +36,6 @@ final class PinTrayChassisTests: XCTestCase {
         XCTAssertEqual(inCard.maxY, overlay.cardBottom, accuracy: 1, "and it runs to the card's own edge")
     }
 
-    // Whatever floats at the bottom stands over the body, and the body keeps room below its last row so
-    // that row can still be read past it.
     func testTheBodyKeepsRoomBelowItsLastRowForWhatFloatsOverIt() throws {
         let (overlay, window) = standing(
             PinTray("Region") { Color.clear.frame(height: 2_000) }
@@ -59,9 +53,6 @@ final class PinTrayChassisTests: XCTestCase {
         return view.subviews.flatMap { accessories(in: $0) }
     }
 
-    // Both trays draw the same button in the same place, so it holds through a move: solid from the
-    // first frame and at its own size. Dissolving one into the other lightened the pill to 0.75 half way
-    // through, and the zoom that gives the content its depth drew it at 1.10.
     func testTheCommitButtonHoldsItsSizeAndOpacityThroughAMove() throws {
         let deeper = PinTray("How it works") { Color.clear.frame(height: 300) }.commit("Got It") {}
         let boost = PinTray("Boost") { Color.clear.frame(height: 300) }.commit("Boost Post") {}
@@ -71,8 +62,8 @@ final class PinTrayChassisTests: XCTestCase {
         overlay.show(boost, isPush: false)
         window.layoutIfNeeded()
 
-        // What a move settles on is the same either way; what separates holding from dissolving is what
-        // is in flight, so the animations themselves are what this reads.
+        // A move settles on the same values either way, so what is in flight is what separates a
+        // button holding from one dissolving.
         let buttons = accessories(in: overlay)
         let inFlight = buttons.map { Set($0.layer.animationKeys() ?? []) }
         XCTAssertEqual(buttons.count, 2, "the button arriving and the one being left")
@@ -86,8 +77,6 @@ final class PinTrayChassisTests: XCTestCase {
         )
     }
 
-    // A button standing where a search field stood is a different thing arriving, so it fades in like
-    // the rest of the tray. Only where both trays put the same button in the same place does it hold.
     func testAButtonArrivingWhereSomethingElseStoodFadesInRatherThanAppearing() throws {
         let region = PinTray("Region") { Color.clear.frame(height: 2_000) }
             .detent(.filling)
@@ -109,7 +98,6 @@ final class PinTrayChassisTests: XCTestCase {
         )
     }
 
-    // A leaving tray is torn down when its travel ends, not on a timer beside it.
     func testALeavingTrayIsTornDownOnlyOnceItHasTravelled() {
         let (overlay, window) = standing(PinTray("Boost") { Color.clear.frame(height: 300) })
         overlay.dismiss()

@@ -3,12 +3,6 @@ import UIKit
 import XCTest
 @testable import Pinwheel
 
-/// A tray resting on the screen's bottom edge is nested in the display's own corner and takes its
-/// radius. Lifted off it by a keyboard, it is nested in nothing, so that radius reads as an oversized
-/// corner and it takes its own instead.
-///
-/// Hosted, because a keyboard needs the app's scene machinery: a hostless bundle draws the tray fine
-/// but its `keyboardLayoutGuide` never moves, so the branch that gets this wrong is never taken.
 @MainActor
 final class TrayKeyboardCornerTests: XCTestCase {
     private func field(in view: UIView) -> UITextField? {
@@ -28,8 +22,8 @@ final class TrayKeyboardCornerTests: XCTestCase {
     }
 
     func testATrayRidingTheKeyboardWearsItsOwnCornersRatherThanTheDisplays() throws {
-        // The window has to belong to the app's own scene, or its keyboard layout guide tracks nothing
-        // and the card never lifts — which reads exactly like the bug being absent.
+        // Without the app's own scene the keyboard layout guide tracks nothing and the card never
+        // lifts, which reads exactly like the bug being absent.
         let scene = try XCTUnwrap(
             UIApplication.shared.connectedScenes.first as? UIWindowScene,
             "the host app has no window scene"

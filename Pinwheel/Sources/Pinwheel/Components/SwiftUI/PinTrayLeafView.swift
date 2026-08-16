@@ -1,11 +1,6 @@
 import SwiftUI
 import UIKit
 
-/// A container for one SwiftUI leaf, sized by what the leaf draws.
-///
-/// The title bar and the floating accessory are both this: a `UIView` the chassis holds and lays out,
-/// with SwiftUI inside it drawing and nothing else. Their heights are read from here rather than
-/// measured through a preference, because the chassis needs them while it is laying out.
 @MainActor
 final class PinTrayLeafView: UIView {
     private let hosting: UIHostingController<AnyView>
@@ -37,7 +32,6 @@ final class PinTrayLeafView: UIView {
         hosting.rootView = leaf
     }
 
-    /// How tall the leaf draws at this width.
     func height(fitting width: CGFloat) -> CGFloat {
         hosting.sizeThatFits(in: CGSize(width: width, height: .greatestFiniteMagnitude)).height
     }

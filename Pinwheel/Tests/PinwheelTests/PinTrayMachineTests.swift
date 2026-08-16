@@ -1,8 +1,6 @@
 import XCTest
 @testable import Pinwheel
 
-/// Each of these is a state that broke, in the order it was found by filming, instrumenting and
-/// measuring. They are here so the next change has to argue with them rather than rediscover them.
 @MainActor
 final class PinTrayMachineTests: XCTestCase {
     private let screen = PinTrayGeometry.Room(
@@ -22,7 +20,6 @@ final class PinTrayMachineTests: XCTestCase {
         return machine
     }
 
-    // A transform assigned outside its animation put the tray on screen already arrived.
     func testATrayArrivesFromBelowItsOwnBottomEdge() {
         var machine = PinTrayMachine(room: screen)
         let reaction = machine.handle(.presented(contentHeight: 641))
@@ -32,8 +29,6 @@ final class PinTrayMachineTests: XCTestCase {
         XCTAssertEqual(reaction.timeline, .spring(bounce: trayResizeBounce))
     }
 
-    // Pushing into a tray that edits, the card shrank with no keyboard under it yet: its top fell to
-    // the floor and climbed back once the keyboard arrived.
     func testATrayAboutToEditHoldsStillUntilTheKeyboardMoves() {
         var machine = machine()
         let standing = machine.geometry
@@ -49,7 +44,6 @@ final class PinTrayMachineTests: XCTestCase {
         XCTAssertLessThan(top(opening.to), top(standing), "the top only ever travels up")
     }
 
-    // The same push, seen as the whole journey: no state along the way sends the top downward.
     func testTheTopNeverReversesOnTheWayToTheKeyboard() {
         var machine = machine()
         let height = screen.containerHeight
@@ -63,17 +57,12 @@ final class PinTrayMachineTests: XCTestCase {
         XCTAssertEqual(tops, tops.sorted(by: >), "the top descends at no point: \(tops)")
     }
 
-    // Unmounting the tray tore the field out from under the keyboard, so it vanished with no animation
-    // for the card to travel beside.
     func testLeavingAnEditingTrayDismissesTheKeyboardDeliberately() {
         var machine = machine(edits: true)
         let pop = machine.handle(.moved(contentHeight: 641, edits: false, isPush: false))
         XCTAssertEqual(pop.effects, [.dismissKeyboard])
     }
 
-    // Coming back from the search tray landed the card at 509pt — a height belonging to nothing, half
-    // way between the two trays. The reaction was computed while the keyboard was still up, and applied
-    // after dismissing it had already re-laid everything out, so the stale answer won.
     func testComingBackFromAnEditingTrayReturnsToTheHeightItLeftFrom() {
         var machine = machine()
         let standing = machine.geometry.height
@@ -82,14 +71,13 @@ final class PinTrayMachineTests: XCTestCase {
         _ = machine.handle(.keyboardMeasured(311))
         _ = machine.handle(.keyboardMeasured(311))
 
-        // The field is still first responder at the moment the pop is reported: the keyboard has been
-        // asked to go, not yet gone.
-        let pop = machine.handle(.moved(contentHeight: standing, edits: true, isPush: false))
+        let keyboardAskedToGoButStillThere = true
+        let pop = machine.handle(
+            .moved(contentHeight: standing, edits: keyboardAskedToGoButStillThere, isPush: false)
+        )
         XCTAssertEqual(pop.to.height, standing, "it comes back to the height it left from")
     }
 
-    // The rule underneath: an effect the machine commands is part of its own state that same turn, so
-    // whatever the outside world does about it can only ever agree.
     func testCommandingTheKeyboardAwayCountsAsTheKeyboardLeaving() {
         var machine = machine(edits: true)
         let pop = machine.handle(.moved(contentHeight: 641, edits: true, isPush: false))
@@ -103,8 +91,6 @@ final class PinTrayMachineTests: XCTestCase {
         )
     }
 
-    // The whole point of a filling tray: its top is a constant, so tapping the search field again
-    // cannot shoot it anywhere. Only the bottom travels, riding the keyboard down to the floor.
     func testAFillingTrayKeepsItsTopWhereverTheKeyboardIs() {
         var machine = PinTrayMachine(room: screen)
         _ = machine.handle(.fillsReported(true))
@@ -124,8 +110,6 @@ final class PinTrayMachineTests: XCTestCase {
         XCTAssertEqual(bottoms.min(), trayBottomMargin, "and the bottom stops at the floor: \(bottoms)")
     }
 
-    // How a tray stands arrives from SwiftUI whenever SwiftUI gets round to it — measured, 157ms before
-    // the move it describes. Drawing on arrival sent the card to the floor and back: 262 -> 602 -> 76.
     func testATrayLearningItFillsDrawsNothingUntilTheNextEventCarriesIt() {
         var machine = machine()
         let standing = machine.geometry
@@ -139,9 +123,6 @@ final class PinTrayMachineTests: XCTestCase {
         XCTAssertGreaterThan(moved.to.height, 200, "the next event stands it in the room it has")
     }
 
-    // Deferring it to the next event assumed one was coming. With a hardware keyboard attached none is
-    // — the software keyboard never appears — so the search tray stood at its content's height instead
-    // of filling the room, for as long as it was open.
     func testATrayLearningItFillsAfterItHasArrivedStandsInTheRoomAtOnce() {
         var machine = machine()
         _ = machine.handle(.moveBegan(isPush: true))
@@ -151,8 +132,6 @@ final class PinTrayMachineTests: XCTestCase {
         XCTAssertGreaterThan(reaction.to.height, 200, "a tray that has arrived stands up when it learns")
     }
 
-    // SwiftUI hands the flag over whenever it gets round to it, which is sometimes before the move it
-    // describes and sometimes after. The tray ends up filling either way.
     func testATrayFillsTheRoomWhicheverOrderItsFlagAndItsMoveArriveIn() {
         for flagFirst in [true, false] {
             var machine = machine()
@@ -169,7 +148,6 @@ final class PinTrayMachineTests: XCTestCase {
         }
     }
 
-    // A tray that raises nothing has nothing to wait for.
     func testATrayThatWillRaiseNoKeyboardDoesNotWaitForOne() {
         var machine = machine()
         _ = machine.handle(.moveBegan(isPush: true))
@@ -179,8 +157,6 @@ final class PinTrayMachineTests: XCTestCase {
         XCTAssertEqual(pushed.to.height, 245, "it stands at what it holds")
     }
 
-    // And a filling tray never waits either, whatever the keyboard is about to do: it is sized by the
-    // room, so its top is the same before and after, and there is no dip to hold still for.
     func testAFillingTrayNeverWaitsBecauseItsTopCannotMove() {
         var machine = machine()
         _ = machine.handle(.moveBegan(isPush: true))
@@ -205,8 +181,6 @@ final class PinTrayMachineTests: XCTestCase {
         XCTAssertEqual(pop.effects, [])
     }
 
-    // Our spring ran against the keyboard's own animation, and the second replaced the first: the
-    // dismissal read as two chained steps rather than one motion.
     func testAMovingKeyboardAlwaysOwnsTheTimeline() {
         var machine = machine(edits: true)
         XCTAssertEqual(machine.handle(.keyboardMeasured(0)).timeline, .carriedByKeyboard)
@@ -219,9 +193,6 @@ final class PinTrayMachineTests: XCTestCase {
         XCTAssertEqual(machine.handle(.contentResized(300)).timeline, .spring(bounce: 0))
     }
 
-    // Dragging the list to put the keyboard away, every sample arrived twice — once as moving and once
-    // as settled — and the settled one started a spring at 60fps against a keyboard still under the
-    // finger. Measured, the card's top wandered 116 -> 83 -> 116 while it should not have moved at all.
     func testAReactionThatChangesNothingStartsNothing() {
         var machine = machine(edits: true)
         let settled = machine.handle(.keyboardMeasured(311))
@@ -233,8 +204,6 @@ final class PinTrayMachineTests: XCTestCase {
         )
     }
 
-    // A search resizing per keystroke moved the card 13,174pt across 45 reversals, and the bounce is
-    // what put the reversals there.
     func testContentSettlingCarriesNoBounce() {
         var machine = machine()
         XCTAssertEqual(machine.handle(.contentResized(300)).timeline, .spring(bounce: 0))
@@ -306,9 +275,6 @@ final class PinTrayMachineTests: XCTestCase {
         XCTAssertTrue(machine.handle(.released(velocity: 2_000)).dismisses)
     }
 
-    // Tapping the backdrop over an editing tray lurched the card two thirds of the way down and then
-    // deleted it off the screen. Three reactions had fought over the same property inside 24ms, and the
-    // last one to land told the leaving tray to stay where it was.
     func testATrayThatIsLeavingIsNeverPutBack() {
         var machine = machine(edits: true)
         let leaving = machine.handle(.dismissed)
@@ -321,16 +287,12 @@ final class PinTrayMachineTests: XCTestCase {
         )
     }
 
-    // Its exit was measured against a keyboard it had just sent away, so the card was told to travel
-    // from a place it was no longer going to be.
     func testATrayLeavingBesideTheKeyboardIsMeasuredFromWhereItWillBe() {
         var machine = machine(edits: true)
         let leaving = machine.handle(.dismissed)
         XCTAssertEqual(leaving.to.bottomInset, trayBottomMargin, "measured with the keyboard gone")
     }
 
-    // Two animations back to back is what a stall is. The keyboard says how long it takes and on what
-    // curve before it moves, so the tray leaves on that same clock and there is no handoff at all.
     func testATrayLeavingBesideTheKeyboardBorrowsItsClock() {
         var machine = machine(edits: true)
         let timing = PinTrayMachine.KeyboardTiming(duration: 0.25, curve: 7)

@@ -2,13 +2,9 @@ import SwiftUI
 import UIKit
 
 private let trayDimming: CGFloat = 0.35
-// Going deeper, the tray being left grows as it fades; coming back, the one arriving shrinks into
-// place. The shallower of the two always carries the zoom, so a sequence reads as depth.
 private let trayZoom: CGFloat = 1.08
 
 extension UIScreen {
-    /// The display's own corner radius, which a bottom-anchored card has to nest inside to look
-    /// continuous with the hardware. UIKit exposes it nowhere public.
     var pinDisplayCornerRadius: CGFloat {
         (value(forKey: "_displayCornerRadius") as? CGFloat) ?? .radiusL
     }
@@ -57,9 +53,6 @@ final class PinTrayCoordinator<Item: Hashable> {
         from presenter: UIViewController,
         tray: (Item) -> PinTray
     ) {
-        // The presenting view re-renders on its own state, and a tray is built from that state — so an
-        // unchanged path still has to hand the standing tray its new description, or the tray keeps
-        // drawing whatever it was assembled with.
         guard path != shown else {
             if let top = path.last {
                 overlay?.refresh(tray(top))
@@ -82,8 +75,6 @@ final class PinTrayCoordinator<Item: Hashable> {
             return
         }
 
-        // Finding the container is the coordinator's job: it is the one holding the presenter, and the
-        // overlay should be handed where it lives rather than climbing to find it.
         guard var container = presenter.view.window?.rootViewController else { return }
         while let presented = container.presentedViewController { container = presented }
 
@@ -105,8 +96,6 @@ final class PinTrayOverlay: UIView {
     private var displayRadius: CGFloat = .radiusL
     private lazy var machine = PinTrayMachine(room: room)
 
-    /// The tray on screen: three containers the chassis holds and lays out, each with one job. They are
-    /// built together and swapped together, so a tray's scroll position is its own.
     private struct Standing {
         let description: PinTray
         let titleBar: PinTrayLeafView
@@ -123,13 +112,8 @@ final class PinTrayOverlay: UIView {
 
         var views: [UIView] { [titleBar, divider, body, accessory].compactMap { $0 } }
 
-        /// What a move dissolves and zooms. The button that ends the flow is not among them: it is a
-        /// control, and a control that changes size while you are aiming at it is a moving target.
         var dissolving: [UIView] { [titleBar, divider, body] }
 
-        /// The button that ends the flow, where this tray stands one. Anything a tray floats is its own
-        /// content — a search field, a filter bar — so a button taking its place is a different thing
-        /// arriving rather than the same one staying.
         var commitButton: PinTrayLeafView? {
             description.floating == nil && description.commit != nil ? accessory : nil
         }
@@ -137,8 +121,6 @@ final class PinTrayOverlay: UIView {
 
     private var standing: Standing?
 
-    /// Given, not hunted. The overlay used to climb from its own window to the root view controller and
-    /// on through whatever it had presented, looking for somewhere to live.
     private unowned let container: UIViewController
     init(in container: UIViewController, showing tray: PinTray) {
         self.container = container
@@ -159,19 +141,12 @@ final class PinTrayOverlay: UIView {
         )
     }
 
-    /// All the view knows about the keyboard: how much of the screen it currently takes. What that
-    /// means is the machine's to decide.
     private var measuredKeyboardHeight: CGFloat {
-        // Measured from the guide's own top edge, because that edge is what the card's bottom is
-        // constrained to. Subtracting the bottom safe area here made the machine believe a 337pt
-        // keyboard was 311 — the guide already excludes it, `usesBottomSafeArea` being false — so the
-        // card came out 26pt too tall and, pinned to the guide below, rode 26pt high until the keyboard
-        // left and the resting constraint dropped it back.
+        // The guide already excludes the bottom safe area, `usesBottomSafeArea` being false, so
+        // subtracting it again reads a 337pt keyboard as 311.
         max(0, bounds.maxY - keyboardLayoutGuide.layoutFrame.minY)
     }
 
-    /// Everything the views do comes through here: the machine says where the tray goes and who moves
-    /// it, and this is the only place that draws the answer.
     private func apply(_ reaction: PinTrayMachine.Reaction) {
         for effect in reaction.effects {
             switch effect {
@@ -192,8 +167,6 @@ final class PinTrayOverlay: UIView {
         case .immediate:
             place(reaction.to, animated: false, then: finish)
         case .carriedByKeyboard:
-            // Set the values and let the keyboard's own animation carry them; starting one of ours
-            // beside it is what reads as two steps.
             write(reaction.to)
             finish()
         case .spring(let bounce):
@@ -203,31 +176,18 @@ final class PinTrayOverlay: UIView {
         }
     }
 
-    /// Torn down when the travel that carries it away actually ends, which the animation knows and a
-    /// timer beside it can only estimate.
     private func tearDown() {
         standing?.detach()
         removeFromSuperview()
         PinwheelRecorder.stopFollowing()
     }
 
-    /// Everything about where the tray stands, in one place — so a path that moves it cannot move it
-    /// wearing the wrong corner. The keyboard carries the constraints through the layout guide but a
-    /// radius is not a constraint, which is how the tray came to ride up still nested in a display
-    /// corner it was no longer touching.
     private func write(_ geometry: PinTrayGeometry) {
         tray.layer.cornerRadius = geometry.bottomCornerRadius
         height.constant = geometry.height
-        // The guide decides where the card's bottom goes; the geometry decides how far above the guide
-        // it stands. One constraint serves a docked keyboard and no keyboard at all, so its margin is
-        // whatever the geometry keeps clear beyond the keyboard itself — sixteen above a keyboard, eight
-        // above the floor. Fixing it at one of the two left the card eight points out under the other.
         offset.constant = -(geometry.bottomInset - machine.keyboard.height)
     }
 
-    /// Drawn on the keyboard's own clock and curve, started in the same turn the keyboard was asked to
-    /// leave — so the two are one motion rather than one following the other.
-    /// The animation the tray is running, kept so a finger can stop it and take over.
     private var motion: UIViewPropertyAnimator?
 
     private func place(
@@ -263,25 +223,20 @@ final class PinTrayOverlay: UIView {
             self.dimming.alpha = geometry.translation > 0 && self.machine.phase == .leaving ? 0 : 1
             self.layoutIfNeeded()
         }
-        // Whatever was moving the tray stops here: two animations on one property is the oldest bug in
-        // this file.
         motion?.stopAnimation(true)
         motion = nil
         guard animated else { draw(); return finish() }
-        // A spring takes its starting speed as a fraction of the distance it has to cover, so the
-        // points a second a finger let go at only mean something once divided by how far is left.
-        let starting = abs(travelling) > 1 ? velocity / travelling : 0
+        let velocityPerPointOfTravel = abs(travelling) > 1 ? velocity / travelling : 0
         let animator = UIViewPropertyAnimator(
             duration: trayResizeDuration,
             timingParameters: UISpringTimingParameters(
                 duration: trayResizeDuration,
                 bounce: bounce,
-                initialVelocity: CGVector(dx: 0, dy: starting)
+                initialVelocity: CGVector(dx: 0, dy: velocityPerPointOfTravel)
             )
         )
         animator.addAnimations(draw)
         animator.addCompletion { position in
-            // Stopped by a finger is not arrived: only a motion that reached its end has finished.
             guard position == .end else { return }
             finish()
         }
@@ -289,37 +244,24 @@ final class PinTrayOverlay: UIView {
         animator.startAnimation()
     }
 
-    /// A finger landing on a tray that is still moving takes it over from where it has got to. Without
-    /// this the running spring keeps its own mind and the drag fights it — or worse, a tray already on
-    /// its way out is torn down under a hand that was bringing it back.
     private func catchTheMotion() {
         guard motion?.isRunning == true else { return }
         apply(machine.handle(.caught(at: tray.transform.ty)))
     }
 
-
-
-    /// The card, and the content laid out inside it. Read by tests asserting the two agree.
     var cardHeight: CGFloat { tray.bounds.height }
     var contentHeight: CGFloat { standing?.body.bounds.height ?? 0 }
-    /// Where the card's own bottom edge sits, in the overlay.
     var cardBottom: CGFloat { card.convert(card.bounds, to: self).maxY }
-    /// The corner the tray's bottom edge wears, which depends on what it is standing on.
     var bottomCornerRadius: CGFloat { tray.layer.cornerRadius }
 
     var onBackgroundDismiss: () -> Void = {}
     var onExit: () -> Void = {}
-    /// How deep in the flow the standing tray is. Nought means the way out is a cross, not a chevron.
     var depth = 0
 
-    /// What the content keeps clear below itself: the home indicator's own strip, less the margin the
-    /// card already stands off the screen by. Lifted onto the keyboard there is no indicator to clear.
     private var contentBottomInset: CGFloat {
         machine.geometry.contentBottomInset
     }
 
-    /// How tall a filling tray stands: all the room there is. Read off the same geometry everything
-    /// else is drawn from, so the content and the card can never disagree about it.
     private var standingRoom: CGFloat {
         PinTrayGeometry(
             contentHeight: 0,
@@ -330,8 +272,6 @@ final class PinTrayOverlay: UIView {
         ).height
     }
 
-    // A hosting controller's view has to live inside its parent controller's own view tree, so the
-    // overlay hangs off the container it was given.
     private func build() {
         autoresizingMask = [.flexibleWidth, .flexibleHeight]
         container.view.addSubview(self)
@@ -386,10 +326,8 @@ final class PinTrayOverlay: UIView {
         card.clipsToBounds = true
         tray.addSubview(card)
 
-        // Laid out by the keyboard rather than reacting to it. The keyboard runs out of process and
-        // posts its notifications asynchronously, so anything driven off them is racing the keyboard's
-        // own animation; a constraint to this guide is carried *by* that animation, and it brings
-        // interactive dismissal with it.
+        // The keyboard runs out of process and posts its notifications asynchronously, so anything
+        // driven off them races its animation; a constraint to this guide is carried by that animation.
         keyboardLayoutGuide.usesBottomSafeArea = false
         height = tray.heightAnchor.constraint(equalToConstant: 0)
         let topLimit = tray.topAnchor.constraint(
@@ -406,17 +344,12 @@ final class PinTrayOverlay: UIView {
             equalTo: keyboardLayoutGuide.topAnchor,
             constant: -trayKeyboardMargin
         )
-        // The guide owns the swap: docked at the bottom edge it uses the resting constraint, lifted
-        // away from it the keyboard one, and it exchanges them inside the keyboard's own animation.
         // Toggling these by hand from layoutSubviews re-enters layout and UIKit throws.
         offset.priority = UILayoutPriority(999)
         lifted.priority = UILayoutPriority(999)
         keyboardLayoutGuide.setConstraints([offset], activeWhenNearEdge: .bottom)
         keyboardLayoutGuide.setConstraints([lifted], activeWhenAwayFrom: .bottom)
 
-        // Leaving a tray that was editing, the card takes its resting place at once and lets the
-        // keyboard slide off it — the reference moves only the keyboard, never both. Required, so the
-        // guide's own constraint yields to it, and released once the keyboard has gone.
         rest = tray.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -trayBottomMargin)
         NSLayoutConstraint.activate([
             tray.leadingAnchor.constraint(equalTo: leadingAnchor, constant: trayMargin),
@@ -430,17 +363,10 @@ final class PinTrayOverlay: UIView {
         ])
 
         let pan = UIPanGestureRecognizer(target: self, action: #selector(drag))
-        // The list's own scrolling recogniser must keep working: this one watches alongside it and only
-        // takes over when the list has nothing left to give.
         pan.delegate = self
         tray.addGestureRecognizer(pan)
     }
 
-    /// Whether anything in the tray has focus, and so whether it stands on the keyboard.
-    ///
-    /// Deliberately not "will a keyboard appear", which two private APIs failed to answer — see
-    /// LEARNINGS. The hold that wanted the answer only applies to a tray sized by what it holds, and
-    /// none exists, so the question is not asked.
     private var holdsFirstResponder: Bool {
         func search(_ view: UIView) -> Bool {
             view.isFirstResponder || view.subviews.contains(where: search)
@@ -470,7 +396,6 @@ final class PinTrayOverlay: UIView {
         apply(machine.handle(.presented(contentHeight: fittedHeight)))
     }
 
-    /// The same tray, redrawn. Its containers stay; only what they draw changes.
     func refresh(_ tray: PinTray) {
         guard let standing else { return }
         standing.titleBar.show(titleBarLeaf(tray))
@@ -483,7 +408,6 @@ final class PinTrayOverlay: UIView {
 
     func show(_ tray: PinTray, isPush: Bool) {
         PinwheelRecorder.note("navigation", isPush ? "push" : "pop")
-        // Sent now, synchronously: the arriving tray describes itself before this move resolves.
         apply(machine.handle(.moveBegan(isPush: isPush)))
 
         let leaving = standing
@@ -491,17 +415,9 @@ final class PinTrayOverlay: UIView {
         standing?.views.forEach { $0.alpha = 0 }
         layoutIfNeeded()
 
-        // The dissolve is the content changing rather than the card moving, so it runs at once and on
-        // its own timeline, never waiting on a keyboard. Going deeper the tray being left grows as it
-        // fades; coming back the one arriving shrinks into place, so a sequence reads as depth.
         let zoom = CGAffineTransform(scaleX: trayZoom, y: trayZoom)
         standing?.dissolving.forEach { $0.transform = isPush ? .identity : zoom }
 
-        // Where both trays put the same button in the same place there is only one button as far as
-        // anyone watching is concerned, so the arriving one stands solid from the first frame and the
-        // one being left fades off it — leaving the labels to dissolve and the pill to hold. Fading the
-        // two against each other instead lightens it to 0.75 half way through, because two
-        // half-transparent blacks over one another are grey.
         let arriving = standing?.commitButton
         let left = leaving?.commitButton
         if let arriving, let left, left.frame == arriving.frame {
@@ -517,8 +433,8 @@ final class PinTrayOverlay: UIView {
             leaving?.detach()
         }
 
-        // Whether the arriving tray raises the keyboard is only knowable once it has mounted, and it
-        // decides who owns the move — so the machine hears about it a turn later.
+        // Whether the arriving tray raises a keyboard is knowable only once it has mounted, and it
+        // decides who owns the move.
         DispatchQueue.main.async {
             self.apply(self.machine.handle(.moved(
                 contentHeight: self.fittedHeight,
@@ -544,12 +460,10 @@ final class PinTrayOverlay: UIView {
         )
     }
 
-    /// Anything the card holds stands off its edges by the same margin, and the card is what says so.
     private func inset(_ content: AnyView) -> AnyView {
         AnyView(content.padding(.horizontal, trayContentMargin))
     }
 
-    /// What stands at the bottom: whatever the tray floats, or the button that ends the flow.
     private func accessoryLeaf(_ tray: PinTray) -> AnyView? {
         if let floating = tray.floating { return inset(floating) }
         guard let commit = tray.commit else { return nil }
@@ -560,9 +474,6 @@ final class PinTrayOverlay: UIView {
         ))
     }
 
-    /// Builds a tray's three containers and hangs them in the card. Layout is the chassis's: the title
-    /// bar at the top, the body filling everything under it, and the accessory standing over the body at
-    /// the bottom — which is why the body keeps clearance below its last row rather than stopping short.
     private func assemble(_ tray: PinTray) {
         let titleBar = PinTrayLeafView(showing: titleBarLeaf(tray), in: container)
         let body = PinTrayBodyView(showing: inset(tray.content), in: container)
@@ -599,14 +510,9 @@ final class PinTrayOverlay: UIView {
         NSLayoutConstraint.activate(constraints)
 
         let width = bounds.width - trayMargin * 2
-        // Measured up from the card's bottom: the room the accessory stands off, its own height, and a
-        // gap so the last row does not sit against it.
-        // Content passes behind something that floats, so it needs only a hairline of clearance from it.
-        // A commit button is not floated over — it stands under the content, so it stands off it by what
-        // any other group does.
-        let clearing: CGFloat = tray.floating == nil ? traySectionGap : .spacing2
+        let clearanceAboveAccessory: CGFloat = tray.floating == nil ? traySectionGap : .spacing2
         body.clearance = accessory
-            .map { accessoryInset + $0.height(fitting: width) + clearing } ?? contentBottomInset
+            .map { accessoryInset + $0.height(fitting: width) + clearanceAboveAccessory } ?? contentBottomInset
         standing = Standing(
             description: tray,
             titleBar: titleBar,
@@ -614,13 +520,10 @@ final class PinTrayOverlay: UIView {
             accessory: accessory,
             divider: divider
         )
-        // How a tray stands is part of its description now, so the machine hears it as the tray is
-        // built rather than whenever SwiftUI got round to reporting a preference.
         apply(machine.handle(.fillsReported(tray.detent == .filling)))
         PinwheelRecorder.note("tray", "assembled, measuring \(Int(fittedHeight))")
     }
 
-    /// A tray sized by what it holds is its parts added up.
     private var fittedHeight: CGFloat {
         guard let standing else { return 0 }
         let width = bounds.width - trayMargin * 2
@@ -629,13 +532,8 @@ final class PinTrayOverlay: UIView {
             + standing.body.contentHeight(fitting: width)
     }
 
-    /// The same clearance content keeps at the bottom of a tray. A commit button is the lowest thing on
-    /// the screen, so it has to stand off the home indicator by what everything else does — a flat
-    /// margin put it inside that strip.
     private var accessoryInset: CGFloat { contentBottomInset }
 
-    /// Content changing inside a standing tray resizes it, clamped to the room there is. This is not
-    /// navigation, so it moves without bounce — an overshoot here reverses direction under the reader.
     func settle() {
         let standing = machine.geometry.height
         let measured = fittedHeight
@@ -664,8 +562,6 @@ final class PinTrayOverlay: UIView {
         }
     }
 
-    /// A drag let go of. Every drag ends here whoever was carrying it, so a tray cannot leave one way
-    /// from its chrome and another way from its list.
     private func release(velocity: CGFloat) {
         let reaction = machine.handle(.released(velocity: velocity))
         if reaction.dismisses {
@@ -677,8 +573,6 @@ final class PinTrayOverlay: UIView {
 }
 
 extension PinTrayOverlay: PinTrayBodyCoordinating {
-    /// The body says it was pulled with nothing left to scroll. What that means for the card is the
-    /// chassis's to decide — the body never knew there was one.
     func bodyWillBeginPulling() -> CGFloat {
         catchTheMotion()
         return machine.dragOffset
@@ -694,8 +588,6 @@ extension PinTrayOverlay: PinTrayBodyCoordinating {
 }
 
 extension PinTrayOverlay: UIGestureRecognizerDelegate {
-    /// The card is dragged by its chrome; a touch in the body belongs to the body — but only while the
-    /// body has somewhere to go. Rows that already fit never scroll, so the drag is the card's.
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
         var view = touch.view
         while let candidate = view, candidate !== tray {
