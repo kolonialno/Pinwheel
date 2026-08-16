@@ -28,8 +28,6 @@ public struct PinTrayValue: SwiftUI.View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .padding(.horizontal, .spacingXL)
-        .padding(.vertical, .spacingXM)
         .accessibilityIdentifier("pinwheel.tray.value.\(label)")
     }
 }

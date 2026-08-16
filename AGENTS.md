@@ -40,6 +40,11 @@ to change, add to it as you learn, and keep *this* file to what a session needs 
 - **If something should be off, turn it off — don't leave it on and undo what it does.** Undoing hides
   the effect from you, not from the code that reads the flag. And whatever it used to handle is now
   handled by nobody, so say who handles it instead.
+- **A container owns the space around and between its children; a child owns only what is inside it.**
+  Both axes. Only the thing that can see both sides of a gap can balance it, so the gap between two rows
+  belongs to whatever holds them — a section for its items, the tray for its sections — and how far they
+  stand off an edge belongs there too. A child that pads its own outside makes every gap the sum of two
+  decisions nobody took together.
 - **A gesture and the animation that follows it are one motion.** It leaves at the speed the finger let
   go at, it stays interruptible until it settles, and what decides where it ends up is where it would
   come to rest if left alone — never how fast it happened to be moving when it was released.

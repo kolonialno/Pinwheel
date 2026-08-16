@@ -21,7 +21,5 @@ public struct PinTrayText: SwiftUI.View {
             .color(.secondary)
             .multilineTextAlignment(isCentred ? .center : .leading)
             .frame(maxWidth: .infinity, alignment: isCentred ? .center : .leading)
-            .padding(.horizontal, .spacingXL)
-            .padding(.vertical, .spacingS)
     }
 }

@@ -51,19 +51,18 @@ struct PinTrayDemo: View {
 
     private var boost: PinTray {
         PinTray("Boost Post") {
-            VStack(spacing: 0) {
+            VStack(spacing: .spacingXL) {
                 PinTrayLink("Get up to 3x more likes.", phrase: "Learn more") {}
-                    .padding(.bottom, .spacingL)
                 reach(selection: $tier)
-                    .padding(.bottom, .spacingXL)
-                PinTrayValue("Region", value: region) { path.append(.region) }
-                PinTrayValue("Pay with", value: methods[method].name) { path.append(.payWith) }
+                VStack(spacing: .spacingM) {
+                    PinTrayValue("Region", value: region) { path.append(.region) }
+                    PinTrayValue("Pay with", value: methods[method].name) { path.append(.payWith) }
+                }
                 PinTrayLink(
                     "By clicking the Boost Post button below, you agree to our",
                     phrase: "Terms and Conditions"
                 ) {}
                 .font(.footnote)
-                .padding(.top, .spacingM)
             }
         }
         .titleAccessory {
@@ -88,19 +87,18 @@ struct PinTrayDemo: View {
     private func reach(selection: Binding<Int>, travels: Bool = false) -> some View {
         TierWheel(tiers: tiers, selection: selection, travels: travels)
             .frame(height: 156)
-        // The wheel insets its own selection band inside its frame, so this stands off the card by less
-        // than the rows do and the band still lands on their edge.
-        .padding(.horizontal, .spacingL)
+        // The wheel insets its own selection band inside its frame, so it reaches back out by that much
+        // to put the band on the same edge as its siblings.
+        .padding(.horizontal, -.spacingS)
     }
 
     /// The tutorial: the same wheel, turning itself, over the sentence that says what it is for. It takes
     /// no input — a demonstration someone can grab stops demonstrating.
     private var howItWorks: PinTray {
         PinTray("How it works") {
-            VStack(spacing: 0) {
+            VStack(spacing: .spacingXL) {
                 reach(selection: .constant(tutorialTier), travels: true)
                     .allowsHitTesting(false)
-                    .padding(.bottom, .spacingL)
                 PinTrayText(
                     "Select your boost tier and watch your post go viral. Boosted posts are labelled as boosted."
                 )
@@ -118,7 +116,7 @@ struct PinTrayDemo: View {
 
     private var payWith: PinTray {
         PinTray("Pay with") {
-            VStack(spacing: 0) {
+            VStack(spacing: .spacingXS) {
                 ForEach(Array(methods.enumerated()), id: \.offset) { index, way in
                     PinTrayChoice(way.name, systemImage: way.icon, isChosen: index == method) {
                         method = index
@@ -131,7 +129,7 @@ struct PinTrayDemo: View {
 
     private var regions: PinTray {
         PinTray("Region") {
-            VStack(spacing: 0) {
+            VStack(spacing: .spacingXS) {
                 if matches.isEmpty {
                     PinTrayText("No regions match “\(query)”").centred()
                 } else {

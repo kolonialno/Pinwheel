@@ -40,8 +40,6 @@ public struct PinTrayLink: SwiftUI.View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .padding(.horizontal, .spacingXL)
-        .padding(.vertical, .spacingS)
         .accessibilityIdentifier("pinwheel.tray.link.\(phrase)")
     }
 }

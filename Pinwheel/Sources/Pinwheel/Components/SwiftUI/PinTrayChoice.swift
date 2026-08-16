@@ -43,8 +43,6 @@ public struct PinTrayChoice: SwiftUI.View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .padding(.horizontal, .spacingXL)
-        .padding(.vertical, .spacingXXS)
         .accessibilityAddTraits(isChosen ? [.isSelected] : [])
         .accessibilityIdentifier("pinwheel.tray.choice.\(label)")
     }

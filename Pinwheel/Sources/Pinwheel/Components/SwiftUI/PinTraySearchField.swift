@@ -30,7 +30,6 @@ public struct PinTraySearchField: SwiftUI.View {
             RoundedRectangle(cornerRadius: .radiusL)
                 .fill(Color.secondaryBackground)
         )
-        .padding(.horizontal, .spacingXL)
         .onAppear { focused = true }
     }
 }

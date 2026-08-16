@@ -4,6 +4,9 @@ let trayMargin: CGFloat = .spacingS
 let trayBottomMargin: CGFloat = .spacingS
 let trayKeyboardMargin: CGFloat = .spacingL
 let trayTopRadius: CGFloat = 32
+/// How far a tray's contents stand off its edges. The card decides this for everything it holds — a row
+/// only decides what happens inside itself.
+let trayContentMargin: CGFloat = .spacingXL
 /// How far a pull that has nowhere to go can lift a tray, however hard it is pulled.
 let trayLift: CGFloat = .spacingXXL
 /// How much of a pull past the end survives as travel, at the start of it. A scroll view's own figure.

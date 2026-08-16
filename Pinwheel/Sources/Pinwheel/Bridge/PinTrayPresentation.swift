@@ -458,7 +458,7 @@ final class PinTrayOverlay: UIView {
     func refresh(_ tray: PinTray) {
         guard let standing else { return }
         standing.titleBar.show(titleBarLeaf(tray))
-        standing.body.show(tray.content)
+        standing.body.show(inset(tray.content))
         settle()
         if let accessory = standing.accessory, let leaf = accessoryLeaf(tray) {
             accessory.show(leaf)
@@ -514,16 +514,20 @@ final class PinTrayOverlay: UIView {
         )
     }
 
+    /// Anything the card holds stands off its edges by the same margin, and the card is what says so.
+    private func inset(_ content: AnyView) -> AnyView {
+        AnyView(content.padding(.horizontal, trayContentMargin))
+    }
+
     /// What stands at the bottom: whatever the tray floats, or the button that ends the flow.
     private func accessoryLeaf(_ tray: PinTray) -> AnyView? {
-        if let floating = tray.floating { return floating }
+        if let floating = tray.floating { return inset(floating) }
         guard let commit = tray.commit else { return nil }
-        return AnyView(
+        return inset(AnyView(
             PinButton(commit.title, action: commit.action)
                 .style(.custom(text: .primaryBackground, background: .primaryText))
                 .fullWidth()
-                .padding(.horizontal, .spacingXL)
-        )
+        ))
     }
 
     /// Builds a tray's three containers and hangs them in the card. Layout is the chassis's: the title
@@ -531,7 +535,7 @@ final class PinTrayOverlay: UIView {
     /// the bottom — which is why the body keeps clearance below its last row rather than stopping short.
     private func assemble(_ tray: PinTray) {
         let titleBar = PinTrayLeafView(showing: titleBarLeaf(tray), in: container)
-        let body = PinTrayBodyView(showing: tray.content, in: container)
+        let body = PinTrayBodyView(showing: inset(tray.content), in: container)
         let accessory = accessoryLeaf(tray).map { PinTrayLeafView(showing: $0, in: container) }
         let divider = UIView()
         divider.backgroundColor = .tertiaryText
