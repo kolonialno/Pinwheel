@@ -18,7 +18,6 @@ public struct PinTrayText: SwiftUI.View {
 
     public var body: some SwiftUI.View {
         PinLabel(text)
-            .font(.footnote)
             .color(.secondary)
             .multilineTextAlignment(isCentred ? .center : .leading)
             .frame(maxWidth: .infinity, alignment: isCentred ? .center : .leading)

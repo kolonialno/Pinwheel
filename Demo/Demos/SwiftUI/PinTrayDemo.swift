@@ -59,10 +59,11 @@ struct PinTrayDemo: View {
                     .padding(.bottom, .spacingXL)
                 PinTrayValue("Region", value: region) { path.append(.region) }
                 PinTrayValue("Pay with", value: methods[method]) { path.append(.payWith) }
-                PinTrayText(
-                    "By clicking the Boost Post button below, you agree to our Terms and Conditions."
-                )
-                .centred()
+                PinTrayLink(
+                    "By clicking the Boost Post button below, you agree to our",
+                    phrase: "Terms and Conditions"
+                ) {}
+                .font(.footnote)
                 .padding(.top, .spacingM)
             }
         }
