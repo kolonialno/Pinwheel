@@ -98,6 +98,47 @@ final class PinTrayChassisTests: XCTestCase {
         )
     }
 
+    private func dissolvingInFlight(in view: UIView) -> [String] {
+        let mine = view is PinTrayLeafView || view is PinTrayBodyView
+            ? Set(view.layer.animationKeys() ?? []).sorted()
+            : []
+        return mine + view.subviews.flatMap { dissolvingInFlight(in: $0) }
+    }
+
+    func testATrayTakesVoiceOverOffWhatItCovers() {
+        let (overlay, _) = standing(PinTray("Boost") { Color.clear.frame(height: 300) })
+        XCTAssertTrue(
+            overlay.accessibilityViewIsModal,
+            "a tray covers the screen behind it, so VoiceOver must not reach past it"
+        )
+    }
+
+    func testTheEscapeGestureLeavesATrayTheWayTappingOutsideDoes() {
+        let (overlay, _) = standing(PinTray("Boost") { Color.clear.frame(height: 300) })
+        var left = false
+        overlay.onBackgroundDismiss = { left = true }
+
+        XCTAssertTrue(overlay.accessibilityPerformEscape(), "the tray answers the escape gesture")
+        XCTAssertTrue(left, "and leaves by the same way out as a tap on the backdrop")
+    }
+
+    func testAMoveCarriesNoZoomWhenMotionIsReduced() {
+        let boost = PinTray("Boost") { Color.clear.frame(height: 300) }.commit("Boost Post") {}
+        let deeper = PinTray("How it works") { Color.clear.frame(height: 300) }.commit("Got It") {}
+
+        let (overlay, window) = standing(deeper)
+        overlay.motionIsReduced = { true }
+        window.layoutIfNeeded()
+        overlay.show(boost, isPush: false)
+        window.layoutIfNeeded()
+
+        // The card still slides up, as Apple's own sheets do. What goes is the scale on its contents.
+        XCTAssertFalse(
+            dissolvingInFlight(in: overlay).contains("transform"),
+            "the contents cross-dissolve without scaling: \(dissolvingInFlight(in: overlay))"
+        )
+    }
+
     func testALeavingTrayIsTornDownOnlyOnceItHasTravelled() {
         let (overlay, window) = standing(PinTray("Boost") { Color.clear.frame(height: 300) })
         overlay.dismiss()

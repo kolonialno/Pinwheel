@@ -256,6 +256,7 @@ final class PinTrayOverlay: UIView {
 
     var onBackgroundDismiss: () -> Void = {}
     var onExit: () -> Void = {}
+    var motionIsReduced: () -> Bool = { UIAccessibility.isReduceMotionEnabled }
     var depth = 0
 
     private var contentBottomInset: CGFloat {
@@ -272,8 +273,14 @@ final class PinTrayOverlay: UIView {
         ).height
     }
 
+    override func accessibilityPerformEscape() -> Bool {
+        onBackgroundDismiss()
+        return true
+    }
+
     private func build() {
         autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        accessibilityViewIsModal = true
         container.view.addSubview(self)
 
         dimming.frame = bounds
@@ -415,7 +422,9 @@ final class PinTrayOverlay: UIView {
         standing?.views.forEach { $0.alpha = 0 }
         layoutIfNeeded()
 
-        let zoom = CGAffineTransform(scaleX: trayZoom, y: trayZoom)
+        let zoom = motionIsReduced()
+            ? .identity
+            : CGAffineTransform(scaleX: trayZoom, y: trayZoom)
         standing?.dissolving.forEach { $0.transform = isPush ? .identity : zoom }
 
         let arriving = standing?.commitButton
@@ -435,10 +444,11 @@ final class PinTrayOverlay: UIView {
 
         // Whether the arriving tray raises a keyboard is knowable only once it has mounted, and it
         // decides who owns the move.
-        DispatchQueue.main.async {
-            self.apply(self.machine.handle(.moved(
-                contentHeight: self.fittedHeight,
-                edits: self.holdsFirstResponder,
+        DispatchQueue.main.async { [weak self] in
+            guard let self, superview != nil else { return }
+            apply(machine.handle(.moved(
+                contentHeight: fittedHeight,
+                edits: holdsFirstResponder,
                 isPush: isPush
             )))
         }
