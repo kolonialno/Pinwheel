@@ -34,7 +34,7 @@ struct PinTrayTitleBar: SwiftUI.View {
             }
         }
         .frame(maxWidth: .infinity, minHeight: .minimumControlHeight)
-        .padding(.horizontal, .spacing6)
+        .padding(.horizontal, trayContentMargin)
         // The control keeps its floor; the band around it is what comes in. Both sides take the same
         // token, or the title sits off-centre in its own bar.
         .padding(.vertical, .spacing1)

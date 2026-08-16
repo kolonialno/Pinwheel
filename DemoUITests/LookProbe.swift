@@ -33,30 +33,21 @@ final class LookProbe: XCTestCase {
         XCTAssertTrue(region.waitForExistence(timeout: 5), "the tray never came back")
         Thread.sleep(forTimeInterval: 1.5)
 
-        var rows: [(CGRect, String)] = []
-        for kind in [XCUIElement.ElementType.staticText, .button, .image, .other] {
-            for element in app.descendants(matching: kind).allElementsBoundByIndex {
-                guard element.exists, element.frame.height > 0, element.frame.width > 40 else { continue }
-                let name = element.identifier.isEmpty ? element.label : element.identifier
-                guard !name.isEmpty else { continue }
-                rows.append((element.frame, "\(kind.rawValue) \(name)"))
-            }
+        func report(_ name: String, _ frame: CGRect) {
+            print(String(format: "MEASURE %-22@ x %6.1f..%6.1f (w %5.1f)   y %6.1f..%6.1f (h %5.1f)",
+                         name as NSString, frame.minX, frame.maxX, frame.width,
+                         frame.minY, frame.maxY, frame.height))
         }
-        rows.sort { $0.0.minY < $1.0.minY }
-        var report = "GEOMETRY\n"
-        var previousMaxY: CGFloat?
-        for (frame, name) in rows {
-            if let previous = previousMaxY, frame.minY - previous > 0.5 {
-                report += String(format: "        ---- gap %.1f ----\n", frame.minY - previous)
-            }
-            report += String(format: "  y %7.1f  h %6.1f  x %6.1f w %6.1f  %@\n",
-                             frame.minY, frame.height, frame.minX, frame.width, name)
-            previousMaxY = max(previousMaxY ?? 0, frame.maxY)
-        }
-        let dump = XCTAttachment(string: report)
-        dump.name = "geometry"
-        dump.lifetime = .keepAlways
-        add(dump)
+        let any = app.descendants(matching: .any)
+        report("title", any.matching(NSPredicate(format: "identifier BEGINSWITH 'pinwheel.tray.Boost'")).firstMatch.frame)
+        report("link.LearnMore", any["pinwheel.tray.link.Learn more"].firstMatch.frame)
+        report("wheel", app.pickerWheels.firstMatch.frame)
+        report("value.Region", any["pinwheel.tray.value.Region"].firstMatch.frame)
+        report("value.PayWith", any["pinwheel.tray.value.Pay with"].firstMatch.frame)
+        report("link.Terms", any["pinwheel.tray.link.Terms and Conditions"].firstMatch.frame)
+        report("commit", app.buttons.matching(NSPredicate(format: "label == 'Boost Post'")).allElementsBoundByIndex
+                            .filter { $0.frame.width > 300 }.first?.frame ?? .zero)
+        report("app window", app.frame)
 
         let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         shot.name = "boost"

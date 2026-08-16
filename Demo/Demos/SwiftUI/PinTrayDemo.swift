@@ -51,10 +51,7 @@ struct PinTrayDemo: View {
 
     private var boost: PinTray {
         PinTray("Boost Post") {
-            // The wheel carries empty space above and below its rows, so everything touching it comes
-            // in a step: the same gap that reads right beside a row reads roomy beside a wheel. Only
-            // the stack can see that, which is why it is set here and not in the wheel or the rows.
-            VStack(spacing: .spacing4) {
+            VStack(spacing: .spacing5) {
                 PinTrayLink("Get up to 3x more likes.", phrase: "Learn more") {}
                 reach(selection: $tier)
                 VStack(spacing: .spacing3) {
@@ -66,10 +63,8 @@ struct PinTrayDemo: View {
                     phrase: "Terms and Conditions"
                 ) {}
                 .font(.footnote)
-                // Nothing of the wheel's between them, so this is a plain section gap.
-                .padding(.top, .spacing2)
             }
-            .padding(.top, .spacing2)
+            .padding(.top, .spacing3)
         }
         .titleAccessory {
             SwiftUI.Button { path.append(.howItWorks) } label: {
@@ -102,7 +97,7 @@ struct PinTrayDemo: View {
     /// no input — a demonstration someone can grab stops demonstrating.
     private var howItWorks: PinTray {
         PinTray("How it works") {
-            VStack(spacing: .spacing4) {
+            VStack(spacing: .spacing5) {
                 reach(selection: .constant(tutorialTier), travels: true)
                     .allowsHitTesting(false)
                 PinTrayText(
