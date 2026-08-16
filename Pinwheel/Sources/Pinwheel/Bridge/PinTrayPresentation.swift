@@ -553,7 +553,10 @@ final class PinTrayOverlay: UIView {
             + standing.body.contentHeight(fitting: width)
     }
 
-    private var accessoryInset: CGFloat { .spacingL }
+    /// The same clearance content keeps at the bottom of a tray. A commit button is the lowest thing on
+    /// the screen, so it has to stand off the home indicator by what everything else does — a flat
+    /// margin put it inside that strip.
+    private var accessoryInset: CGFloat { contentBottomInset }
 
     /// Content changing inside a standing tray resizes it, clamped to the room there is. This is not
     /// navigation, so it moves without bounce — an overshoot here reverses direction under the reader.

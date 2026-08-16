@@ -85,13 +85,16 @@ struct PinTrayDemo: View {
                     Spacer()
                     PinLabel(offer.price).font(.titleSemibold)
                 }
+                .padding(.horizontal, .spacingL)
                 .tag(index)
             }
         }
         .pickerStyle(.wheel)
         .labelsHidden()
         .frame(height: 156)
-        .padding(.horizontal, .spacingXL)
+        // The wheel insets its own selection band inside its frame, so this stands off the card by less
+        // than the rows do and the band still lands on their edge.
+        .padding(.horizontal, .spacingL)
     }
 
     private var howItWorks: PinTray {
