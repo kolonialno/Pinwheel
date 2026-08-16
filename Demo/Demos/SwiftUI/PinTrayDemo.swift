@@ -117,7 +117,7 @@ struct PinTrayDemo: View {
 
     private var payWith: PinTray {
         PinTray("Pay with") {
-            VStack(spacing: .spacing1) {
+            VStack(spacing: .spacing3) {
                 ForEach(Array(methods.enumerated()), id: \.offset) { index, way in
                     PinTrayChoice(way.name, systemImage: way.icon, isChosen: index == method) {
                         method = index
@@ -130,7 +130,7 @@ struct PinTrayDemo: View {
 
     private var regions: PinTray {
         PinTray("Region") {
-            VStack(spacing: .spacing1) {
+            VStack(spacing: .spacing3) {
                 if matches.isEmpty {
                     PinTrayText("No regions match “\(query)”").centred()
                 } else {
