@@ -211,7 +211,12 @@ final class PinTrayOverlay: UIView {
         PinwheelRecorder.stopFollowing()
     }
 
+    /// Everything about where the tray stands, in one place — so a path that moves it cannot move it
+    /// wearing the wrong corner. The keyboard carries the constraints through the layout guide but a
+    /// radius is not a constraint, which is how the tray came to ride up still nested in a display
+    /// corner it was no longer touching.
     private func write(_ geometry: PinTrayGeometry) {
+        tray.layer.cornerRadius = geometry.bottomCornerRadius
         height.constant = geometry.height
         // The guide decides where the card's bottom goes; the geometry decides how far above the guide
         // it stands. One constraint serves a docked keyboard and no keyboard at all, so its margin is
@@ -230,14 +235,13 @@ final class PinTrayOverlay: UIView {
         matching timing: PinTrayMachine.KeyboardTiming,
         then finish: @escaping () -> Void
     ) {
-        write(geometry)
         UIView.animate(
             withDuration: timing.duration,
             delay: 0,
             options: UIView.AnimationOptions(rawValue: UInt(timing.curve) << 16),
             animations: {
+                self.write(geometry)
                 self.tray.transform = CGAffineTransform(translationX: 0, y: geometry.translation)
-                self.tray.layer.cornerRadius = geometry.bottomCornerRadius
                 self.dimming.alpha = 0
                 self.layoutIfNeeded()
             },
@@ -253,10 +257,9 @@ final class PinTrayOverlay: UIView {
         then finish: @escaping () -> Void = {}
     ) {
         let travelling = geometry.translation - tray.transform.ty
-        write(geometry)
         let draw = {
+            self.write(geometry)
             self.tray.transform = CGAffineTransform(translationX: 0, y: geometry.translation)
-            self.tray.layer.cornerRadius = geometry.bottomCornerRadius
             self.dimming.alpha = geometry.translation > 0 && self.machine.phase == .leaving ? 0 : 1
             self.layoutIfNeeded()
         }
@@ -301,6 +304,8 @@ final class PinTrayOverlay: UIView {
     var contentHeight: CGFloat { standing?.body.bounds.height ?? 0 }
     /// Where the card's own bottom edge sits, in the overlay.
     var cardBottom: CGFloat { card.convert(card.bounds, to: self).maxY }
+    /// The corner the tray's bottom edge wears, which depends on what it is standing on.
+    var bottomCornerRadius: CGFloat { tray.layer.cornerRadius }
 
     var onBackgroundDismiss: () -> Void = {}
     var onExit: () -> Void = {}
