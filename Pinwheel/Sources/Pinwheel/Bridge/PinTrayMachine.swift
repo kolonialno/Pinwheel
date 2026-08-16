@@ -5,7 +5,6 @@ import Foundation
 /// its duration scaling with distance, which is a spring rather than a timed curve.
 let trayResizeDuration: TimeInterval = 0.30
 let trayResizeBounce: CGFloat = 0.10
-let trayDismissVelocity: CGFloat = 800
 
 /// The tray as a machine. Every rule learned by filming the reference lives here as state, including
 /// the one that is easiest to get wrong: *which animation owns a change*.
@@ -112,6 +111,9 @@ struct PinTrayMachine: Equatable {
         var from: PinTrayGeometry?
         var to: PinTrayGeometry
         var timeline: Timeline
+        /// The speed a finger let go at, in points a second. A motion that carries on from a hand has
+        /// to leave at the speed the hand left it, or it reads as a second motion.
+        var velocity: CGFloat = 0
         var effects: [Effect] = []
         var dismisses = false
     }
@@ -303,11 +305,21 @@ struct PinTrayMachine: Equatable {
         case .released(let velocity, let dismissBeyond):
             let travelled = dragOffset
             dragOffset = 0
-            guard velocity > trayDismissVelocity || travelled > dismissBeyond else {
-                return Reaction(to: geometry(.resting), timeline: .spring(bounce: trayResizeBounce))
+            let lands = travelled + PinTrayGeometry.coast(atSpeed: velocity)
+            guard lands > dismissBeyond else {
+                return Reaction(
+                    to: geometry(.resting),
+                    timeline: .spring(bounce: trayResizeBounce),
+                    velocity: velocity
+                )
             }
             phase = .leaving
-            return Reaction(to: geometry(.leaving), timeline: .spring(bounce: 0), dismisses: true)
+            return Reaction(
+                to: geometry(.leaving),
+                timeline: .spring(bounce: 0),
+                velocity: velocity,
+                dismisses: true
+            )
 
         case .dismissed:
             phase = .leaving

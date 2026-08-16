@@ -186,7 +186,7 @@ final class PinTrayOverlay: UIView {
             write(reaction.to)
             finish()
         case .spring(let bounce):
-            place(reaction.to, animated: true, bounce: bounce, then: finish)
+            place(reaction.to, animated: true, bounce: bounce, velocity: reaction.velocity, then: finish)
         case .matching(let timing):
             place(reaction.to, matching: timing, then: finish)
         }
@@ -235,8 +235,10 @@ final class PinTrayOverlay: UIView {
         _ geometry: PinTrayGeometry,
         animated: Bool,
         bounce: CGFloat = trayResizeBounce,
+        velocity: CGFloat = 0,
         then finish: @escaping () -> Void = {}
     ) {
+        let travelling = geometry.translation - tray.transform.ty
         write(geometry)
         let draw = {
             self.tray.transform = CGAffineTransform(translationX: 0, y: geometry.translation)
@@ -245,7 +247,15 @@ final class PinTrayOverlay: UIView {
             self.layoutIfNeeded()
         }
         guard animated else { draw(); return finish() }
-        UIView.animate(springDuration: trayResizeDuration, bounce: bounce, animations: draw) { _ in finish() }
+        // A spring takes its starting speed as a fraction of the distance it has to cover, so the
+        // points a second a finger let go at only mean something once divided by how far is left.
+        let starting = abs(travelling) > 1 ? velocity / travelling : 0
+        UIView.animate(
+            springDuration: trayResizeDuration,
+            bounce: bounce,
+            initialSpringVelocity: starting,
+            animations: draw
+        ) { _ in finish() }
     }
 
 

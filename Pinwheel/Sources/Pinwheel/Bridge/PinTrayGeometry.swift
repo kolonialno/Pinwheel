@@ -8,6 +8,11 @@ let trayTopRadius: CGFloat = 32
 let trayLift: CGFloat = .spacingXXL
 /// How much of a pull past the end survives as travel, at the start of it. A scroll view's own figure.
 let trayRubberBanding: CGFloat = 0.55
+/// What a let-go tray decelerates at, and the speed below which a release is a hand coming to rest
+/// rather than a throw. Both are UIKit's own, read off `_UIHyperInteractor` — the object its sheets
+/// hand a drag to. The rate is `UIScrollView`'s `.fast`.
+let trayDecelerationRate: CGFloat = 0.99
+let trayThrowSpeed: CGFloat = 250
 /// The strip of backdrop left above every tray. Tapping it dismisses the tray, so it is a control and
 /// takes a control's minimum height — a tray that grew over it left 8pt and swallowed the taps aimed
 /// there, which took the only way out that isn't the header.
@@ -108,5 +113,15 @@ extension PinTrayGeometry {
         guard offset < 0 else { return offset }
         let pulled = -offset * trayRubberBanding
         return -(pulled * trayLift / (trayLift + pulled))
+    }
+}
+
+extension PinTrayGeometry {
+    /// How much further a tray let go at this speed would coast before stopping. A sheet decides a
+    /// dismiss on where a throw would land rather than on the speed it left at, which is why a gentle
+    /// flick from nowhere goes and a fast jab that is already back at rest does not.
+    static func coast(atSpeed velocity: CGFloat) -> CGFloat {
+        guard abs(velocity) >= trayThrowSpeed else { return 0 }
+        return velocity * trayDecelerationRate / (1 - trayDecelerationRate)
     }
 }

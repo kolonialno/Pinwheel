@@ -251,6 +251,24 @@ final class PinTrayMachineTests: XCTestCase {
         XCTAssertGreaterThan(lifted, -80, "by less than the finger came")
     }
 
+    func testAThrowIsJudgedByWhereItWouldLandNotByHowFastItLeft() {
+        var machine = machine()
+        _ = machine.handle(.dragged(10))
+        let thrown = machine.handle(.released(velocity: 500, dismissBeyond: 400))
+        XCTAssertTrue(
+            thrown.dismisses,
+            "ten points let go at five hundred a second coasts far past four hundred, whatever a speed"
+                + " cutoff would have said about the five hundred"
+        )
+    }
+
+    func testAReleaseTooSlowToBeAThrowIsJudgedOnHowFarItCame() {
+        var machine = machine()
+        _ = machine.handle(.dragged(10))
+        let nudged = machine.handle(.released(velocity: 100, dismissBeyond: 400))
+        XCTAssertFalse(nudged.dismisses, "a hand coming to rest is not a throw, so ten points is ten points")
+    }
+
     func testAPullUpSpringsBackRatherThanDismissing() {
         var machine = machine()
         _ = machine.handle(.dragged(-200))
