@@ -41,9 +41,7 @@ to change, add to it as you learn, and keep *this* file to what a session needs 
   the effect from you, not from the code that reads the flag. And whatever it used to handle is now
   handled by nobody, so say who handles it instead.
 - **A value the platform owns is read, never copied.** Read it and the layout is right on hardware and
-  OS versions you will never see. When the platform won't tell you and you measure it off the screen
-  yourself, any OS update can change that number without warning — so it can nudge how something looks,
-  but nothing may depend on it.
+  OS versions you will never see.
 
 ## Testing
 
