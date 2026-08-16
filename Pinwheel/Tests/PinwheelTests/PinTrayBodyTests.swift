@@ -67,6 +67,32 @@ final class PinTrayBodyTests: XCTestCase {
         )
     }
 
+    func testTheCardKeepsAPullUntilTheFingerGivesItBack() {
+        XCTAssertTrue(
+            PinTrayBodyView.cardTakes(30, alreadyPulling: false),
+            "a pull past the top belongs to the card"
+        )
+        XCTAssertTrue(
+            PinTrayBodyView.cardTakes(-20, alreadyPulling: true),
+            "and it keeps the rest of that gesture, so the finger can bring the card back"
+        )
+        XCTAssertFalse(
+            PinTrayBodyView.cardTakes(-20, alreadyPulling: false),
+            "a drag up that never pulled is the list's"
+        )
+    }
+
+    func testAPullTakenAllTheWayBackHandsTheListOnward() {
+        let body = attachedBody(showing: rows(60))
+        let reports = PinTrayBodyReports()
+        body.coordinating = reports
+
+        body.wasPulled(pastTheTop: 40)
+        body.wasPulled(pastTheTop: -60)
+
+        XCTAssertEqual(reports.pulls.last ?? -1, 0, accuracy: 0.5, "the card is back where it stood")
+    }
+
     func testOnlyABodyOutgrowingItsRoomScrolls() {
         XCTAssertFalse(
             attachedBody(showing: rows(2)).scrolls,

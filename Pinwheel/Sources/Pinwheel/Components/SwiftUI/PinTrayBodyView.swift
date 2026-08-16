@@ -107,11 +107,18 @@ final class PinTrayBodyView: UIView {
 }
 
 extension PinTrayBodyView {
-    /// The finger has gone this far past the top since the last frame. Separate from the delegate so it
-    /// can be driven directly: a scroll view will not pretend to be tracking for a test.
+    /// Whose this movement is. A pull past the top is the card's, and stays the card's for the rest of
+    /// the gesture, so a finger that comes back up carries the card back rather than scrolling the list
+    /// out from under it. Separate from the delegate so it can be driven directly: a scroll view will
+    /// not pretend to be tracking for a test.
+    static func cardTakes(_ past: CGFloat, alreadyPulling: Bool) -> Bool {
+        past > 0 || alreadyPulling
+    }
+
+    /// The finger has gone this far past the top since the last frame.
     func wasPulled(pastTheTop past: CGFloat) {
-        pulling = true
-        pulled += past
+        pulled = max(0, pulled + past)
+        pulling = pulled > 0
         coordinating?.bodyWasPulledDown(by: pulled)
     }
 }
@@ -119,7 +126,7 @@ extension PinTrayBodyView {
 extension PinTrayBodyView: UIScrollViewDelegate {
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
         let past = -(scrollView.contentOffset.y + scrollView.contentInset.top)
-        guard scrollView.isTracking, past > 0 else { return }
+        guard scrollView.isTracking, Self.cardTakes(past, alreadyPulling: pulling) else { return }
         // Held at its top: there is nothing above the first row, so the pull belongs to whoever is
         // coordinating and the list must not rubber-band over nothing underneath it.
         scrollView.contentOffset.y = -scrollView.contentInset.top
@@ -128,6 +135,7 @@ extension PinTrayBodyView: UIScrollViewDelegate {
 
     func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
         pulled = 0
+        pulling = false
     }
 
     func scrollViewWillEndDragging(

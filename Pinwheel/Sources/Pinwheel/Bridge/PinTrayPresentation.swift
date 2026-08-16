@@ -582,17 +582,20 @@ final class PinTrayOverlay: UIView {
         case .changed:
             apply(machine.handle(.dragged(travelled)))
         case .ended, .cancelled:
-            let reaction = machine.handle(.released(
-                velocity: gesture.velocity(in: self).y,
-                dismissBeyond: height.constant / 3
-            ))
-            if reaction.dismisses {
-                onBackgroundDismiss()
-            } else {
-                apply(reaction)
-            }
+            release(velocity: gesture.velocity(in: self).y, dismissBeyond: height.constant / 3)
         default:
             break
+        }
+    }
+
+    /// A drag let go of. Every drag ends here whoever was carrying it, so a tray cannot leave one way
+    /// from its chrome and another way from its list.
+    private func release(velocity: CGFloat, dismissBeyond: CGFloat) {
+        let reaction = machine.handle(.released(velocity: velocity, dismissBeyond: dismissBeyond))
+        if reaction.dismisses {
+            onBackgroundDismiss()
+        } else {
+            apply(reaction)
         }
     }
 }
@@ -605,9 +608,7 @@ extension PinTrayOverlay: PinTrayBodyCoordinating {
     }
 
     func bodyStoppedBeingPulled(velocity: CGFloat) {
-        let reaction = machine.handle(.released(velocity: velocity, dismissBeyond: cardHeight / 3))
-        apply(reaction)
-        if reaction.dismisses { onBackgroundDismiss() }
+        release(velocity: velocity, dismissBeyond: cardHeight / 3)
     }
 }
 
