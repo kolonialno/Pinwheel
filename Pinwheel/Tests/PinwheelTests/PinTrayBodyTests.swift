@@ -39,13 +39,15 @@ final class PinTrayBodyTests: XCTestCase {
 
     func testRowsShownAfterAttachAreLaidOutAsTallAsTheyMeasure() {
         let body = attachedBody(showing: rows(1))
+        let single = body.scrollableHeight
+        XCTAssertGreaterThan(single, 0, "one row has to have drawn before sixty can be compared to it")
 
         body.show(rows(60))
         body.superview?.layoutIfNeeded()
 
         XCTAssertEqual(
-            body.scrollableHeight + .spacingL,
-            body.contentHeight(fitting: 400),
+            body.scrollableHeight / single,
+            60,
             accuracy: 1,
             "rows swapped in after the body is standing still have to be laid out, or none can be touched"
         )

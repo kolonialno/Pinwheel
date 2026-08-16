@@ -530,7 +530,10 @@ final class PinTrayOverlay: UIView {
         NSLayoutConstraint.activate(constraints)
 
         let width = bounds.width - trayMargin * 2
-        body.clearance = accessory.map { $0.height(fitting: width) + accessoryInset * 2 } ?? contentBottomInset
+        // Measured up from the card's bottom: the room the accessory stands off, its own height, and a
+        // gap so the last row does not sit against it.
+        body.clearance = accessory
+            .map { accessoryInset + $0.height(fitting: width) + .spacingS } ?? contentBottomInset
         standing = Standing(
             description: tray,
             titleBar: titleBar,
