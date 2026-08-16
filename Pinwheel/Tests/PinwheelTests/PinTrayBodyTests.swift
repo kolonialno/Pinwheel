@@ -50,4 +50,24 @@ final class PinTrayBodyTests: XCTestCase {
             "rows swapped in after the body is standing still have to be laid out, or none can be touched"
         )
     }
+
+    // The card follows the finger, so what the body reports is how far the finger has come — not how far
+    // it moved since the last frame. Reporting the frame's slice moved the card 9pt across a 430pt drag,
+    // because the offset is pinned back to the top between every one of them.
+    func testAPullReportsHowFarTheFingerHasComeNotTheLastFrame() {
+        let body = attachedBody(showing: rows(60))
+        let reports = PinTrayBodyReports()
+        body.coordinating = reports
+
+        body.wasPulled(pastTheTop: 10)
+        body.wasPulled(pastTheTop: 10)
+        body.wasPulled(pastTheTop: 10)
+
+        XCTAssertEqual(
+            reports.pulls.last ?? 0,
+            30,
+            accuracy: 0.5,
+            "three tenths of the way down is thirty points from where it started"
+        )
+    }
 }

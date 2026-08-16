@@ -11,6 +11,9 @@ final class PinTrayBodyView: UIView {
     private let scroll = UIScrollView()
     private let hosting: UIHostingController<AnyView>
     private var pulling = false
+    /// How far past the top the finger has come in this gesture. The offset is pinned back to the top
+    /// between frames, so each frame only knows its own slice of the journey.
+    private var pulled: CGFloat = 0
 
     weak var coordinating: PinTrayBodyCoordinating?
 
@@ -85,15 +88,28 @@ final class PinTrayBodyView: UIView {
     }
 }
 
+extension PinTrayBodyView {
+    /// The finger has gone this far past the top since the last frame. Separate from the delegate so it
+    /// can be driven directly: a scroll view will not pretend to be tracking for a test.
+    func wasPulled(pastTheTop past: CGFloat) {
+        pulling = true
+        pulled += past
+        coordinating?.bodyWasPulledDown(by: pulled)
+    }
+}
+
 extension PinTrayBodyView: UIScrollViewDelegate {
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
         let past = -(scrollView.contentOffset.y + scrollView.contentInset.top)
         guard scrollView.isTracking, past > 0 else { return }
         // Held at its top: there is nothing above the first row, so the pull belongs to whoever is
         // coordinating and the list must not rubber-band over nothing underneath it.
-        pulling = true
         scrollView.contentOffset.y = -scrollView.contentInset.top
-        coordinating?.bodyWasPulledDown(by: past)
+        wasPulled(pastTheTop: past)
+    }
+
+    func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+        pulled = 0
     }
 
     func scrollViewWillEndDragging(
@@ -103,6 +119,7 @@ extension PinTrayBodyView: UIScrollViewDelegate {
     ) {
         guard pulling else { return }
         pulling = false
+        pulled = 0
         coordinating?.bodyStoppedBeingPulled(velocity: -velocity.y * 1_000)
     }
 }
