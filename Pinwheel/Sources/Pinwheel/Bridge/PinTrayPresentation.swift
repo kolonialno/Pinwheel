@@ -126,6 +126,13 @@ final class PinTrayOverlay: UIView {
         /// What a move dissolves and zooms. The button that ends the flow is not among them: it is a
         /// control, and a control that changes size while you are aiming at it is a moving target.
         var dissolving: [UIView] { [titleBar, divider, body] }
+
+        /// The button that ends the flow, where this tray stands one. Anything a tray floats is its own
+        /// content — a search field, a filter bar — so a button taking its place is a different thing
+        /// arriving rather than the same one staying.
+        var commitButton: PinTrayLeafView? {
+            description.floating == nil && description.commit != nil ? accessory : nil
+        }
     }
 
     private var standing: Standing?
@@ -490,8 +497,8 @@ final class PinTrayOverlay: UIView {
         // one being left fades off it — leaving the labels to dissolve and the pill to hold. Fading the
         // two against each other instead lightens it to 0.75 half way through, because two
         // half-transparent blacks over one another are grey.
-        let arriving = standing?.accessory
-        let left = leaving?.accessory
+        let arriving = standing?.commitButton
+        let left = leaving?.commitButton
         if let arriving, let left, left.frame == arriving.frame {
             arriving.alpha = 1
             card.bringSubviewToFront(left)

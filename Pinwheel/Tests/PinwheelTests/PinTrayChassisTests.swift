@@ -54,6 +54,29 @@ final class PinTrayChassisTests: XCTestCase {
         XCTAssertGreaterThan(body.contentInset.bottom, 48, "the field's own height, and the gaps around it")
     }
 
+    private func accessories(in view: UIView) -> [PinTrayLeafView] {
+        if let leaf = view as? PinTrayLeafView { return leaf.frame.minY > 0 ? [leaf] : [] }
+        return view.subviews.flatMap { accessories(in: $0) }
+    }
+
+    // A button standing where a search field stood is a different thing arriving, so it fades in like
+    // the rest of the tray. Only where both trays put the same button in the same place does it hold.
+    func testAButtonArrivingWhereSomethingElseStoodFadesInRatherThanAppearing() throws {
+        let region = PinTray("Region") { Color.clear.frame(height: 2_000) }
+            .detent(.filling)
+            .floating { Color.clear.frame(height: 48) }
+        let boost = PinTray("Boost") { Color.clear.frame(height: 300) }
+            .commit("Boost Post") {}
+
+        let (overlay, window) = standing(region)
+        window.layoutIfNeeded()
+        overlay.show(boost, isPush: false)
+        window.layoutIfNeeded()
+
+        let standing = try XCTUnwrap(accessories(in: overlay).first, "the arriving tray stands a button")
+        XCTAssertEqual(standing.alpha, 0, "it starts invisible and fades in, rather than appearing solid")
+    }
+
     // A leaving tray is torn down when its travel ends, not on a timer beside it.
     func testALeavingTrayIsTornDownOnlyOnceItHasTravelled() {
         let (overlay, window) = standing(PinTray("Boost") { Color.clear.frame(height: 300) })
