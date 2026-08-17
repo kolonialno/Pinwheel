@@ -21,6 +21,10 @@ How a session proceeds.
   screen, and wrong point scales. Every question has an instrument below — reach for it before writing
   one.
 - **Verify before claiming done**, and report what you actually observed, failures included.
+- **Hand a build over by name, and let the app confirm it.** Shaking shows `build HHmm`, read from the
+  running binary's own timestamp, and the recorder's first line carries the same — so open a handover
+  with the label and the person holding the phone can check rather than trust. Anything written *beside*
+  the binary can describe a different one, which is the staleness it exists to catch.
 - **A warning only re-emits on a build that recompiles.** An incremental build skips unchanged files, so a
   clean count comes from a fresh `-derivedDataPath` and nothing less. Five checks in a row read zero off a
   build that compiled nothing.
@@ -44,6 +48,10 @@ How a session proceeds.
   go at, it stays interruptible until it settles, and what decides where it ends up is where it would
   come to rest if left alone — never how fast it happened to be moving when it was released.
 - **A scroll view scrolls only when its content outgrows its room.**
+- **A view measures nothing until it has joined its parent.** A controller's `viewDidLoad` runs the
+  moment `.view` is first touched, which is before the caller can add it — so anything needing a room
+  waits for `didMove(toParent:)`. Measured detached, a tray built itself 89 points wide and none tall,
+  and every correction after that landed somewhere wrong.
 - **A value the platform owns is read, never copied.** Read it and the layout is right on hardware and
   OS versions you will never see. Where there is nothing to read, reimplement only what holds still — a
   corner's curve is the same shape on every device, its radius is not.
@@ -123,6 +131,9 @@ is not one.
   back asserts only that your own setter ran. That reads green when the constraint is inactive, when a
   competing one wins, and when an optional one is dropped silently with no conflict log while the view
   renders a point tall. The frame is the one value that cannot lie.
+- **When a reproduction comes back green twice, stop writing reproductions and instrument the app.**
+  Five green ones proved nothing about a bug already caught on tape. What went red was a test of the
+  *contract* the tape named — nothing is assembled before there is a room — not of the pixels.
 - **A probe proves nothing until it proves it arrived with the motion switched on.** A run that never
   reached the state reads exactly like one that did — a drag aimed at a list that was never populated
   landed on a button and produced confident, worthless numbers — and `-UITestingNoAnimations` turns motion
@@ -145,6 +156,9 @@ is not one.
   own simulator, and a hardcoded device launches nowhere while you read a stale result.
 - **Dump the runtime rather than stopping at a search result.** Two private keyboard flags looked right
   and both were wrong; enumerating every property on the live object, twice, settled it in one run.
+- **A shake says which build is running** (`PinwheelShakeToShowBuild`). iOS delivers a shake as a
+  `motionShake` event to the first responder, so a controller that takes first responder catches it;
+  the simulator has no accelerometer, so CoreMotion cannot see one there at all.
 - **The Xcode MCP** for build and verify (`BuildProject`, `RenderPreview`, `RunSomeTests`);
   `xcodebuild`/`simctl` are the fallback. Setup and its gotchas live in the `xcode-mcp` skill.
 

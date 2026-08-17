@@ -3,18 +3,20 @@ import UIKit
 @MainActor
 final class PinTrayCardPlacement {
     private let card: PinTrayCardView
+    private unowned let parent: UIView
     private let height: NSLayoutConstraint
     private let offset: NSLayoutConstraint
+    private let lifted: NSLayoutConstraint
     private var motion: UIViewPropertyAnimator?
 
     init(card: PinTrayCardView, in parent: UIView) {
         self.card = card
+        self.parent = parent
 
         let height = card.heightAnchor.constraint(equalToConstant: 0)
         height.priority = .defaultHigh
         self.height = height
 
-        parent.keyboardLayoutGuide.usesBottomSafeArea = false
         let offset = card.bottomAnchor.constraint(
             equalTo: parent.keyboardLayoutGuide.topAnchor,
             constant: -trayBottomMargin
@@ -26,10 +28,9 @@ final class PinTrayCardPlacement {
         offset.priority = UILayoutPriority(999)
         lifted.priority = UILayoutPriority(999)
         self.offset = offset
+        self.lifted = lifted
 
         parent.addSubview(card)
-        parent.keyboardLayoutGuide.setConstraints([offset], activeWhenNearEdge: .bottom)
-        parent.keyboardLayoutGuide.setConstraints([lifted], activeWhenAwayFrom: .bottom)
         NSLayoutConstraint.activate([
             card.leadingAnchor.constraint(equalTo: parent.leadingAnchor, constant: trayMargin),
             card.trailingAnchor.constraint(equalTo: parent.trailingAnchor, constant: -trayMargin),
@@ -39,6 +40,14 @@ final class PinTrayCardPlacement {
             ),
             height,
         ])
+    }
+
+    /// A keyboard layout guide only tracks once its view belongs to a scene. Armed any earlier the swap
+    /// never registers, the card's bottom is pinned to nothing, and it floats to the top of the screen.
+    func followTheKeyboard() {
+        parent.keyboardLayoutGuide.usesBottomSafeArea = false
+        parent.keyboardLayoutGuide.setConstraints([offset], activeWhenNearEdge: .bottom)
+        parent.keyboardLayoutGuide.setConstraints([lifted], activeWhenAwayFrom: .bottom)
     }
 
     var travelled: CGFloat { card.transform.ty }

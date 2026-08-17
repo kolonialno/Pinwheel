@@ -53,6 +53,13 @@ final class PinTrayChassis: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         build()
+    }
+
+    override func didMove(toParent parent: UIViewController?) {
+        super.didMove(toParent: parent)
+        guard parent != nil, standing == nil else { return }
+        placement.followTheKeyboard()
+        view.layoutIfNeeded()
         present(arriving)
     }
 
@@ -152,7 +159,7 @@ final class PinTrayChassis: UIViewController {
         dimming.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         dimming.backgroundColor = UIColor.black.withAlphaComponent(trayDimming)
         dimming.alpha = 0
-        view.addSubview(dimming)
+        view.insertSubview(dimming, belowSubview: cardView)
         dimming.addGestureRecognizer(
             UITapGestureRecognizer(target: self, action: #selector(dismissFromBackground))
         )

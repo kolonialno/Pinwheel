@@ -13,6 +13,7 @@ public enum PinwheelRecorder {
     public static func start() {
         guard ProcessInfo.processInfo.arguments.contains("-PinwheelRecord") else { return }
         session = Session()
+        note("build", "\(PinwheelBuild.label)  \(PinwheelBuild.detail)")
     }
 
     /// Something the code decided, in its own words. Free-form, because what is worth recording changes

@@ -187,4 +187,19 @@ extension PinTrayChassisTests {
         )
         XCTAssertFalse(PinTrayPathSync<Int>.isPush(to: 1, from: 2), "shallower is a pop")
     }
+
+    func testATrayIsNotAssembledUntilItHasJoinedWhatItCovers() {
+        let chassis = PinTrayChassis(
+            showing: PinTray("Boost") { Color.clear.frame(height: 300) },
+            nestedIn: .radiusL,
+            covering: CGRect(x: 0, y: 0, width: 420, height: 912)
+        )
+
+        _ = chassis.view
+
+        XCTAssertNil(
+            scrollView(in: chassis.view),
+            "loading the view measures a room it has not got, so nothing is built until it has a parent"
+        )
+    }
 }

@@ -42,6 +42,7 @@ public struct PinwheelPreview: SwiftUI.View {
             .environment(chrome)
             .environment(\.pinwheelTheme, chrome.theme)
             .background(PinwheelThemedWindow(theme: chrome.theme))
+            .background(PinwheelShakeToShowBuild())
             .background(
                 PinwheelFloatingControlsHost(
                     chrome: chrome,
