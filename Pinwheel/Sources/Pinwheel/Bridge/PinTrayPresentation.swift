@@ -445,7 +445,7 @@ final class PinTrayOverlay: UIView {
         // Whether the arriving tray raises a keyboard is knowable only once it has mounted, and it
         // decides who owns the move.
         DispatchQueue.main.async { [weak self] in
-            guard let self, superview != nil else { return }
+            guard let self else { return }
             apply(machine.handle(.moved(
                 contentHeight: fittedHeight,
                 edits: holdsFirstResponder,

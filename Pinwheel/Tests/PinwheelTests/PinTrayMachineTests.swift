@@ -275,6 +275,18 @@ final class PinTrayMachineTests: XCTestCase {
         XCTAssertTrue(machine.handle(.released(velocity: 2_000)).dismisses)
     }
 
+    func testAMoveResolvingAfterDismissalDoesNotPutTheTrayBack() {
+        var machine = machine()
+        let leaving = machine.handle(.dismissed)
+        XCTAssertGreaterThan(leaving.to.translation, 0)
+
+        let late = machine.handle(.moved(contentHeight: 641, edits: false, isPush: true))
+        XCTAssertGreaterThan(
+            late.to.translation, 0,
+            "a move that resolves on its way out cannot stand the tray back up"
+        )
+    }
+
     func testATrayThatIsLeavingIsNeverPutBack() {
         var machine = machine(edits: true)
         let leaving = machine.handle(.dismissed)

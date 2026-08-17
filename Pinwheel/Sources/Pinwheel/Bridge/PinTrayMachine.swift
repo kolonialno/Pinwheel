@@ -163,6 +163,7 @@ struct PinTrayMachine: Equatable {
             return Reaction(from: geometry(.arriving), to: geometry(.resting), timeline: .spring(bounce: trayResizeBounce))
 
         case .moved(let height, let edits, let isPush):
+            guard phase != .leaving else { return Reaction(to: geometry(.leaving), timeline: .carriedByKeyboard) }
             let wasEditing = self.edits
             let wasStanding = contentHeight
             let wasFilling = fills
