@@ -13,6 +13,7 @@ final class PinTrayChassis: UIView {
     private let dimming = UIView()
     private let displayRadius: CGFloat
     private let cardView: PinTrayCardView
+    private let placement: PinTrayCardPlacement
     private var card: UIView { cardView.surface }
     private lazy var machine = PinTrayMachine(room: room)
 
@@ -32,7 +33,9 @@ final class PinTrayChassis: UIView {
         self.container = container
         let radius = (container.view.window?.screen ?? UIScreen.main).pinDisplayCornerRadius
         displayRadius = radius
-        cardView = PinTrayCardView(nestedIn: radius)
+        let card = PinTrayCardView(nestedIn: radius)
+        cardView = card
+        placement = PinTrayCardPlacement(card: card)
         super.init(frame: container.view.bounds)
         build()
         present(tray)
@@ -60,7 +63,7 @@ final class PinTrayChassis: UIView {
             case .dismissKeyboard: endEditing(true)
             }
         }
-        reaction.from.map { cardView.place($0, alongside: dim(to: $0), animated: false) }
+        reaction.from.map { placement.place($0, alongside: dim(to: $0), animated: false) }
         PinwheelRecorder.note(
             "tray",
             "\(reaction.timeline)  card=\(Int(reaction.to.height)) inset=\(Int(reaction.to.bottomInset)) "
@@ -72,13 +75,13 @@ final class PinTrayChassis: UIView {
         let finish: () -> Void = reaction.dismisses ? { [weak self] in self?.tearDown() } : {}
         switch reaction.timeline {
         case .immediate:
-            cardView.place(reaction.to, alongside: dim(to: reaction.to), animated: false, then: finish)
+            placement.place(reaction.to, alongside: dim(to: reaction.to), animated: false, then: finish)
         case .carriedByKeyboard:
-            cardView.writeConstants(from: reaction.to)
+            placement.write(reaction.to)
             dim(to: reaction.to)()
             finish()
         case .spring(let bounce, let initialVelocity):
-            cardView.place(
+            placement.place(
                 reaction.to,
                 alongside: dim(to: reaction.to),
                 animated: true,
@@ -87,7 +90,7 @@ final class PinTrayChassis: UIView {
                 then: finish
             )
         case .matching(let timing):
-            cardView.place(reaction.to, alongside: dim(to: reaction.to), matching: timing, then: finish)
+            placement.place(reaction.to, alongside: dim(to: reaction.to), matching: timing, then: finish)
         }
     }
 
@@ -175,7 +178,7 @@ final class PinTrayChassis: UIView {
         }
 
         cardView.reporting = self
-        cardView.attach(to: self)
+        placement.install(in: self)
     }
 
     private var holdsFirstResponder: Bool {
@@ -343,6 +346,11 @@ final class PinTrayChassis: UIView {
         onBackgroundDismiss()
     }
 
+    private func catchAnythingInFlight() {
+        guard placement.isTravelling else { return }
+        apply(machine.handle(.caught(at: placement.travelled)))
+    }
+
     private func release(velocity: CGFloat) {
         let reaction = machine.handle(.released(velocity: velocity))
         if reaction.dismisses {
@@ -357,8 +365,7 @@ extension PinTrayChassis: PinTrayBodyCoordinating {
     var cardIsBeingPulled: Bool { machine.cardIsBeingPulled }
 
     func bodyWillBeginPulling() {
-        guard cardView.isTravelling else { return }
-        apply(machine.handle(.caught(at: cardView.travelled)))
+        catchAnythingInFlight()
     }
 
     func bodyWasPulledDown(by amount: CGFloat) {
@@ -373,8 +380,8 @@ extension PinTrayChassis: PinTrayBodyCoordinating {
 extension PinTrayChassis: PinTrayCardReporting {
     var pulledSoFar: CGFloat { machine.pulledSoFar }
 
-    func cardWasCaught(at travelled: CGFloat) {
-        apply(machine.handle(.caught(at: travelled)))
+    func cardWasTouched() {
+        catchAnythingInFlight()
     }
 
     func cardWasDragged(to travelled: CGFloat) {
