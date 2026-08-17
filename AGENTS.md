@@ -23,10 +23,6 @@ to change, add to it as you learn, and keep *this* file to what a session needs 
 - **A child answers to its own delegate and reports upward in its own words.** The body is its scroll
   view's delegate; what it tells the tray is "pulled down by 40", never `scrollViewDidScroll`. A parent
   adopting its child's protocol drags the child's vocabulary a level up where it does not belong.
-- **Containment is a UIKit job.** SwiftUI supplies leaves — a row, a title, a field. Anything that holds,
-  lays out, scrolls or routes a gesture is a `UIView` we own. Asking SwiftUI to contain is what makes
-  gestures fight across the seam, representables vanish without a scene, and children findable only by
-  walking a tree somebody else owns.
 - **One file per abstraction.**
 - **A scroll view scrolls only when its content outgrows its room.**
 - **If something should be off, turn it off — don't leave it on and undo what it does.** Undoing hides
@@ -58,6 +54,11 @@ These put them there; the section below says where the test then goes.
   when what must hold is true across a whole sequence rather than at any one moment in it. Keep views
   out of that value and every rule becomes a test, sequences included. Where none of those holds, an
   enum and a switch are the right size, and what one view alone knows stays there.
+- **Containment is a UIKit job.** SwiftUI supplies leaves — a row, a title, a field. Anything that holds,
+  lays out, scrolls or routes a gesture is a `UIView` we own, which makes it an ordinary object with an
+  ordinary frame that a test reads directly, with nothing inferred from a picture. Asking SwiftUI to
+  contain is what makes gestures fight across the seam, representables vanish without a scene, and
+  children findable only by walking a tree somebody else owns.
 - **Dependencies arrive through `init`** — no optionals, no defaults, no two-phase setup. If a thing
   cannot exist without a container, a clock and something to show, it takes all three at birth. Every
   protocol ships a real implementation and a stub, so the seam is usable from a test the day it is made.
