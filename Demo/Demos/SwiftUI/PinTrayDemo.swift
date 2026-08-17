@@ -2,7 +2,7 @@ import SwiftUI
 import Pinwheel
 
 struct PinTrayDemo: View {
-    private enum Route: Hashable {
+    private enum Destination: Hashable {
         case boost
         case howItWorks
         case payWith
@@ -22,7 +22,7 @@ struct PinTrayDemo: View {
         (name: "Pay with X Money", icon: "dollarsign.circle"),
     ]
 
-    @State private var path: [Route] = []
+    @State private var path: [Destination] = []
     @State private var tier = 2
     @State private var tutorialStep = 0
     @State private var method = 0
@@ -38,8 +38,8 @@ struct PinTrayDemo: View {
         }
         .padding(.spacing6)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .pinwheelTray(path: $path) { route in
-            switch route {
+        .pinwheelTray(path: $path) { destination in
+            switch destination {
             case .boost: boost
             case .howItWorks: howItWorks
             case .payWith: payWith

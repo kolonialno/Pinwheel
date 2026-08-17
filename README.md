@@ -109,14 +109,14 @@ with `pinwheelTray(path:)` — the array is the stack, so appending pushes and r
 
 ```swift
 struct BoostView: View {
-    private enum Route: Hashable { case boost, howItWorks }
+    private enum Destination: Hashable { case boost, howItWorks }
 
-    @State private var path: [Route] = []
+    @State private var path: [Destination] = []
 
     var body: some View {
         PinButton("Boost Post") { path = [.boost] }
-            .pinwheelTray(path: $path) { route in
-                switch route {
+            .pinwheelTray(path: $path) { destination in
+                switch destination {
                 case .boost:
                     PinTray("Boost Post") {
                         TierWheel()
