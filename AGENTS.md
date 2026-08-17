@@ -33,7 +33,10 @@ How a session proceeds.
 ## What a component owes at runtime
 
 - **A container owns the space around and between its children; a child owns only what is inside it.**
-  Both axes. Only the thing that can see both sides of a gap can balance it, so the gap between two rows
+  Both axes, and a constraint is space — so a child holds none that mentions its parent, and publishes a
+  measurement only where it owns the number: `intrinsicContentSize` for a view sized by its own content,
+  and nothing at all for one whose size a value above it decides. Only the thing that can see both sides
+  of a gap can balance it, so the gap between two rows
   belongs to whatever holds them — a section for its items, the tray for its sections — and how far they
   stand off an edge belongs there too. A child that pads its own outside makes every gap the sum of two
   decisions nobody took together.
@@ -61,7 +64,9 @@ These put them there; the section below says where the test then goes.
   that cannot exist without a container, a clock and something to show takes all three at birth, and
   every protocol ships a real implementation and a stub so the seam is usable from a test the day it is
   made. A fallback is either the answer or a lie standing in for a state — a height quietly keeping what
-  was there before drew a 200-point tray at 794.
+  was there before drew a 200-point tray at 794. A placeholder you need because a value cannot be built
+  until after `super.init` is the type telling you the value belongs to whatever already exists by then,
+  which is the parent — not a licence to write a setup method that fills it in later.
 - **A parent composes its children and asks them what they measure; that is its one job, not a second
   one.** Nothing reaches more than one level up or down — downward is direct, upward is a closure or a
   protocol — and each child holds one job and is pure where it can be: the tray's geometry and its
@@ -76,6 +81,11 @@ These put them there; the section below says where the test then goes.
   ordinary frame that a test reads directly, with nothing inferred from a picture. Asking SwiftUI to
   contain is what makes gestures fight across the seam, representables vanish without a scene, and
   children findable only by walking a tree somebody else owns.
+- **Where the framework owns the mechanism, move the seam rather than the mechanism.** Auto Layout, the
+  keyboard and the render server cannot be injected, and a fake of one would prove nothing — they are the
+  implementation, not a dependency. So the boundary goes above them, a pure value deciding the number
+  where every rule is a test, and below them, the frame that came out. What sits between is left holding
+  no logic worth testing.
 - **No behaviour behind a delay.** A timer is a guess about the world. If something must happen when a
   motion ends, use the animation's completion; if it depends on what the world is doing, ask the world —
   a private API answering outright beats a stopwatch estimating.
@@ -99,15 +109,20 @@ is not one.
 - **A fact that needs an app is not an untestable fact.** `DemoTests` is hosted and ships a harness,
   `HostedView`: `window(showing:)` flips `_AXSSetAutomationEnabled` so SwiftUI fills its accessibility
   tree and labels, frames and `accessibilityActivate()` become readable; `presentation(in:)` waits for a
-  presented view to join the window; `settledPresentation(in:)` waits for a detent to stop moving.
+  presented view to join the window; `settledPresentation(in:)` waits for a detent to stop moving. A
+  number the framework *produces* rather than takes — an intrinsic size, where a system guide has moved to
+  — has no pure value above it to test, so it is read here or nowhere.
 - **A UI test does not land, and its one exception costs two things.** Driving the app to watch a change
   work is an instrument: red while the fix is absent, deleted in the change that fixes what it found,
   leaving the unit test for what it localised. A workaround held against SwiftUI or UIKit that nothing
   lower can reach may keep a permanent one — but only with teeth *and* a place in the merge gate, since a
   guard outside the gate is one nobody runs and it rots without telling you. Coverage is never a reason to
   keep one.
-- **Size a hosted view by constraints, never by a frame.** A frame written on it hands the hosting view a
-  height it never had to work out, so the test stops measuring what it claims to.
+- **Drive a layout with constraints; assert the frame.** A frame written on a hosted view hands it a
+  height it never had to work out, so the test stops measuring what it claims to — and a constraint read
+  back asserts only that your own setter ran. That reads green when the constraint is inactive, when a
+  competing one wins, and when an optional one is dropped silently with no conflict log while the view
+  renders a point tall. The frame is the one value that cannot lie.
 - **A probe proves nothing until it proves it arrived with the motion switched on.** A run that never
   reached the state reads exactly like one that did — a drag aimed at a list that was never populated
   landed on a button and produced confident, worthless numbers — and `-UITestingNoAnimations` turns motion
