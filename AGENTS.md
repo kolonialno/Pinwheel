@@ -97,6 +97,8 @@ is not one.
   can reach may keep a permanent UI test — but only with teeth *and* a place in the merge gate. A guard
   outside the gate is one nobody runs, and it rots without telling you. Either put it where it runs, or
   do not write it.
+- **Size a hosted view by constraints, never by a frame.** A frame written on it hands the hosting view a
+  height it never had to work out, so the test stops measuring what it claims to.
 - **Assert arrival before measuring anything.** A probe that never reached the state proves nothing, and
   reads exactly like one that did — a drag aimed at a list that was never populated landed on a button
   and produced confident, worthless numbers.

@@ -9,8 +9,6 @@ let trayItemGap: CGFloat = .spacing3
 let trayContentMargin: CGFloat = .spacing5
 let trayLift: CGFloat = .spacing8
 let trayRubberBanding: CGFloat = 0.55
-/// Both are UIKit's own, read off the `_UIHyperInteractor` ivars its sheets hand a drag to. The rate
-/// is `UIScrollView`'s `.fast`.
 let trayDecelerationRate: CGFloat = 0.99
 let trayThrowSpeed: CGFloat = 250
 let trayBackdropReach: CGFloat = .minimumControlHeight
@@ -83,10 +81,6 @@ struct PinTrayGeometry: Equatable {
 }
 
 extension PinTrayGeometry {
-    /// Apple's own curve, `(x·d·c) / (d + c·x)` — checked against
-    /// `-[UIScrollView _rubberBandOffsetForOffset:maxOffset:minOffset:range:outside:]` and equal to the
-    /// penny at every pull, with `_currentRubberBandCoefficient` reading 0.55. Calling the private one
-    /// would put a private selector in every app that links this library.
     static func travel(forDrag offset: CGFloat) -> CGFloat {
         guard offset < 0 else { return offset }
         let pulled = -offset * trayRubberBanding

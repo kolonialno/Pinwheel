@@ -1,7 +1,6 @@
 import SwiftUI
 import UIKit
 
-/// What stands at the bottom of the card: a tray's floating content, or the button that ends the flow.
 @MainActor
 final class PinTrayAccessoryView: UIView {
     private var standing: (view: PinTrayLeafView, isCommitButton: Bool)?

@@ -22,8 +22,8 @@ public struct PinTrayLink: SwiftUI.View {
 
     public var body: some SwiftUI.View {
         SwiftUI.Button(action: open) {
-            // A sentence and its phrase wrap as one paragraph; a stack lays them side by side and clips.
-            (Text(text) + Text(" ") + Text(phrase).underline())
+            let oneParagraph = Text(text) + Text(" ") + Text(phrase).underline()
+            oneParagraph
                 .font(style.font(in: theme))
                 .foregroundStyle(.secondaryText)
                 .multilineTextAlignment(.center)

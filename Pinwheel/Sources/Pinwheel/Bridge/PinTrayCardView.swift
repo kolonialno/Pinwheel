@@ -34,15 +34,11 @@ final class PinTrayCardView: UIView {
         ])
     }
 
-    /// Separate from `init` because these constraints come from guides on a view that cannot exist
-    /// until this one does.
     func attach(to parent: UIView) {
         parent.addSubview(self)
         let pan = UIPanGestureRecognizer(target: self, action: #selector(drag))
         pan.delegate = self
         addGestureRecognizer(pan)
-        // The keyboard runs out of process and posts its notifications asynchronously, so anything
-        // driven off them races its animation; a constraint to this guide is carried by that animation.
         parent.keyboardLayoutGuide.usesBottomSafeArea = false
         height = heightAnchor.constraint(equalToConstant: 0)
         height.priority = .defaultHigh
@@ -54,7 +50,6 @@ final class PinTrayCardView: UIView {
             equalTo: parent.keyboardLayoutGuide.topAnchor,
             constant: -trayKeyboardMargin
         )
-        // Toggling these by hand from layoutSubviews re-enters layout and UIKit throws.
         offset.priority = UILayoutPriority(999)
         lifted.priority = UILayoutPriority(999)
         parent.keyboardLayoutGuide.setConstraints([offset], activeWhenNearEdge: .bottom)
@@ -74,8 +69,7 @@ final class PinTrayCardView: UIView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("PinTrayCardView is made in code") }
 
-    /// Laying out here re-enters layout, since layout is where a keyboard is measured.
-    func stands(at geometry: PinTrayGeometry) {
+    func writeConstants(from geometry: PinTrayGeometry) {
         layer.cornerRadius = geometry.bottomCornerRadius
         height.constant = geometry.height
         offset.constant = -geometry.clearanceAboveGuide
@@ -142,7 +136,7 @@ final class PinTrayCardView: UIView {
     }
 
     private func draw(_ geometry: PinTrayGeometry) {
-        stands(at: geometry)
+        writeConstants(from: geometry)
         transform = CGAffineTransform(translationX: 0, y: geometry.translation)
         superview?.layoutIfNeeded()
     }

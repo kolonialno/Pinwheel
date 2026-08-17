@@ -1,7 +1,6 @@
 import SwiftUI
 import UIKit
 
-/// One view rather than three: faded separately, a row behind the accessory shows through it.
 @MainActor
 final class PinTrayContentsView: UIView {
     private let titleBar: PinTrayLeafView

@@ -31,7 +31,7 @@ public enum PinwheelRecorder {
         session?.follow(nil)
     }
 
-    private final class Session {
+    private final class Session: NSObject {
         private let handle: FileHandle?
         private let start = CACurrentMediaTime()
         private var link: CADisplayLink?
@@ -39,7 +39,7 @@ public enum PinwheelRecorder {
         private var previous: [(String, CGFloat)] = []
         private var watched: [ObjectIdentifier] = []
 
-        init() {
+        override init() {
             // Appended, never truncated: a session someone drove by hand is the whole point of this
             // file, and anything that relaunches the app — a test run, a rebuild — would otherwise
             // destroy it before it could be read. One was lost that way.
@@ -49,24 +49,35 @@ public enum PinwheelRecorder {
             }
             handle = FileHandle(forWritingAtPath: path)
             handle?.seekToEndOfFile()
+            super.init()
 
             let screen = UIScreen.main.bounds
             write("session", "=== launched  screen=\(Int(screen.width))x\(Int(screen.height))")
 
             NotificationCenter.default.addObserver(
-                forName: UIWindow.didBecomeVisibleNotification,
-                object: nil,
-                queue: .main
-            ) { [weak self] notification in
-                (notification.object as? UIWindow).map { self?.watch($0) }
-            }
+                self,
+                selector: #selector(windowBecameVisible),
+                name: UIWindow.didBecomeVisibleNotification,
+                object: nil
+            )
             for name in [UIResponder.keyboardWillShowNotification, UIResponder.keyboardWillHideNotification] {
-                NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
-                    let end = note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect
-                    let showing = name == UIResponder.keyboardWillShowNotification
-                    self?.write("keyboard", "\(showing ? "will show" : "will hide") top=\(Int(end?.minY ?? -1))")
-                }
+                NotificationCenter.default.addObserver(
+                    self,
+                    selector: #selector(keyboardAnnouncedItsMove),
+                    name: name,
+                    object: nil
+                )
             }
+        }
+
+        @objc private func windowBecameVisible(_ notification: Notification) {
+            (notification.object as? UIWindow).map { watch($0) }
+        }
+
+        @objc private func keyboardAnnouncedItsMove(_ notification: Notification) {
+            let end = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect
+            let showing = notification.name == UIResponder.keyboardWillShowNotification
+            write("keyboard", "\(showing ? "will show" : "will hide") top=\(Int(end?.minY ?? -1))")
         }
 
         func write(_ category: String, _ message: String) {

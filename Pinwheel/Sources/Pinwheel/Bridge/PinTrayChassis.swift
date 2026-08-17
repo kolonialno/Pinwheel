@@ -51,8 +51,6 @@ final class PinTrayChassis: UIView {
     }
 
     private var measuredKeyboardHeight: CGFloat {
-        // The guide already excludes the bottom safe area, `usesBottomSafeArea` being false, so
-        // subtracting it again reads a 337pt keyboard as 311.
         max(0, bounds.maxY - keyboardLayoutGuide.layoutFrame.minY)
     }
 
@@ -76,7 +74,7 @@ final class PinTrayChassis: UIView {
         case .immediate:
             cardView.place(reaction.to, alongside: dim(to: reaction.to), animated: false, then: finish)
         case .carriedByKeyboard:
-            cardView.stands(at: reaction.to)
+            cardView.writeConstants(from: reaction.to)
             dim(to: reaction.to)()
             finish()
         case .spring(let bounce):
@@ -236,8 +234,10 @@ final class PinTrayChassis: UIView {
             leaving?.detach()
         }
 
-        // Whether the arriving tray raises a keyboard is knowable only once it has mounted, and it
-        // decides who owns the move.
+        reportTheMoveOnceTheArrivingTrayHasMounted(isPush: isPush)
+    }
+
+    private func reportTheMoveOnceTheArrivingTrayHasMounted(isPush: Bool) {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             apply(machine.handle(.moved(

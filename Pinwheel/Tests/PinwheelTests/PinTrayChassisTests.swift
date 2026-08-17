@@ -64,8 +64,6 @@ final class PinTrayChassisTests: XCTestCase {
         overlay.show(boost, isPush: false)
         window.layoutIfNeeded()
 
-        // A move settles on the same values either way, so what is in flight is what separates a
-        // button holding from one dissolving.
         let buttons = accessories(in: overlay)
         let inFlight = buttons.map { Set($0.layer.animationKeys() ?? []) }
         XCTAssertEqual(buttons.count, 2, "the button arriving and the one being left")
@@ -134,7 +132,6 @@ final class PinTrayChassisTests: XCTestCase {
         overlay.show(boost, isPush: false)
         window.layoutIfNeeded()
 
-        // The card still slides up, as Apple's own sheets do; what goes is the scale on its contents.
         XCTAssertFalse(
             dissolvingInFlight(in: overlay).contains("transform"),
             "the contents cross-dissolve without scaling: \(dissolvingInFlight(in: overlay))"

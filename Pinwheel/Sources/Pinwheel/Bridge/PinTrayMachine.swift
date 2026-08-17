@@ -1,7 +1,6 @@
 import CoreGraphics
 import Foundation
 
-/// Measured off the reference: a third of a second, a barely-there overshoot, scaling with distance.
 let trayResizeDuration: TimeInterval = 0.30
 let trayResizeBounce: CGFloat = 0.10
 let trayZoom: CGFloat = 1.08
@@ -227,8 +226,6 @@ struct PinTrayMachine: Equatable {
             return Reaction(to: geometry(.resting), timeline: .carriedByKeyboard)
 
         case .fillsReported(let fills):
-            // With a hardware keyboard attached the software keyboard never speaks, so there may be
-            // no next event to carry this.
             self.fills = fills
             return Reaction(to: geometry(.resting), timeline: .spring(bounce: 0))
 

@@ -77,11 +77,12 @@ struct PinTrayDemo: View {
         return phase <= last ? phase : last * 2 - phase
     }
 
+    private let wheelSelectionBandInset = CGFloat.spacing2
+
     private func reach(selection: Binding<Int>, travels: Bool = false) -> some View {
         TierWheel(tiers: tiers, selection: selection, travels: travels)
             .frame(height: 156)
-        // The wheel insets its selection band inside its frame, so it reaches back out by that much.
-        .padding(.horizontal, -.spacing2)
+        .padding(.horizontal, -wheelSelectionBandInset)
     }
 
     private var howItWorks: PinTray {
