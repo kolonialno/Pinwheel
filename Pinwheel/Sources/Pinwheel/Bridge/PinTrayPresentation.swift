@@ -99,21 +99,16 @@ final class PinTrayOverlay: UIView {
 
     private struct Standing {
         let description: PinTray
-        let titleBar: PinTrayLeafView
-        let body: PinTrayBodyView
+        let contents: PinTrayContentsView
         let accessory: PinTrayLeafView?
-        let divider: UIView
 
         func detach() {
-            titleBar.detach()
-            body.detach()
+            contents.detach()
             accessory?.detach()
-            [titleBar, body, accessory, divider].compactMap { $0 }.forEach { $0.removeFromSuperview() }
+            accessory?.removeFromSuperview()
         }
 
-        var views: [UIView] { [titleBar, divider, body, accessory].compactMap { $0 } }
-
-        var dissolving: [UIView] { [titleBar, divider, body] }
+        var views: [UIView] { [contents, accessory].compactMap { $0 } }
 
         var commitButton: PinTrayLeafView? {
             description.standsACommitButton ? accessory : nil
@@ -251,7 +246,7 @@ final class PinTrayOverlay: UIView {
     }
 
     var cardHeight: CGFloat { tray.bounds.height }
-    var contentHeight: CGFloat { standing?.body.bounds.height ?? 0 }
+    var contentHeight: CGFloat { standing?.contents.bounds.height ?? 0 }
     var cardBottom: CGFloat { card.convert(card.bounds, to: self).maxY }
     var bottomCornerRadius: CGFloat { tray.layer.cornerRadius }
 
@@ -312,8 +307,8 @@ final class PinTrayOverlay: UIView {
             guard let self else { return [] }
             let card = self.tray.layer.presentation()
             let top = (card?.frame.minY ?? self.tray.frame.minY) + (card?.transform.m42 ?? 0)
-            let content = self.standing?.body.layer.presentation()?.bounds.height
-                ?? self.standing?.body.bounds.height ?? 0
+            let content = self.standing?.contents.layer.presentation()?.bounds.height
+                ?? self.standing?.contents.bounds.height ?? 0
             return [
                 ("cardTop", top),
                 ("cardHeight", card?.bounds.height ?? 0),
@@ -412,8 +407,7 @@ final class PinTrayOverlay: UIView {
 
     func refresh(_ tray: PinTray) {
         guard let standing else { return }
-        standing.titleBar.show(titleBarLeaf(tray))
-        standing.body.show(inset(tray.content))
+        standing.contents.show(titleBar: titleBarLeaf(tray), content: inset(tray.content))
         settle()
         if let accessory = standing.accessory, let leaf = accessoryLeaf(tray) {
             accessory.show(leaf)
@@ -430,7 +424,7 @@ final class PinTrayOverlay: UIView {
         layoutIfNeeded()
 
         let zoom = CGAffineTransform(scaleX: machine.contentZoom, y: machine.contentZoom)
-        standing?.dissolving.forEach { $0.transform = isPush ? .identity : zoom }
+        standing?.contents.transform = isPush ? .identity : zoom
 
         let arriving = standing?.commitButton
         let left = leaving?.commitButton
@@ -440,9 +434,10 @@ final class PinTrayOverlay: UIView {
         }
 
         UIView.animate(springDuration: trayResizeDuration, bounce: trayResizeBounce) {
-            self.standing?.views.forEach { $0.alpha = 1; $0.transform = .identity }
+            self.standing?.views.forEach { $0.alpha = 1 }
+            self.standing?.contents.transform = .identity
             leaving?.views.forEach { $0.alpha = 0 }
-            leaving?.dissolving.forEach { $0.transform = isPush ? zoom : .identity }
+            leaving?.contents.transform = isPush ? zoom : .identity
         } completion: { _ in
             leaving?.detach()
         }
@@ -491,30 +486,24 @@ final class PinTrayOverlay: UIView {
     }
 
     private func assemble(_ tray: PinTray) {
-        let titleBar = PinTrayLeafView(showing: titleBarLeaf(tray), in: container)
-        let body = PinTrayBodyView(showing: inset(tray.content), in: container)
+        let contents = PinTrayContentsView(
+            titleBar: titleBarLeaf(tray),
+            content: inset(tray.content),
+            in: container
+        )
         let accessory = accessoryLeaf(tray).map { PinTrayLeafView(showing: $0, in: container) }
-        let divider = UIView()
-        divider.backgroundColor = .tertiaryText
 
-        body.coordinating = self
-        for view in [titleBar, divider, body, accessory].compactMap({ $0 }) {
+        contents.coordinating = self
+        for view in [contents, accessory].compactMap({ $0 }) as [UIView] {
             view.translatesAutoresizingMaskIntoConstraints = false
             card.addSubview(view)
         }
 
         var constraints: [NSLayoutConstraint] = [
-            titleBar.topAnchor.constraint(equalTo: card.topAnchor),
-            titleBar.leadingAnchor.constraint(equalTo: card.leadingAnchor),
-            titleBar.trailingAnchor.constraint(equalTo: card.trailingAnchor),
-            divider.topAnchor.constraint(equalTo: titleBar.bottomAnchor),
-            divider.heightAnchor.constraint(equalToConstant: 1),
-            divider.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: trayContentMargin),
-            divider.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -trayContentMargin),
-            body.topAnchor.constraint(equalTo: divider.bottomAnchor),
-            body.leadingAnchor.constraint(equalTo: card.leadingAnchor),
-            body.trailingAnchor.constraint(equalTo: card.trailingAnchor),
-            body.bottomAnchor.constraint(equalTo: card.bottomAnchor),
+            contents.topAnchor.constraint(equalTo: card.topAnchor),
+            contents.leadingAnchor.constraint(equalTo: card.leadingAnchor),
+            contents.trailingAnchor.constraint(equalTo: card.trailingAnchor),
+            contents.bottomAnchor.constraint(equalTo: card.bottomAnchor),
         ]
         if let accessory {
             constraints += [
@@ -527,25 +516,16 @@ final class PinTrayOverlay: UIView {
 
         let width = bounds.width - trayMargin * 2
         let clearanceAboveAccessory = PinTrayGeometry.clearanceAboveAccessory(floats: tray.floating != nil)
-        body.clearance = accessory
+        contents.clearance = accessory
             .map { accessoryInset + $0.height(fitting: width) + clearanceAboveAccessory } ?? contentBottomInset
-        standing = Standing(
-            description: tray,
-            titleBar: titleBar,
-            body: body,
-            accessory: accessory,
-            divider: divider
-        )
+        standing = Standing(description: tray, contents: contents, accessory: accessory)
         apply(machine.handle(.fillsReported(tray.detent == .filling)))
         PinwheelRecorder.note("tray", "assembled, measuring \(Int(fittedHeight))")
     }
 
     private var fittedHeight: CGFloat {
         guard let standing else { return 0 }
-        let width = bounds.width - trayMargin * 2
-        return standing.titleBar.height(fitting: width)
-            + 1
-            + standing.body.contentHeight(fitting: width)
+        return standing.contents.height(fitting: bounds.width - trayMargin * 2)
     }
 
     private var accessoryInset: CGFloat { contentBottomInset }
