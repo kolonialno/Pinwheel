@@ -36,6 +36,12 @@ to change, add to it as you learn, and keep *this* file to what a session needs 
   a private API answering outright beats a stopwatch estimating.
 - **One place draws, one place decides.** Most bugs here have been the same shape: a second copy of some
   state, or a second path that animates. Delete the copy rather than syncing it.
+- **A flow with several moving parts is a value that decides, and views that draw what it decided.** It
+  earns that shape when its states multiply — leaving, editing, dragging, waiting, each true or not at
+  the same time; when something outside owns part of the timing, so *which animation carries a change*
+  is itself a value to hold; or when what must be true is true of a whole journey rather than of any
+  step in it. Keep views out of that value and every rule becomes a test, journeys included. Where none
+  of those holds, an enum and a switch are the right size, and what one view alone knows stays there.
 - **A scroll view scrolls only when its content outgrows its room.**
 - **If something should be off, turn it off — don't leave it on and undo what it does.** Undoing hides
   the effect from you, not from the code that reads the flag. And whatever it used to handle is now
