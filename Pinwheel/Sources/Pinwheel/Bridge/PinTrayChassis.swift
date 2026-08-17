@@ -31,6 +31,13 @@ final class PinTrayChassis: UIViewController {
 
     private let arriving: PinTray
 
+    private static var opened = 0
+    private let mark: String
+
+    private func note(_ category: String, _ message: String) {
+        PinwheelRecorder.note(category, "\(mark)  \(message)")
+    }
+
     init(showing tray: PinTray, nestedIn displayCornerRadius: CGFloat, covering frame: CGRect) {
         let container = UIView(frame: frame)
         let card = PinTrayCardView(nestedIn: displayCornerRadius)
@@ -39,6 +46,8 @@ final class PinTrayChassis: UIViewController {
         cardView = card
         placement = PinTrayCardPlacement(card: card, in: container)
         arriving = tray
+        PinTrayChassis.opened += 1
+        mark = "#\(PinTrayChassis.opened)"
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -83,7 +92,7 @@ final class PinTrayChassis: UIViewController {
             }
         }
         reaction.from.map { placement.place($0, alongside: dim(to: $0), animated: false) }
-        PinwheelRecorder.note(
+        note(
             "tray",
             "\(reaction.timeline)  card=\(Int(reaction.to.height)) inset=\(Int(reaction.to.bottomInset)) "
                 + "translation=\(Int(reaction.to.translation))  phase=\(machine.phase) fills=\(machine.fills) "
@@ -119,6 +128,8 @@ final class PinTrayChassis: UIViewController {
         willMove(toParent: nil)
         view.removeFromSuperview()
         removeFromParent()
+        note("navigation", "torn down")
+        onGone()
         PinwheelRecorder.stopFollowing()
     }
 
@@ -132,6 +143,7 @@ final class PinTrayChassis: UIViewController {
     var bottomCornerRadius: CGFloat { cardView.layer.cornerRadius }
 
     var onBackgroundDismiss: () -> Void = {}
+    var onGone: () -> Void = {}
     var onExit: () -> Void = {}
     var motionIsReduced: Bool {
         get { machine.motionIsReduced }
@@ -181,6 +193,7 @@ final class PinTrayChassis: UIViewController {
             )
         }
 
+        PinwheelRecorder.noteIfAlreadyFollowing("tray \(mark)")
         PinwheelRecorder.follow { [weak self] in
             guard let self else { return [] }
             let drawn = self.cardView.layer.presentation()
@@ -223,7 +236,7 @@ final class PinTrayChassis: UIViewController {
     }
 
     private func present(_ tray: PinTray) {
-        PinwheelRecorder.note("navigation", "present")
+        note("navigation", "present")
         assemble(tray)
         apply(machine.handle(.presented(contentHeight: fittedHeight)))
     }
@@ -235,7 +248,7 @@ final class PinTrayChassis: UIViewController {
     }
 
     func show(_ tray: PinTray, isPush: Bool) {
-        PinwheelRecorder.note("navigation", isPush ? "push" : "pop")
+        note("navigation", isPush ? "push" : "pop")
         apply(machine.handle(.moveBegan(isPush: isPush)))
 
         let leaving = standing
@@ -270,7 +283,7 @@ final class PinTrayChassis: UIViewController {
     }
 
     func dismiss() {
-        PinwheelRecorder.note("navigation", "dismiss")
+        note("navigation", "dismiss")
         apply(machine.handle(.dismissed))
     }
 
@@ -341,7 +354,7 @@ final class PinTrayChassis: UIViewController {
             : contentBottomInset
         standing = Standing(description: tray, contents: contents)
         apply(machine.handle(.fillsReported(tray.detent == .filling)))
-        PinwheelRecorder.note("tray", "assembled, measuring \(Int(fittedHeight))")
+        note("tray", "assembled, measuring \(Int(fittedHeight))")
     }
 
     private var fittedHeight: CGFloat {
@@ -355,12 +368,12 @@ final class PinTrayChassis: UIViewController {
         let measured = fittedHeight
         guard self.standing != nil, machine.resizes(to: measured) else { return }
         let standing = machine.geometry.height
-        PinwheelRecorder.note("reported", "content measures \(Int(measured))  standing=\(Int(standing))")
+        note("reported", "content measures \(Int(measured))  standing=\(Int(standing))")
         apply(machine.handle(.contentResized(measured)))
     }
 
     @objc private func dismissFromBackground() {
-        PinwheelRecorder.note("navigation", "backdrop tapped")
+        note("navigation", "backdrop tapped")
         onBackgroundDismiss()
     }
 

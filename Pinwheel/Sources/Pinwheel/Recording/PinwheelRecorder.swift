@@ -28,6 +28,11 @@ public enum PinwheelRecorder {
         session?.follow(sample)
     }
 
+    /// One sample closure at a time, so a second follower means a second of whatever follows.
+    static func noteIfAlreadyFollowing(_ who: String) {
+        session?.noteIfFollowing(who)
+    }
+
     static func stopFollowing() {
         session?.follow(nil)
     }
@@ -84,6 +89,11 @@ public enum PinwheelRecorder {
         func write(_ category: String, _ message: String) {
             let line = String(format: "%8.3f  %-9@  %@", CACurrentMediaTime() - start, category as NSString, message as NSString)
             handle?.write(Data((line + "\n").utf8))
+        }
+
+        func noteIfFollowing(_ who: String) {
+            guard sample != nil else { return }
+            write("session", "\(who) began following while something else still was — two are on screen")
         }
 
         func follow(_ sample: (() -> [(String, CGFloat)])?) {

@@ -26,8 +26,9 @@ final class PinTrayPathSync<Item: Hashable> {
         defer { shown = path }
 
         guard let top = path.last else {
+            // The reference stays until it has actually gone: a tray on its way out can be caught and
+            // stood back up, and forgetting it here is what let a second one open over the top.
             overlay?.dismiss()
-            overlay = nil
             return
         }
 
@@ -51,6 +52,7 @@ final class PinTrayPathSync<Item: Hashable> {
         created.depth = path.count - 1
         created.onBackgroundDismiss = { [weak self] in self?.dismissAll() }
         created.onExit = { [weak self] in self?.exit() }
+        created.onGone = { [weak self] in self?.overlay = nil }
 
         container.addChild(created)
         container.view.addSubview(created.view, filling: .all)
