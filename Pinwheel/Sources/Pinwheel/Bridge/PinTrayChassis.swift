@@ -111,7 +111,6 @@ final class PinTrayChassis: UIView {
 
     var onBackgroundDismiss: () -> Void = {}
     var onExit: () -> Void = {}
-    /// Reduce Motion is the system's to set, so it arrives as a report the machine holds.
     var motionIsReduced: Bool {
         get { machine.motionIsReduced }
         set { machine.motionIsReduced = newValue }
@@ -310,7 +309,7 @@ final class PinTrayChassis: UIView {
         accessory.show(
             accessoryLeaf(tray),
             isCommitButton: tray.standsACommitButton,
-            animated: standing != nil,
+            replacing: standing != nil,
             over: trayResizeDuration
         )
         layoutIfNeeded()

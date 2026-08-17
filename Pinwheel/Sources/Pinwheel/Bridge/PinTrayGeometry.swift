@@ -47,7 +47,6 @@ struct PinTrayGeometry: Equatable {
     let contentBottomInset: CGFloat
     let bottomCornerRadius: CGFloat
     let dimming: CGFloat
-    /// How far above the keyboard's own guide the card's bottom stands.
     let clearanceAboveGuide: CGFloat
 
     static func clearanceAboveAccessory(floats: Bool) -> CGFloat {
@@ -87,8 +86,7 @@ extension PinTrayGeometry {
     /// Apple's own curve, `(x·d·c) / (d + c·x)` — checked against
     /// `-[UIScrollView _rubberBandOffsetForOffset:maxOffset:minOffset:range:outside:]` and equal to the
     /// penny at every pull, with `_currentRubberBandCoefficient` reading 0.55. Calling the private one
-    /// would put a private selector in every app that links this library. It diverges in `d` alone:
-    /// Apple passes the view's own dimension, a tray passes `trayLift`.
+    /// would put a private selector in every app that links this library.
     static func travel(forDrag offset: CGFloat) -> CGFloat {
         guard offset < 0 else { return offset }
         let pulled = -offset * trayRubberBanding

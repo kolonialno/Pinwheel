@@ -22,8 +22,6 @@ final class TrayKeyboardCornerTests: XCTestCase {
     }
 
     func testATrayRidingTheKeyboardWearsItsOwnCornersRatherThanTheDisplays() throws {
-        // Without the app's own scene the keyboard layout guide tracks nothing and the card never
-        // lifts, which reads exactly like the bug being absent.
         let scene = try XCTUnwrap(
             UIApplication.shared.connectedScenes.first as? UIWindowScene,
             "the host app has no window scene"

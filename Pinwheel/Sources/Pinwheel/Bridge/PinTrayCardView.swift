@@ -74,8 +74,7 @@ final class PinTrayCardView: UIView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("PinTrayCardView is made in code") }
 
-    /// Where the card stands, written without laying out — for a move the keyboard's own animation
-    /// carries. Laying out here re-enters layout, since that is where a keyboard is measured.
+    /// Laying out here re-enters layout, since layout is where a keyboard is measured.
     func stands(at geometry: PinTrayGeometry) {
         layer.cornerRadius = geometry.bottomCornerRadius
         height.constant = geometry.height

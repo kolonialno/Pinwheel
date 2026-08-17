@@ -80,8 +80,7 @@ struct PinTrayDemo: View {
     private func reach(selection: Binding<Int>, travels: Bool = false) -> some View {
         TierWheel(tiers: tiers, selection: selection, travels: travels)
             .frame(height: 156)
-        // The wheel insets its own selection band inside its frame, so it reaches back out by that
-        // much to put the band on the same edge as its siblings.
+        // The wheel insets its selection band inside its frame, so it reaches back out by that much.
         .padding(.horizontal, -.spacing2)
     }
 

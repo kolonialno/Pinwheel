@@ -1,8 +1,7 @@
 import CoreGraphics
 import Foundation
 
-/// Measured off the reference: a settle of about a third of a second with a barely-there overshoot,
-/// whose duration scales with distance, which is a spring rather than a timed curve.
+/// Measured off the reference: a third of a second, a barely-there overshoot, scaling with distance.
 let trayResizeDuration: TimeInterval = 0.30
 let trayResizeBounce: CGFloat = 0.10
 let trayZoom: CGFloat = 1.08

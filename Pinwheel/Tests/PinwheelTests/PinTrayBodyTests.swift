@@ -14,8 +14,8 @@ final class PinTrayBodyTests: XCTestCase {
         )
     }
 
-    /// Sized by constraints, the way the card sizes it. A frame written on it hands the hosting view a
-    /// height it never had to work out, so the test stops measuring what it claims to.
+    /// A frame written on it hands the hosting view a height it never had to work out, so the test
+    /// stops measuring what it claims to.
     private func attachedBody(showing content: AnyView) -> PinTrayBodyView {
         let parent = UIViewController()
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 400, height: 500))

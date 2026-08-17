@@ -1,8 +1,7 @@
 import SwiftUI
 import UIKit
 
-/// What stands at the bottom of the card. It belongs to the card rather than to a tray, because a
-/// button that ends a flow outlives the tray that declared it.
+/// What stands at the bottom of the card: a tray's floating content, or the button that ends the flow.
 @MainActor
 final class PinTrayAccessoryView: UIView {
     private var standing: (view: PinTrayLeafView, isCommitButton: Bool)?
@@ -27,12 +26,11 @@ final class PinTrayAccessoryView: UIView {
         CGSize(width: UIView.noIntrinsicMetric, height: height)
     }
 
-    /// `animated` is false for a tray arriving on its own, which has nothing to fade against.
-    func show(_ leaf: AnyView?, isCommitButton: Bool, animated: Bool, over duration: TimeInterval) {
+    func show(_ leaf: AnyView?, isCommitButton: Bool, replacing: Bool, over duration: TimeInterval) {
         let leaving = standing
         guard let leaf else {
             standing = nil
-            fade(leaving?.view, to: 0, animated: animated, over: duration) { $0.detach() }
+            fade(leaving?.view, to: 0, animated: replacing, over: duration) { $0.detach() }
             return
         }
 
@@ -46,14 +44,14 @@ final class PinTrayAccessoryView: UIView {
             arriving.bottomAnchor.constraint(equalTo: bottomAnchor),
         ])
 
-        let holds = animated && leaving?.isCommitButton == true && isCommitButton
-        arriving.alpha = holds || !animated ? 1 : 0
+        let holds = replacing && leaving?.isCommitButton == true && isCommitButton
+        arriving.alpha = holds || !replacing ? 1 : 0
         if holds, let leaving { bringSubviewToFront(leaving.view) }
 
         standing = (arriving, isCommitButton)
         invalidateIntrinsicContentSize()
 
-        guard animated else {
+        guard replacing else {
             leaving?.view.detach()
             leaving?.view.removeFromSuperview()
             return

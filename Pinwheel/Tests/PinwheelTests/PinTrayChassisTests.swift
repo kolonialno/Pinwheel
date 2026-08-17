@@ -134,7 +134,7 @@ final class PinTrayChassisTests: XCTestCase {
         overlay.show(boost, isPush: false)
         window.layoutIfNeeded()
 
-        // The card still slides up, as Apple's own sheets do. What goes is the scale on its contents.
+        // The card still slides up, as Apple's own sheets do; what goes is the scale on its contents.
         XCTAssertFalse(
             dissolvingInFlight(in: overlay).contains("transform"),
             "the contents cross-dissolve without scaling: \(dissolvingInFlight(in: overlay))"
