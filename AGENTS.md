@@ -53,7 +53,9 @@ These put them there; the section below says where the test then goes.
   outside owns part of the timing, so *which animation carries a change* is itself a value to hold; or
   when what must hold is true across a whole sequence rather than at any one moment in it. Keep views
   out of that value and every rule becomes a test, sequences included. Where none of those holds, an
-  enum and a switch are the right size, and what one view alone knows stays there.
+  enum and a switch are the right size, and what one view alone knows stays there. Multiplying is the
+  test: flags stay flags for as long as none of them changes what the others mean, however many there
+  are.
 - **Containment is a UIKit job.** SwiftUI supplies leaves — a row, a title, a field. Anything that holds,
   lays out, scrolls or routes a gesture is a `UIView` we own, which makes it an ordinary object with an
   ordinary frame that a test reads directly, with nothing inferred from a picture. Asking SwiftUI to
