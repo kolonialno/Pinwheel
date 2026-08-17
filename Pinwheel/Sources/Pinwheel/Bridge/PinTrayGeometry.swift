@@ -11,6 +11,7 @@ let trayLift: CGFloat = .spacing8
 let trayRubberBanding: CGFloat = 0.55
 let trayDecelerationRate: CGFloat = 0.99
 let trayThrowSpeed: CGFloat = 250
+let traySpringLaunchCeiling: CGFloat = 10 / trayResizeDuration
 let trayBackdropReach: CGFloat = .minimumControlHeight
 
 struct PinTrayGeometry: Equatable {
@@ -97,6 +98,8 @@ extension PinTrayGeometry {
 
 extension PinTrayGeometry {
     static func springVelocity(travelling: CGFloat, releasedAt velocity: CGFloat) -> CGFloat {
-        abs(travelling) > 1 ? velocity / travelling : 0
+        guard travelling != 0 else { return 0 }
+        let crossingsPerSecond = velocity / travelling
+        return min(max(crossingsPerSecond, -traySpringLaunchCeiling), traySpringLaunchCeiling)
     }
 }

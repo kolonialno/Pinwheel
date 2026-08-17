@@ -124,4 +124,42 @@ extension PinTrayGeometryTests {
             "a button is not floated over, so content stands off it like any other group"
         )
     }
+
+    func testAThrowStartsTheSpringAtTheSpeedTheFingerLetGoAt() {
+        XCTAssertEqual(
+            PinTrayGeometry.springVelocity(travelling: 200, releasedAt: 1200), 6, accuracy: 0.001,
+            "a spring's initial velocity is a fraction of the distance per second, so 1200pt/s over 200pt is 6"
+        )
+    }
+
+    func testAReleaseWithNoSpeedStartsTheSpringAtRest() {
+        XCTAssertEqual(
+            PinTrayGeometry.springVelocity(travelling: 200, releasedAt: 0), 0, accuracy: 0.001,
+            "a finger that was not moving hands the spring nothing"
+        )
+    }
+
+    func testAThrowUpwardsKeepsItsDirection() {
+        XCTAssertEqual(
+            PinTrayGeometry.springVelocity(travelling: -200, releasedAt: -1200), 6, accuracy: 0.001,
+            "travelling and speed share a sign, so the ratio stays positive going either way"
+        )
+    }
+
+    func testAFlickThatHasNowhereLeftToTravelDoesNotLaunchTheSpring() {
+        XCTAssertEqual(
+            PinTrayGeometry.springVelocity(travelling: 0, releasedAt: 1200), 0, accuracy: 0.001,
+            "nothing left to cross means there is no distance to express the speed as a fraction of"
+        )
+    }
+
+    func testAFlickWithNowhereLeftToGoIsNotLaunchedHarderThanOneWithRoom() {
+        let sameSpeed: CGFloat = 1200
+        let withRoom = PinTrayGeometry.springVelocity(travelling: 200, releasedAt: sameSpeed)
+        let withAlmostNone = PinTrayGeometry.springVelocity(travelling: 1.5, releasedAt: sameSpeed)
+        XCTAssertLessThanOrEqual(
+            withAlmostNone, withRoom * 10,
+            "one finger speed, so a short remaining travel must not fling the spring: \(withAlmostNone) against \(withRoom)"
+        )
+    }
 }
