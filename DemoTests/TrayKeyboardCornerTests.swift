@@ -37,7 +37,7 @@ final class TrayKeyboardCornerTests: XCTestCase {
         let boost = PinTray("Boost") { Color.clear.frame(height: 300) }.commit("Boost Post") {}
         let region = PinTray("Region") { Editable().frame(height: 44) }.detent(.filling)
 
-        let overlay = PinTrayOverlay(in: root, showing: boost)
+        let overlay = PinTrayChassis(in: root, showing: boost)
         window.layoutIfNeeded()
         settle(window) { overlay.bottomCornerRadius > 0 }
 

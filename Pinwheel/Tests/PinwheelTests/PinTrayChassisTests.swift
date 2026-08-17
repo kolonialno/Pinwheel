@@ -4,13 +4,13 @@ import XCTest
 
 @MainActor
 final class PinTrayChassisTests: XCTestCase {
-    private func standing(_ tray: PinTray) -> (PinTrayOverlay, UIWindow) {
+    private func standing(_ tray: PinTray) -> (PinTrayChassis, UIWindow) {
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 420, height: 912))
         let root = UIViewController()
         window.rootViewController = root
         window.isHidden = false
 
-        let overlay = PinTrayOverlay(in: root, showing: tray)
+        let overlay = PinTrayChassis(in: root, showing: tray)
         window.layoutIfNeeded()
         return (overlay, window)
     }
@@ -166,17 +166,17 @@ extension PinTrayChassisTests {
 
 extension PinTrayChassisTests {
     func testTheLastTrayExitsTheFlowAndADeeperOneGoesBackAStep() {
-        XCTAssertEqual(PinTrayCoordinator<Int>.exited([1]), [], "the last tray standing closes the flow")
-        XCTAssertEqual(PinTrayCoordinator<Int>.exited([1, 2]), [1], "a pushed one goes back a step")
-        XCTAssertEqual(PinTrayCoordinator<Int>.exited([]), [], "with nothing standing there is nothing to exit")
+        XCTAssertEqual(PinTraySync<Int>.exited([1]), [], "the last tray standing closes the flow")
+        XCTAssertEqual(PinTraySync<Int>.exited([1, 2]), [1], "a pushed one goes back a step")
+        XCTAssertEqual(PinTraySync<Int>.exited([]), [], "with nothing standing there is nothing to exit")
     }
 
     func testAPathThatGrowsOrHoldsArrivesLikeAPushAndOneThatShrinksLikeAPop() {
-        XCTAssertTrue(PinTrayCoordinator<Int>.isPush(to: 2, from: 1), "deeper is a push")
+        XCTAssertTrue(PinTraySync<Int>.isPush(to: 2, from: 1), "deeper is a push")
         XCTAssertTrue(
-            PinTrayCoordinator<Int>.isPush(to: 1, from: 1),
+            PinTraySync<Int>.isPush(to: 1, from: 1),
             "and one tray replacing another at the same depth arrives the same way"
         )
-        XCTAssertFalse(PinTrayCoordinator<Int>.isPush(to: 1, from: 2), "shallower is a pop")
+        XCTAssertFalse(PinTraySync<Int>.isPush(to: 1, from: 2), "shallower is a pop")
     }
 }

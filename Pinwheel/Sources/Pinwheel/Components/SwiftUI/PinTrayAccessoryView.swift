@@ -1,12 +1,8 @@
 import SwiftUI
 import UIKit
 
-/// What stands at the bottom of the card: a tray's floating content, or the button that ends the flow.
-///
-/// It belongs to the card rather than to a tray, because a button that ends a flow outlives the tray it
-/// was declared on. Where the tray arriving stands the same kind of thing, this holds what it has and
-/// lets the one being left fade off it, so the pill never lightens. Where it stands something else, the
-/// two cross-dissolve like everything else in a move.
+/// What stands at the bottom of the card. It belongs to the card rather than to a tray, because a
+/// button that ends a flow outlives the tray that declared it.
 @MainActor
 final class PinTrayAccessoryView: UIView {
     private var standing: (view: PinTrayLeafView, isCommitButton: Bool)?
@@ -31,9 +27,7 @@ final class PinTrayAccessoryView: UIView {
         CGSize(width: UIView.noIntrinsicMetric, height: height)
     }
 
-    /// Puts `leaf` at the bottom of the card, taking whatever is already there off it.
-    ///
-    /// `animated` is false for a tray arriving on its own — there is nothing to fade against.
+    /// `animated` is false for a tray arriving on its own, which has nothing to fade against.
     func show(_ leaf: AnyView?, isCommitButton: Bool, animated: Bool, over duration: TimeInterval) {
         let leaving = standing
         guard let leaf else {

@@ -9,85 +9,7 @@ extension UIScreen {
     }
 }
 
-extension SwiftUI.View {
-    public func pinwheelTray<Item: Hashable>(
-        path: SwiftUI.Binding<[Item]>,
-        content: @escaping (Item) -> PinTray
-    ) -> some SwiftUI.View {
-        background(PinTrayPresenter(path: path, content: content))
-    }
-}
-
-private struct PinTrayPresenter<Item: Hashable>: UIViewControllerRepresentable {
-    @SwiftUI.Binding var path: [Item]
-    let content: (Item) -> PinTray
-
-    func makeCoordinator() -> PinTrayCoordinator<Item> {
-        PinTrayCoordinator()
-    }
-
-    func makeUIViewController(context: Context) -> UIViewController {
-        UIViewController()
-    }
-
-    func updateUIViewController(_ controller: UIViewController, context: Context) {
-        let coordinator = context.coordinator
-        coordinator.dismissAll = { path.removeAll() }
-        coordinator.exit = { path = PinTrayCoordinator<Item>.exited(path) }
-        coordinator.sync(path: path, from: controller, tray: content)
-    }
-}
-
-final class PinTrayCoordinator<Item: Hashable> {
-    private var overlay: PinTrayOverlay?
-    private var shown: [Item] = []
-
-    var dismissAll: () -> Void = {}
-    var exit: () -> Void = {}
-
-    static func isPush(to arriving: Int, from standing: Int) -> Bool { arriving >= standing }
-
-    static func exited(_ path: [Item]) -> [Item] { Array(path.dropLast()) }
-
-    func sync(
-        path: [Item],
-        from presenter: UIViewController,
-        tray: (Item) -> PinTray
-    ) {
-        guard path != shown else {
-            if let top = path.last {
-                overlay?.refresh(tray(top))
-            }
-            return
-        }
-        defer { shown = path }
-
-        guard let top = path.last else {
-            overlay?.dismiss()
-            overlay = nil
-            return
-        }
-
-        let description = tray(top)
-
-        if let overlay {
-            overlay.depth = path.count - 1
-            overlay.show(description, isPush: Self.isPush(to: path.count, from: shown.count))
-            return
-        }
-
-        guard var container = presenter.view.window?.rootViewController else { return }
-        while let presented = container.presentedViewController { container = presented }
-
-        let created = PinTrayOverlay(in: container, showing: description)
-        created.depth = path.count - 1
-        created.onBackgroundDismiss = { [weak self] in self?.dismissAll() }
-        created.onExit = { [weak self] in self?.exit() }
-        overlay = created
-    }
-}
-
-final class PinTrayOverlay: UIView {
+final class PinTrayChassis: UIView {
     private let dimming = UIView()
     private let displayRadius: CGFloat
     private let cardView: PinTrayCardView
@@ -117,7 +39,7 @@ final class PinTrayOverlay: UIView {
     }
 
     @available(*, unavailable)
-    required init?(coder: NSCoder) { fatalError("PinTrayOverlay is made in code") }
+    required init?(coder: NSCoder) { fatalError("PinTrayChassis is made in code") }
 
     private var room: PinTrayGeometry.Room {
         PinTrayGeometry.Room(
@@ -434,7 +356,7 @@ final class PinTrayOverlay: UIView {
     }
 }
 
-extension PinTrayOverlay: PinTrayBodyCoordinating {
+extension PinTrayChassis: PinTrayBodyCoordinating {
     var cardIsBeingPulled: Bool { machine.cardIsBeingPulled }
 
     func bodyWillBeginPulling() {
@@ -451,7 +373,7 @@ extension PinTrayOverlay: PinTrayBodyCoordinating {
     }
 }
 
-extension PinTrayOverlay: PinTrayCardReporting {
+extension PinTrayChassis: PinTrayCardReporting {
     var pulledSoFar: CGFloat { machine.pulledSoFar }
 
     func cardWasCaught(at travelled: CGFloat) {

@@ -1,11 +1,7 @@
 import SwiftUI
 import UIKit
 
-/// A tray's title bar, the rule under it, and the body — laid out together and faded together.
-///
-/// One view rather than three, because a move fades a tray out while an accessory stands over it: as
-/// separate views each one fades against the others, and a row behind the accessory shows through it.
-/// Measured on a white ground half way through a fade, that pixel reads 183 where one picture reads 247.
+/// One view rather than three: faded separately, a row behind the accessory shows through it.
 @MainActor
 final class PinTrayContentsView: UIView {
     private let titleBar: PinTrayLeafView

@@ -1,10 +1,7 @@
 import UIKit
 
-/// The card a tray is drawn on. It stands where a geometry says, travels there on the timeline it is
-/// given, and keeps the animation it is running so a finger landing on a moving card can take it over.
 @MainActor
 final class PinTrayCardView: UIView {
-    /// What the card holds: a tray's contents, and whatever stands at its bottom.
     let surface = UIView()
 
     weak var reporting: PinTrayCardReporting?
@@ -37,8 +34,8 @@ final class PinTrayCardView: UIView {
         ])
     }
 
-    /// Joins the view it is drawn in, and takes its constraints from that view's guides. Separate from
-    /// `init` because those guides belong to a view that cannot exist until this one does.
+    /// Separate from `init` because these constraints come from guides on a view that cannot exist
+    /// until this one does.
     func attach(to parent: UIView) {
         parent.addSubview(self)
         let pan = UIPanGestureRecognizer(target: self, action: #selector(drag))
@@ -77,8 +74,6 @@ final class PinTrayCardView: UIView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("PinTrayCardView is made in code") }
 
-    /// Everything about where the card stands, in one place — so a path that moves it cannot move it
-    /// wearing the wrong corner.
     /// Where the card stands, written without laying out — for a move the keyboard's own animation
     /// carries. Laying out here re-enters layout, since that is where a keyboard is measured.
     func stands(at geometry: PinTrayGeometry) {
@@ -87,7 +82,6 @@ final class PinTrayCardView: UIView {
         offset.constant = -geometry.clearanceAboveGuide
     }
 
-    /// How far the card has travelled from where it stands.
     var travelled: CGFloat { transform.ty }
 
     var isTravelling: Bool { motion?.isRunning == true }
@@ -176,8 +170,6 @@ extension PinTrayCardView {
 }
 
 extension PinTrayCardView: UIGestureRecognizerDelegate {
-    /// A list that can still scroll keeps the touch; the card takes it only where the list has nowhere
-    /// left to go.
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
         var view = touch.view
         while let candidate = view, candidate !== self {
