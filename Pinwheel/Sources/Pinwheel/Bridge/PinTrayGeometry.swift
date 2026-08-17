@@ -94,3 +94,9 @@ extension PinTrayGeometry {
         return velocity * trayDecelerationRate / (1 - trayDecelerationRate)
     }
 }
+
+extension PinTrayGeometry {
+    static func springVelocity(travelling: CGFloat, releasedAt velocity: CGFloat) -> CGFloat {
+        abs(travelling) > 1 ? velocity / travelling : 0
+    }
+}

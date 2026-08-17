@@ -107,23 +107,21 @@ final class PinTrayCardView: UIView {
         alongside: @escaping () -> Void,
         animated: Bool,
         bounce: CGFloat = trayResizeBounce,
-        velocity: CGFloat = 0,
+        startingAt initialVelocity: CGFloat = 0,
         then finish: @escaping () -> Void = {}
     ) {
-        let travelling = geometry.translation - transform.ty
         let draw = {
             self.draw(geometry)
             alongside()
         }
         stopTravelling()
         guard animated else { draw(); return finish() }
-        let velocityPerPointOfTravel = abs(travelling) > 1 ? velocity / travelling : 0
         let animator = UIViewPropertyAnimator(
             duration: trayResizeDuration,
             timingParameters: UISpringTimingParameters(
                 duration: trayResizeDuration,
                 bounce: bounce,
-                initialVelocity: CGVector(dx: 0, dy: velocityPerPointOfTravel)
+                initialVelocity: CGVector(dx: 0, dy: initialVelocity)
             )
         )
         animator.addAnimations(draw)

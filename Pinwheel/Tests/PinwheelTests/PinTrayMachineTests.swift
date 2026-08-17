@@ -26,7 +26,7 @@ final class PinTrayMachineTests: XCTestCase {
         let from = try! XCTUnwrap(reaction.from)
         XCTAssertGreaterThan(from.translation, 0, "it starts below its place")
         XCTAssertEqual(reaction.to.translation, 0, "and travels to it")
-        XCTAssertEqual(reaction.timeline, .spring(bounce: trayResizeBounce))
+        XCTAssertEqual(reaction.timeline, .spring(bounce: trayResizeBounce, initialVelocity: 0))
     }
 
     func testATrayAboutToEditHoldsStillUntilTheKeyboardMoves() {
@@ -190,7 +190,7 @@ final class PinTrayMachineTests: XCTestCase {
     func testASettledKeyboardOwnsNothing() {
         var machine = machine(edits: true)
         _ = machine.handle(.keyboardMeasured(311))
-        XCTAssertEqual(machine.handle(.contentResized(300)).timeline, .spring(bounce: 0))
+        XCTAssertEqual(machine.handle(.contentResized(300)).timeline, .spring(bounce: 0, initialVelocity: 0))
     }
 
     func testAReactionThatChangesNothingStartsNothing() {
@@ -206,7 +206,7 @@ final class PinTrayMachineTests: XCTestCase {
 
     func testContentSettlingCarriesNoBounce() {
         var machine = machine()
-        XCTAssertEqual(machine.handle(.contentResized(300)).timeline, .spring(bounce: 0))
+        XCTAssertEqual(machine.handle(.contentResized(300)).timeline, .spring(bounce: 0, initialVelocity: 0))
     }
 
     func testADragTracksTheFingerDownAndResistsItUp() {
@@ -315,7 +315,7 @@ final class PinTrayMachineTests: XCTestCase {
     func testATrayLeavingWithNoKeyboardUsesOurOwnSpring() {
         var machine = machine()
         machine.keyboardTiming = PinTrayMachine.KeyboardTiming(duration: 0.25, curve: 7)
-        XCTAssertEqual(machine.handle(.dismissed).timeline, .spring(bounce: 0))
+        XCTAssertEqual(machine.handle(.dismissed).timeline, .spring(bounce: 0, initialVelocity: 0))
     }
 
     func testDismissingWhileEditingTakesTheKeyboardWithIt() {

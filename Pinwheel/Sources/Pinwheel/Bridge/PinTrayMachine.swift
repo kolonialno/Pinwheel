@@ -61,7 +61,7 @@ struct PinTrayMachine: Equatable {
 
     enum Timeline: Equatable {
         case immediate
-        case spring(bounce: CGFloat)
+        case spring(bounce: CGFloat, initialVelocity: CGFloat)
         case carriedByKeyboard
         case matching(KeyboardTiming)
     }
@@ -89,7 +89,6 @@ struct PinTrayMachine: Equatable {
         var from: PinTrayGeometry?
         var to: PinTrayGeometry
         var timeline: Timeline
-        var velocity: CGFloat = 0
         var effects: [Effect] = []
         var dismisses = false
     }
@@ -189,7 +188,7 @@ struct PinTrayMachine: Equatable {
         case .presented(let height):
             contentHeight = height
             phase = .standing
-            return Reaction(from: geometry(.arriving), to: geometry(.resting), timeline: .spring(bounce: trayResizeBounce))
+            return Reaction(from: geometry(.arriving), to: geometry(.resting), timeline: .spring(bounce: trayResizeBounce, initialVelocity: 0))
 
         case .moved(let height, let edits, let isPush):
             guard phase != .leaving else { return Reaction(to: geometry(.leaving), timeline: .carriedByKeyboard) }
@@ -217,7 +216,7 @@ struct PinTrayMachine: Equatable {
             }
             return Reaction(
                 to: geometry(.resting),
-                timeline: .spring(bounce: trayResizeBounce),
+                timeline: .spring(bounce: trayResizeBounce, initialVelocity: 0),
                 effects: dismissesKeyboard ? [.dismissKeyboard] : []
             )
 
@@ -234,7 +233,7 @@ struct PinTrayMachine: Equatable {
             }
             return Reaction(
                 to: geometry(.resting),
-                timeline: keyboard.ownsTheTimeline || waited ? .carriedByKeyboard : .spring(bounce: 0)
+                timeline: keyboard.ownsTheTimeline || waited ? .carriedByKeyboard : .spring(bounce: 0, initialVelocity: 0)
             )
 
         case .roomChanged(let room):
@@ -248,12 +247,12 @@ struct PinTrayMachine: Equatable {
 
         case .fillsReported(let fills):
             self.fills = fills
-            return Reaction(to: geometry(.resting), timeline: .spring(bounce: 0))
+            return Reaction(to: geometry(.resting), timeline: .spring(bounce: 0, initialVelocity: 0))
 
         case .contentResized(let height):
-            guard !fills else { return Reaction(to: geometry(.resting), timeline: .spring(bounce: 0)) }
+            guard !fills else { return Reaction(to: geometry(.resting), timeline: .spring(bounce: 0, initialVelocity: 0)) }
             contentHeight = height
-            return Reaction(to: geometry(.resting), timeline: .spring(bounce: 0))
+            return Reaction(to: geometry(.resting), timeline: .spring(bounce: 0, initialVelocity: 0))
 
         case .dragged(let offset):
             pulledSoFar = offset
@@ -273,17 +272,29 @@ struct PinTrayMachine: Equatable {
             pulledSoFar = 0
             let lands = travelled + PinTrayGeometry.coast(atSpeed: velocity)
             guard lands > geometry(.leaving).translation / 2 else {
+                let resting = geometry(.resting)
                 return Reaction(
-                    to: geometry(.resting),
-                    timeline: .spring(bounce: trayResizeBounce),
-                    velocity: velocity
+                    to: resting,
+                    timeline: .spring(
+                        bounce: trayResizeBounce,
+                        initialVelocity: PinTrayGeometry.springVelocity(
+                            travelling: resting.translation - travelled,
+                            releasedAt: velocity
+                        )
+                    )
                 )
             }
             phase = .leaving
+            let leaving = geometry(.leaving)
             return Reaction(
-                to: geometry(.leaving),
-                timeline: .spring(bounce: 0),
-                velocity: velocity,
+                to: leaving,
+                timeline: .spring(
+                    bounce: 0,
+                    initialVelocity: PinTrayGeometry.springVelocity(
+                        travelling: leaving.translation - travelled,
+                        releasedAt: velocity
+                    )
+                ),
                 dismisses: true
             )
 
@@ -295,8 +306,8 @@ struct PinTrayMachine: Equatable {
                 edits = false
             }
             let timeline: Timeline = takesTheKeyboardWithIt
-                ? keyboardTiming.map(Timeline.matching) ?? .spring(bounce: 0)
-                : .spring(bounce: 0)
+                ? keyboardTiming.map(Timeline.matching) ?? .spring(bounce: 0, initialVelocity: 0)
+                : .spring(bounce: 0, initialVelocity: 0)
             return Reaction(
                 to: geometry(.leaving),
                 timeline: timeline,

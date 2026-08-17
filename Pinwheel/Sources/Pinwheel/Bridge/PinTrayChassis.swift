@@ -77,13 +77,13 @@ final class PinTrayChassis: UIView {
             cardView.writeConstants(from: reaction.to)
             dim(to: reaction.to)()
             finish()
-        case .spring(let bounce):
+        case .spring(let bounce, let initialVelocity):
             cardView.place(
                 reaction.to,
                 alongside: dim(to: reaction.to),
                 animated: true,
                 bounce: bounce,
-                velocity: reaction.velocity,
+                startingAt: initialVelocity,
                 then: finish
             )
         case .matching(let timing):
