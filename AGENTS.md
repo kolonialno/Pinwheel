@@ -28,20 +28,6 @@ to change, add to it as you learn, and keep *this* file to what a session needs 
   gestures fight across the seam, representables vanish without a scene, and children findable only by
   walking a tree somebody else owns.
 - **One file per abstraction.**
-- **Dependencies arrive through `init`** — no optionals, no defaults, no two-phase setup. If a thing
-  cannot exist without a container, a clock and something to show, it takes all three at birth. Every
-  protocol ships a real implementation and a stub, so the seam is usable from a test the day it is made.
-- **No behaviour behind a delay.** A timer is a guess about the world. If something must happen when a
-  motion ends, use the animation's completion; if it depends on what the world is doing, ask the world —
-  a private API answering outright beats a stopwatch estimating.
-- **One place draws, one place decides.** Most bugs here have been the same shape: a second copy of some
-  state, or a second path that animates. Delete the copy rather than syncing it.
-- **A flow with several moving parts is a value that decides, and views that draw what it decided.** It
-  earns that shape when its states multiply — leaving, editing, dragging, waiting, each true or not at
-  the same time; when something outside owns part of the timing, so *which animation carries a change*
-  is itself a value to hold; or when what must be true is true of a whole journey rather than of any
-  step in it. Keep views out of that value and every rule becomes a test, journeys included. Where none
-  of those holds, an enum and a switch are the right size, and what one view alone knows stays there.
 - **A scroll view scrolls only when its content outgrows its room.**
 - **If something should be off, turn it off — don't leave it on and undo what it does.** Undoing hides
   the effect from you, not from the code that reads the flag. And whatever it used to handle is now
@@ -56,6 +42,26 @@ to change, add to it as you learn, and keep *this* file to what a session needs 
   come to rest if left alone — never how fast it happened to be moving when it was released.
 - **A value the platform owns is read, never copied.** Read it and the layout is right on hardware and
   OS versions you will never see.
+
+## Built to be tested
+
+An experience is testable when the facts it rests on live somewhere a test can reach without a screen.
+These put them there; the section below says where the test then goes.
+
+- **One place draws, one place decides.** Most bugs here have been the same shape: a second copy of some
+  state, or a second path that animates. Delete the copy rather than syncing it.
+- **A flow with several moving parts is a value that decides, and views that draw what it decided.** It
+  earns that shape when its states multiply — leaving, editing, dragging, waiting, each true or not at
+  the same time; when something outside owns part of the timing, so *which animation carries a change*
+  is itself a value to hold; or when what must be true is true of a whole journey rather than of any
+  step in it. Keep views out of that value and every rule becomes a test, journeys included. Where none
+  of those holds, an enum and a switch are the right size, and what one view alone knows stays there.
+- **Dependencies arrive through `init`** — no optionals, no defaults, no two-phase setup. If a thing
+  cannot exist without a container, a clock and something to show, it takes all three at birth. Every
+  protocol ships a real implementation and a stub, so the seam is usable from a test the day it is made.
+- **No behaviour behind a delay.** A timer is a guess about the world. If something must happen when a
+  motion ends, use the animation's completion; if it depends on what the world is doing, ask the world —
+  a private API answering outright beats a stopwatch estimating.
 
 ## Testing
 
