@@ -47,6 +47,8 @@ struct PinTrayGeometry: Equatable {
     let contentBottomInset: CGFloat
     let bottomCornerRadius: CGFloat
     let dimming: CGFloat
+    /// How far above the keyboard's own guide the card's bottom stands.
+    let clearanceAboveGuide: CGFloat
 
     static func clearanceAboveAccessory(floats: Bool) -> CGFloat {
         floats ? .spacing2 : traySectionGap
@@ -65,6 +67,7 @@ struct PinTrayGeometry: Equatable {
         bottomInset = max(trayBottomMargin, lifted ? keyboardInset + trayKeyboardMargin : 0)
         bottomCornerRadius = lifted ? trayTopRadius : room.displayCornerRadius
         dimming = phase == .leaving ? 0 : 1
+        clearanceAboveGuide = bottomInset - keyboardInset
 
         let available = room.containerHeight - room.safeAreaTop - trayBackdropReach - bottomInset
         height = max(0, fills ? available : min(contentHeight, available))

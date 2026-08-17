@@ -89,12 +89,9 @@ final class PinTrayCoordinator<Item: Hashable> {
 
 final class PinTrayOverlay: UIView {
     private let dimming = UIView()
-    private let tray = UIView()
-    private let card = UIView()
-    private var height = NSLayoutConstraint()
-    private var offset = NSLayoutConstraint()
-    private var rest = NSLayoutConstraint()
-    private var displayRadius: CGFloat = .radiusL
+    private let displayRadius: CGFloat
+    private let cardView: PinTrayCardView
+    private var card: UIView { cardView.surface }
     private lazy var machine = PinTrayMachine(room: room)
 
     private struct Standing {
@@ -111,6 +108,9 @@ final class PinTrayOverlay: UIView {
     private unowned let container: UIViewController
     init(in container: UIViewController, showing tray: PinTray) {
         self.container = container
+        let radius = (container.view.window?.screen ?? UIScreen.main).pinDisplayCornerRadius
+        displayRadius = radius
+        cardView = PinTrayCardView(nestedIn: radius)
         super.init(frame: container.view.bounds)
         build()
         present(tray)
@@ -140,7 +140,7 @@ final class PinTrayOverlay: UIView {
             case .dismissKeyboard: endEditing(true)
             }
         }
-        reaction.from.map { place($0, animated: false) }
+        reaction.from.map { cardView.place($0, alongside: dim(to: $0), animated: false) }
         PinwheelRecorder.note(
             "tray",
             "\(reaction.timeline)  card=\(Int(reaction.to.height)) inset=\(Int(reaction.to.bottomInset)) "
@@ -152,14 +152,22 @@ final class PinTrayOverlay: UIView {
         let finish: () -> Void = reaction.dismisses ? { [weak self] in self?.tearDown() } : {}
         switch reaction.timeline {
         case .immediate:
-            place(reaction.to, animated: false, then: finish)
+            cardView.place(reaction.to, alongside: dim(to: reaction.to), animated: false, then: finish)
         case .carriedByKeyboard:
-            write(reaction.to)
+            cardView.stands(at: reaction.to)
+            dim(to: reaction.to)()
             finish()
         case .spring(let bounce):
-            place(reaction.to, animated: true, bounce: bounce, velocity: reaction.velocity, then: finish)
+            cardView.place(
+                reaction.to,
+                alongside: dim(to: reaction.to),
+                animated: true,
+                bounce: bounce,
+                velocity: reaction.velocity,
+                then: finish
+            )
         case .matching(let timing):
-            place(reaction.to, matching: timing, then: finish)
+            cardView.place(reaction.to, alongside: dim(to: reaction.to), matching: timing, then: finish)
         }
     }
 
@@ -170,77 +178,19 @@ final class PinTrayOverlay: UIView {
         PinwheelRecorder.stopFollowing()
     }
 
-    private func write(_ geometry: PinTrayGeometry) {
-        tray.layer.cornerRadius = geometry.bottomCornerRadius
-        height.constant = geometry.height
-        offset.constant = -(geometry.bottomInset - machine.keyboard.height)
-    }
-
-    private var motion: UIViewPropertyAnimator?
-
-    private func place(
-        _ geometry: PinTrayGeometry,
-        matching timing: PinTrayMachine.KeyboardTiming,
-        then finish: @escaping () -> Void
-    ) {
-        UIView.animate(
-            withDuration: timing.duration,
-            delay: 0,
-            options: UIView.AnimationOptions(rawValue: UInt(timing.curve) << 16),
-            animations: {
-                self.write(geometry)
-                self.tray.transform = CGAffineTransform(translationX: 0, y: geometry.translation)
-                self.dimming.alpha = geometry.dimming
-                self.layoutIfNeeded()
-            },
-            completion: { _ in finish() }
-        )
-    }
-
-    private func place(
-        _ geometry: PinTrayGeometry,
-        animated: Bool,
-        bounce: CGFloat = trayResizeBounce,
-        velocity: CGFloat = 0,
-        then finish: @escaping () -> Void = {}
-    ) {
-        let travelling = geometry.translation - tray.transform.ty
-        let draw = {
-            self.write(geometry)
-            self.tray.transform = CGAffineTransform(translationX: 0, y: geometry.translation)
-            self.dimming.alpha = geometry.dimming
-            self.layoutIfNeeded()
-        }
-        motion?.stopAnimation(true)
-        motion = nil
-        guard animated else { draw(); return finish() }
-        let velocityPerPointOfTravel = abs(travelling) > 1 ? velocity / travelling : 0
-        let animator = UIViewPropertyAnimator(
-            duration: trayResizeDuration,
-            timingParameters: UISpringTimingParameters(
-                duration: trayResizeDuration,
-                bounce: bounce,
-                initialVelocity: CGVector(dx: 0, dy: velocityPerPointOfTravel)
-            )
-        )
-        animator.addAnimations(draw)
-        animator.addCompletion { position in
-            guard position == .end else { return }
-            finish()
-        }
-        motion = animator
-        animator.startAnimation()
+    private func dim(to geometry: PinTrayGeometry) -> () -> Void {
+        { self.dimming.alpha = geometry.dimming }
     }
 
     private func catchTheMotion() {
-        guard motion?.isRunning == true else { return }
-        apply(machine.handle(.caught(at: tray.transform.ty)))
+        guard cardView.isTravelling else { return }
+        apply(machine.handle(.caught(at: cardView.travelled)))
     }
 
-    var cardHeight: CGFloat { tray.bounds.height }
+    var cardHeight: CGFloat { cardView.bounds.height }
     var contentHeight: CGFloat { standing?.contents.bounds.height ?? 0 }
     var cardBottom: CGFloat { card.convert(card.bounds, to: self).maxY }
-    var bottomCornerRadius: CGFloat { tray.layer.cornerRadius }
+    var bottomCornerRadius: CGFloat { cardView.layer.cornerRadius }
 
     var onBackgroundDismiss: () -> Void = {}
     var onExit: () -> Void = {}
@@ -297,75 +247,24 @@ final class PinTrayOverlay: UIView {
 
         PinwheelRecorder.follow { [weak self] in
             guard let self else { return [] }
-            let card = self.tray.layer.presentation()
-            let top = (card?.frame.minY ?? self.tray.frame.minY) + (card?.transform.m42 ?? 0)
+            let drawn = self.cardView.layer.presentation()
+            let top = (drawn?.frame.minY ?? self.cardView.frame.minY) + (drawn?.transform.m42 ?? 0)
             let content = self.standing?.contents.layer.presentation()?.bounds.height
                 ?? self.standing?.contents.bounds.height ?? 0
             return [
                 ("cardTop", top),
-                ("cardHeight", card?.bounds.height ?? 0),
+                ("cardHeight", drawn?.bounds.height ?? 0),
                 ("contentHeight", content),
                 ("contentBottom", top + content),
                 ("keyboard", self.measuredKeyboardHeight),
             ]
         }
 
-        let screen = container.view.window?.screen ?? UIScreen.main
-        displayRadius = screen.pinDisplayCornerRadius
-        tray.translatesAutoresizingMaskIntoConstraints = false
-        tray.layer.cornerRadius = displayRadius
-        tray.layer.maskedCorners = [.layerMinXMaxYCorner, .layerMaxXMaxYCorner]
-        tray.layer.cornerCurve = .continuous
-        tray.clipsToBounds = true
-        addSubview(tray)
-
-        card.translatesAutoresizingMaskIntoConstraints = false
-        card.backgroundColor = .primaryBackground
-        card.layer.cornerRadius = trayTopRadius
-        card.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
-        card.layer.cornerCurve = .continuous
-        card.clipsToBounds = true
-        tray.addSubview(card)
-
-        // The keyboard runs out of process and posts its notifications asynchronously, so anything
-        // driven off them races its animation; a constraint to this guide is carried by that animation.
-        keyboardLayoutGuide.usesBottomSafeArea = false
-        height = tray.heightAnchor.constraint(equalToConstant: 0)
-        let topLimit = tray.topAnchor.constraint(
-            greaterThanOrEqualTo: safeAreaLayoutGuide.topAnchor,
-            constant: trayMargin
-        )
-
-        height.priority = .defaultHigh
-        offset = tray.bottomAnchor.constraint(
-            equalTo: keyboardLayoutGuide.topAnchor,
-            constant: -trayBottomMargin
-        )
-        let lifted = tray.bottomAnchor.constraint(
-            equalTo: keyboardLayoutGuide.topAnchor,
-            constant: -trayKeyboardMargin
-        )
-        // Toggling these by hand from layoutSubviews re-enters layout and UIKit throws.
-        offset.priority = UILayoutPriority(999)
-        lifted.priority = UILayoutPriority(999)
-        keyboardLayoutGuide.setConstraints([offset], activeWhenNearEdge: .bottom)
-        keyboardLayoutGuide.setConstraints([lifted], activeWhenAwayFrom: .bottom)
-
-        rest = tray.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -trayBottomMargin)
-        NSLayoutConstraint.activate([
-            tray.leadingAnchor.constraint(equalTo: leadingAnchor, constant: trayMargin),
-            tray.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -trayMargin),
-            topLimit,
-            height,
-            card.leadingAnchor.constraint(equalTo: tray.leadingAnchor),
-            card.trailingAnchor.constraint(equalTo: tray.trailingAnchor),
-            card.topAnchor.constraint(equalTo: tray.topAnchor),
-            card.bottomAnchor.constraint(equalTo: tray.bottomAnchor),
-        ])
+        cardView.attach(to: self)
 
         let pan = UIPanGestureRecognizer(target: self, action: #selector(drag))
         pan.delegate = self
-        tray.addGestureRecognizer(pan)
+        cardView.addGestureRecognizer(pan)
     }
 
     private var holdsFirstResponder: Bool {
@@ -577,7 +476,7 @@ extension PinTrayOverlay: PinTrayBodyCoordinating {
 extension PinTrayOverlay: UIGestureRecognizerDelegate {
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
         var view = touch.view
-        while let candidate = view, candidate !== tray {
+        while let candidate = view, candidate !== cardView {
             if let scroll = candidate as? UIScrollView, scroll.isScrollEnabled { return false }
             view = candidate.superview
         }
