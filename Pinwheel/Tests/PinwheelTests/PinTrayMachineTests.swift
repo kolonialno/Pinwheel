@@ -343,3 +343,29 @@ extension PinTrayMachineTests {
         XCTAssertEqual(machine.contentZoom, 1, "asked for less motion, the content crossfades in place")
     }
 }
+
+extension PinTrayMachineTests {
+    func testTheMachineAddsUpAPullThatIsOnlyEverReportedInSlices() {
+        var machine = machine()
+        _ = machine.handle(.pulledFurther(10))
+        _ = machine.handle(.pulledFurther(10))
+        let third = machine.handle(.pulledFurther(10))
+
+        XCTAssertEqual(
+            third.to.translation,
+            PinTrayGeometry.travel(forDrag: 30),
+            accuracy: 0.5,
+            "three tenths of the way down is thirty points from where it started"
+        )
+        XCTAssertTrue(machine.cardIsBeingPulled, "and the card knows it has the gesture")
+    }
+
+    func testAPullTakenAllTheWayBackHandsTheListOnward() {
+        var machine = machine()
+        _ = machine.handle(.pulledFurther(40))
+        let back = machine.handle(.pulledFurther(-60))
+
+        XCTAssertEqual(back.to.translation, 0, accuracy: 0.5, "the card is back where it stood")
+        XCTAssertFalse(machine.cardIsBeingPulled, "so the gesture is the list's again")
+    }
+}

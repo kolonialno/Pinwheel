@@ -566,7 +566,7 @@ final class PinTrayOverlay: UIView {
         switch gesture.state {
         case .began:
             catchTheMotion()
-            gesture.setTranslation(CGPoint(x: 0, y: machine.dragOffset), in: self)
+            gesture.setTranslation(CGPoint(x: 0, y: machine.pulledSoFar), in: self)
         case .changed:
             apply(machine.handle(.dragged(travelled)))
         case .ended, .cancelled:
@@ -587,13 +587,14 @@ final class PinTrayOverlay: UIView {
 }
 
 extension PinTrayOverlay: PinTrayBodyCoordinating {
-    func bodyWillBeginPulling() -> CGFloat {
+    var cardIsBeingPulled: Bool { machine.cardIsBeingPulled }
+
+    func bodyWillBeginPulling() {
         catchTheMotion()
-        return machine.dragOffset
     }
 
     func bodyWasPulledDown(by amount: CGFloat) {
-        apply(machine.handle(.dragged(amount)))
+        apply(machine.handle(.pulledFurther(amount)))
     }
 
     func bodyStoppedBeingPulled(velocity: CGFloat) {

@@ -80,17 +80,6 @@ final class PinTrayBodyTests: XCTestCase {
         )
     }
 
-    func testAPullTakenAllTheWayBackHandsTheListOnward() {
-        let body = attachedBody(showing: rows(60))
-        let reports = PinTrayBodyReports()
-        body.coordinating = reports
-
-        body.wasPulled(pastTheTop: 40)
-        body.wasPulled(pastTheTop: -60)
-
-        XCTAssertEqual(reports.pulls.last ?? -1, 0, accuracy: 0.5, "the card is back where it stood")
-    }
-
     func testOnlyABodyOutgrowingItsRoomScrolls() {
         XCTAssertFalse(
             attachedBody(showing: rows(2)).scrolls,
@@ -102,7 +91,7 @@ final class PinTrayBodyTests: XCTestCase {
         )
     }
 
-    func testAPullReportsHowFarTheFingerHasComeNotTheLastFrame() {
+    func testABodyReportsEachSliceOfAPullAndKeepsNoRunningTotal() {
         let body = attachedBody(showing: rows(60))
         let reports = PinTrayBodyReports()
         body.coordinating = reports
@@ -111,11 +100,6 @@ final class PinTrayBodyTests: XCTestCase {
         body.wasPulled(pastTheTop: 10)
         body.wasPulled(pastTheTop: 10)
 
-        XCTAssertEqual(
-            reports.pulls.last ?? 0,
-            30,
-            accuracy: 0.5,
-            "three tenths of the way down is thirty points from where it started"
-        )
+        XCTAssertEqual(reports.pulls, [10, 10, 10], "each frame's own slice, added up by whoever holds it")
     }
 }

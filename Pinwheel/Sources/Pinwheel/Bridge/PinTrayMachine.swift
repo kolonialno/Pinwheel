@@ -72,6 +72,7 @@ struct PinTrayMachine: Equatable {
         case contentResized(CGFloat)
         case keyboardMeasured(CGFloat)
         case dragged(CGFloat)
+        case pulledFurther(CGFloat)
         case caught(at: CGFloat)
         case released(velocity: CGFloat)
         case dismissed
@@ -93,9 +94,12 @@ struct PinTrayMachine: Equatable {
     private(set) var fills = false
     private var arriving: Arriving?
     private(set) var edits = false
-    private(set) var dragOffset: CGFloat = 0
+    private(set) var pulledSoFar: CGFloat = 0
+    var dragOffset: CGFloat { PinTrayGeometry.travel(forDrag: pulledSoFar) }
     private(set) var room: PinTrayGeometry.Room
     var keyboardTiming: KeyboardTiming?
+
+    var cardIsBeingPulled: Bool { pulledSoFar > 0 }
 
     init(room: PinTrayGeometry.Room) {
         self.room = room
@@ -235,17 +239,21 @@ struct PinTrayMachine: Equatable {
             return Reaction(to: geometry(.resting), timeline: .spring(bounce: 0))
 
         case .dragged(let offset):
-            dragOffset = PinTrayGeometry.travel(forDrag: offset)
+            pulledSoFar = offset
+            return Reaction(to: geometry(.resting), timeline: .immediate)
+
+        case .pulledFurther(let slice):
+            pulledSoFar = max(0, pulledSoFar + slice)
             return Reaction(to: geometry(.resting), timeline: .immediate)
 
         case .caught(let translation):
             phase = .standing
-            dragOffset = max(0, translation)
+            pulledSoFar = max(0, translation)
             return Reaction(to: geometry(.resting), timeline: .immediate)
 
         case .released(let velocity):
             let travelled = dragOffset
-            dragOffset = 0
+            pulledSoFar = 0
             let lands = travelled + PinTrayGeometry.coast(atSpeed: velocity)
             guard lands > geometry(.leaving).translation / 2 else {
                 return Reaction(
