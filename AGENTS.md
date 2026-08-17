@@ -16,9 +16,10 @@ How a session proceeds.
   the move is wrong. Instrumenting harder finds the mechanism and misses the mistake — a card made to
   hold content as well as move it came out one point tall, and three rounds went into the constraints
   before the second job was the answer.
-- **Ask the app, never an image.** Screenshots are for external references. Pixel-scanning this app has
-  produced contradictory numbers, numbers taken off the home screen, and wrong point scales. Every
-  question has an instrument below — reach for it before writing one.
+- **Ask the app, never an image: a layout fact is a test, not a look.** Screenshots are for external
+  references. Pixel-scanning this app has produced contradictory numbers, numbers taken off the home
+  screen, and wrong point scales. Every question has an instrument below — reach for it before writing
+  one.
 - **Verify before claiming done**, and report what you actually observed, failures included.
 - **A warning only re-emits on a build that recompiles.** An incremental build skips unchanged files, so a
   clean count comes from a fresh `-derivedDataPath` and nothing less. Five checks in a row read zero off a
@@ -49,26 +50,24 @@ How a session proceeds.
 An experience is testable when the facts it rests on live somewhere a test can reach without a screen.
 These put them there; the section below says where the test then goes.
 
-- **One place draws, one place decides.** Most bugs here have been the same shape: a second copy of some
-  state, or a second path that animates. Delete the copy rather than syncing it.
-- **Behaviour is a value with no views in it; a view draws what that value decided.** Count states, not
-  screens — a control that is valid or not and enabled or not already has four. Every rule the value
-  holds is then a test, sequences included.
-- **An optional is a state the type failed to name.** Where `nil` means the value lives in another state,
-  make that state a case and read it by matching, so it can only be read where it exists. Where nothing
-  can supply a value, throw. A fallback is either the answer or a lie standing in for a state — a height
-  quietly keeping what was there before drew a 200-point tray at 794.
-- **Dependencies arrive through `init`** — no optionals, no defaults, no two-phase setup. If a thing
-  cannot exist without a container, a clock and something to show, it takes all three at birth. Every
-  protocol ships a real implementation and a stub, so the seam is usable from a test the day it is made.
-- **Linear ownership.** Nothing reaches more than one level up or down. Downward is direct; upward is a
-  closure or a protocol. A parent coordinates and its children have one job each and are pure where they
-  can be — the tray's geometry and its machine are pure values, and the chassis that draws them owns
-  nothing else.
-- **A coordinator composes its children and asks them what they measure. That is its one job, not a
-  second one.** What belongs elsewhere is deciding and drawing: a value decides, and the view that is
-  drawn and touched draws. Size is not the signal — a coordinator that composes nothing is a
-  pass-through, and one that assembles six parts is doing its job at the size that job is.
+- **One place decides and one place draws: behaviour is a value with no views in it, and a view draws what
+  that value decided.** Count states, not screens — a control that is valid or not and enabled or not
+  already has four — and every rule the value holds is then a test, sequences included. Almost every bug
+  here has been the same shape: a second copy of the state, or a second path that animates. Delete the
+  copy rather than syncing it.
+- **Nothing stands in for a state — no optional, no default, no two-phase setup.** Where `nil` means the
+  value lives in another state, make that state a case and read it by matching, so it can only be read
+  where it exists; where nothing can supply a value, throw. Dependencies arrive through `init`: a thing
+  that cannot exist without a container, a clock and something to show takes all three at birth, and
+  every protocol ships a real implementation and a stub so the seam is usable from a test the day it is
+  made. A fallback is either the answer or a lie standing in for a state — a height quietly keeping what
+  was there before drew a 200-point tray at 794.
+- **A parent composes its children and asks them what they measure; that is its one job, not a second
+  one.** Nothing reaches more than one level up or down — downward is direct, upward is a closure or a
+  protocol — and each child holds one job and is pure where it can be: the tray's geometry and its
+  machine are pure values, and the chassis that draws them owns nothing else. What belongs elsewhere is
+  deciding and drawing. Size is not the signal — a parent that composes nothing is a pass-through, and one
+  that assembles six parts is doing its job at the size that job is.
 - **A child answers to its own delegate and reports upward in its own words.** The body is its scroll
   view's delegate; what it tells the tray is "pulled down by 40", never `scrollViewDidScroll`. A parent
   adopting its child's protocol drags the child's vocabulary a level up where it does not belong.
@@ -92,31 +91,27 @@ is not one.
 | **`DemoTests`** | facts needing a live app: anything **presented**, anything needing a real scene or a real keyboard, and Demo-target code the package cannot see | **hosted by `Demo.app`** |
 | **`DemoUITests`** | throwaway probes only, **empty at rest** | XCUITest |
 
-- **A bug gets a failing test first.** Red, run it, confirm it fails for the right reason, then fix. Never
-  edit source and test in the same step. Only bugs get this; everywhere else prefer making the mistake
+- **A bug gets a failing test first, and the test has teeth: it fails against the un-fixed code, for the
+  right reason.** Red, run it, then fix — never editing source and test in the same step. Commit the fix
+  before reverting to prove the red, or the revert silently eats it, and when a fix ships without a red
+  first say so plainly. Only bugs earn a test this way; everywhere else prefer making the mistake
   unrepresentable over asserting it is absent.
-- **Teeth, always.** Prove the test fails against the un-fixed code. Commit the fix *before* teeth-testing
-  it, or the revert silently eats it. When a fix ships without a red first, say so plainly.
-- **`DemoTests` is hosted and ships a harness**, `HostedView`. Its `window(showing:)` flips
-  `_AXSSetAutomationEnabled` so SwiftUI fills its accessibility tree and labels, frames and
-  `accessibilityActivate()` become readable; `presentation(in:)` waits for a presented view to join the
-  window; `settledPresentation(in:)` waits for a detent to stop moving. If a fact needs an app it goes
-  here — do not conclude it is untestable.
-- **A UI test does not land.** Driving the app to watch a change work is an instrument: red while the fix
-  is absent, deleted in the change that fixes what it found. What stays is the unit test for what it
-  localised. Coverage is never a reason to keep one.
-- **The one exception costs two things.** A workaround held against SwiftUI or UIKit that nothing lower
-  can reach may keep a permanent UI test — but only with teeth *and* a place in the merge gate. A guard
-  outside the gate is one nobody runs, and it rots without telling you. Either put it where it runs, or
-  do not write it.
+- **A fact that needs an app is not an untestable fact.** `DemoTests` is hosted and ships a harness,
+  `HostedView`: `window(showing:)` flips `_AXSSetAutomationEnabled` so SwiftUI fills its accessibility
+  tree and labels, frames and `accessibilityActivate()` become readable; `presentation(in:)` waits for a
+  presented view to join the window; `settledPresentation(in:)` waits for a detent to stop moving.
+- **A UI test does not land, and its one exception costs two things.** Driving the app to watch a change
+  work is an instrument: red while the fix is absent, deleted in the change that fixes what it found,
+  leaving the unit test for what it localised. A workaround held against SwiftUI or UIKit that nothing
+  lower can reach may keep a permanent one — but only with teeth *and* a place in the merge gate, since a
+  guard outside the gate is one nobody runs and it rots without telling you. Coverage is never a reason to
+  keep one.
 - **Size a hosted view by constraints, never by a frame.** A frame written on it hands the hosting view a
   height it never had to work out, so the test stops measuring what it claims to.
-- **Assert arrival before measuring anything.** A probe that never reached the state proves nothing, and
-  reads exactly like one that did — a drag aimed at a list that was never populated landed on a button
-  and produced confident, worthless numbers.
-- **A probe must not pass `-UITestingNoAnimations`.** It disables animations, so motion reads as an
-  instant snap and the measurement blames the code for the harness.
-- **A comment that explains a behaviour becomes a named test, then the comment dies.**
+- **A probe proves nothing until it proves it arrived with the motion switched on.** A run that never
+  reached the state reads exactly like one that did — a drag aimed at a list that was never populated
+  landed on a button and produced confident, worthless numbers — and `-UITestingNoAnimations` turns motion
+  into an instant snap, so the measurement blames the code for the harness.
 
 ## Instruments
 
@@ -125,7 +120,7 @@ is not one.
   when it changes. For anything a person drove by hand. Appends across launches; read it with
   `xcrun simctl get_app_container <udid> <bundle> data`.
 - **`PinDisplayListCapture`** (SwiftUI tree) and **`PinUIKitCapture`** (UIView tree) — real frames for any
-  layout question. A layout fact is a test, not a look.
+  layout question.
 - **A `CADisplayLink` tape** for motion: sample `layer.presentation()` and write to
   `NSTemporaryDirectory()`. `simctl io recordVideo` drops frames badly enough to be useless.
 - **`RenderPreview`** on the catalog's permanent `#Preview`, and `simctl launch -PinwheelPreview <id>` to
@@ -171,6 +166,7 @@ hook blocks a merge whose tip commit lacks it.
 - **Catalog ids derive from title + tags** — there is no manual `id:`, and deep links and persistence key
   off them, so a title must be unique within its scope.
 - **One file per abstraction.**
-- **A comment explains code; a docstring states a contract.** An explanation belongs in a name, a test or
-  `LEARNINGS.md`. A docstring earns its place on a public seam where the signature cannot say what to pass
-  or when to leave it off, and it says nothing about how the code works.
+- **A comment explains code; a docstring states a contract.** An explanation belongs in a name, a named
+  test or `LEARNINGS.md` — write the test for the behaviour a comment describes and the comment dies with
+  it. A docstring earns its place on a public seam where the signature cannot say what to pass or when to
+  leave it off, and it says nothing about how the code works.
