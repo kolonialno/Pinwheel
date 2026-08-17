@@ -10,6 +10,10 @@ to change, add to it as you learn, and keep *this* file to what a session needs 
 - **Measure and reproduce before fixing.** A cause is something a run showed you, not something the code
   suggests. Guessing costs a build and a launch per round, and a wrong guess looks exactly like a right
   one that changed nothing.
+- **When a refactor fights back, suspect the refactor.** Code that resists being moved is usually saying
+  the move is wrong. Instrumenting harder finds the mechanism and misses the mistake — a card made to
+  hold content as well as move it came out one point tall, and three rounds went into the constraints
+  before the second job was the answer.
 - **Ask the app, never an image.** Screenshots are for external references. Pixel-scanning this app has
   produced contradictory numbers, numbers taken off the home screen, and wrong point scales. Every
   question has an instrument below — reach for it before writing one.
@@ -49,6 +53,10 @@ These put them there; the section below says where the test then goes.
 - **Behaviour is a value with no views in it; a view draws what that value decided.** Count states, not
   screens — a control that is valid or not and enabled or not already has four. Every rule the value
   holds is then a test, sequences included.
+- **A coordinator composes its children and asks them what they measure. That is its one job, not a
+  second one.** What belongs elsewhere is deciding and drawing: a value decides, and the view that is
+  drawn and touched draws. Size is not the signal — a coordinator that composes nothing is a
+  pass-through, and one that assembles six parts is doing its job at the size that job is.
 - **Containment is a UIKit job.** SwiftUI supplies leaves — a row, a title, a field. Anything that holds,
   lays out, scrolls or routes a gesture is a `UIView` we own, which makes it an ordinary object with an
   ordinary frame that a test reads directly, with nothing inferred from a picture. Asking SwiftUI to
