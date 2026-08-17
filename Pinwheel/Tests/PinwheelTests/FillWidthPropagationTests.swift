@@ -49,6 +49,6 @@ final class FillWidthPropagationTests: XCTestCase {
         }
         let card = try XCTUnwrap(findCard(document.root), "the card row captures with its fill")
         XCTAssertEqual(card.fillWidth, true, "the card row fills the width (from its nested Spacer), so it doesn't hug and centre")
-        _ = withExtendedLifetime(window) {}
+        withExtendedLifetime(window) {}
     }
 }

@@ -148,16 +148,20 @@ final class PinTrayChassisTests: XCTestCase {
 
 extension PinTrayChassisTests {
     func testATrayThatFloatsSomethingStandsThatRatherThanACommitButton() {
+        let (overlay, _) = standing(PinTray("Boost") { Color.clear.frame(height: 300) })
         let floating = PinTray("Region") { Color.clear }
             .floating { Color.clear.frame(height: 48) }
             .commit("Boost Post") {}
         let committing = PinTray("Boost") { Color.clear }.commit("Boost Post") {}
 
         XCTAssertFalse(
-            floating.standsACommitButton,
+            overlay.accessory(for: floating).isCommitButton,
             "what a tray floats is its own content, and it takes the bottom"
         )
-        XCTAssertTrue(committing.standsACommitButton, "with nothing floating, the button stands there")
+        XCTAssertTrue(
+            overlay.accessory(for: committing).isCommitButton,
+            "with nothing floating, the button stands there"
+        )
     }
 }
 

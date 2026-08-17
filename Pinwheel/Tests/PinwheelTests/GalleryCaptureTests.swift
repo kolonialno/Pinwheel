@@ -51,6 +51,6 @@ final class GalleryCaptureTests: XCTestCase {
         }
         XCTAssertTrue(hasFill(document.root),
                       "the row keeps its card background fill — the reflection path must re-attach a flat-content card's fill, not drop it")
-        _ = withExtendedLifetime(window) {}
+        withExtendedLifetime(window) {}
     }
 }

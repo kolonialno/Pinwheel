@@ -34,7 +34,7 @@ final class PinTrayMachineTests: XCTestCase {
         let standing = machine.geometry
 
         let push = machine.handle(.moved(contentHeight: 456, edits: true, isPush: true))
-        XCTAssertEqual(machine.phase, .awaitingKeyboard)
+        XCTAssertTrue(machine.isAwaitingKeyboard)
         XCTAssertEqual(push.timeline, .carriedByKeyboard, "the keyboard owns this move, so we start nothing")
 
         let opening = machine.handle(.keyboardMeasured(311))
@@ -367,5 +367,24 @@ extension PinTrayMachineTests {
 
         XCTAssertEqual(back.to.translation, 0, accuracy: 0.5, "the card is back where it stood")
         XCTAssertFalse(machine.cardIsBeingPulled, "so the gesture is the list's again")
+    }
+}
+
+extension PinTrayMachineTests {
+    func testAMoveThatNeverResolvedLeavesNothingBehindForTheNextTray() {
+        var machine = machine(standing: 641)
+
+        _ = machine.handle(.moveBegan(isPush: true))
+        _ = machine.handle(.fillsReported(true))
+        _ = machine.handle(.dismissed)
+        _ = machine.handle(.caught(at: 0))
+
+        let presented = machine.handle(.presented(contentHeight: 200))
+        XCTAssertEqual(
+            presented.to.height,
+            200,
+            accuracy: 1,
+            "a tray that does not fill stands at its content's height, whatever a cancelled move said"
+        )
     }
 }

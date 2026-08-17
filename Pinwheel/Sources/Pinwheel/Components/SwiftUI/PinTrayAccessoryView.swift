@@ -3,7 +3,25 @@ import UIKit
 
 @MainActor
 final class PinTrayAccessoryView: UIView {
-    private var standing: (view: PinTrayLeafView, isCommitButton: Bool)?
+    private enum Standing {
+        case nothing
+        case floating(PinTrayLeafView)
+        case commitButton(PinTrayLeafView)
+
+        var view: PinTrayLeafView? {
+            switch self {
+            case .nothing: nil
+            case .floating(let view), .commitButton(let view): view
+            }
+        }
+
+        var isCommitButton: Bool {
+            if case .commitButton = self { return true }
+            return false
+        }
+    }
+
+    private var standing: Standing = .nothing
     private unowned let parent: UIViewController
 
     init(in parent: UIViewController) {
@@ -15,21 +33,24 @@ final class PinTrayAccessoryView: UIView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("PinTrayAccessoryView is made in code") }
 
-    var height: CGFloat { standing?.view.height(fitting: bounds.width) ?? 0 }
+    var height: CGFloat { height(fitting: bounds.width) }
 
     func height(fitting width: CGFloat) -> CGFloat {
-        standing?.view.height(fitting: width) ?? 0
+        switch standing {
+        case .nothing: 0
+        case .floating(let view), .commitButton(let view): view.height(fitting: width)
+        }
     }
 
     override var intrinsicContentSize: CGSize {
         CGSize(width: UIView.noIntrinsicMetric, height: height)
     }
 
-    func show(_ leaf: AnyView?, isCommitButton: Bool, replacing: Bool, over duration: TimeInterval) {
+    func show(_ accessory: PinTrayAccessory, replacing: Bool, over duration: TimeInterval) {
         let leaving = standing
-        guard let leaf else {
-            standing = nil
-            fade(leaving?.view, to: 0, animated: replacing, over: duration) { $0.detach() }
+        guard let leaf = accessory.leaf else {
+            standing = .nothing
+            fade(leaving.view, to: 0, animated: replacing, over: duration) { $0.detach() }
             return
         }
 
@@ -43,24 +64,24 @@ final class PinTrayAccessoryView: UIView {
             arriving.bottomAnchor.constraint(equalTo: bottomAnchor),
         ])
 
-        let holds = replacing && leaving?.isCommitButton == true && isCommitButton
+        let holds = replacing && leaving.isCommitButton && accessory.isCommitButton
         arriving.alpha = holds || !replacing ? 1 : 0
-        if holds, let leaving { bringSubviewToFront(leaving.view) }
+        if holds, let left = leaving.view { bringSubviewToFront(left) }
 
-        standing = (arriving, isCommitButton)
+        standing = accessory.isCommitButton ? .commitButton(arriving) : .floating(arriving)
         invalidateIntrinsicContentSize()
 
         guard replacing else {
-            leaving?.view.detach()
-            leaving?.view.removeFromSuperview()
+            leaving.view?.detach()
+            leaving.view?.removeFromSuperview()
             return
         }
         UIView.animate(withDuration: duration) {
             arriving.alpha = 1
-            leaving?.view.alpha = 0
+            leaving.view?.alpha = 0
         } completion: { _ in
-            leaving?.view.detach()
-            leaving?.view.removeFromSuperview()
+            leaving.view?.detach()
+            leaving.view?.removeFromSuperview()
         }
     }
 
@@ -82,7 +103,7 @@ final class PinTrayAccessoryView: UIView {
     }
 
     func detach() {
-        standing?.view.detach()
-        standing = nil
+        standing.view?.detach()
+        standing = .nothing
     }
 }

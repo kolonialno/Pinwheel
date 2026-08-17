@@ -23,7 +23,7 @@ final class PinTrayChassis: UIView {
         func detach() { contents.detach() }
     }
 
-    private lazy var accessory = PinTrayAccessoryView(in: container)
+    private lazy var accessoryView = PinTrayAccessoryView(in: container)
 
     private var standing: Standing?
 
@@ -92,7 +92,7 @@ final class PinTrayChassis: UIView {
     }
 
     private func tearDown() {
-        accessory.detach()
+        accessoryView.detach()
         standing?.detach()
         removeFromSuperview()
         PinwheelRecorder.stopFollowing()
@@ -268,37 +268,36 @@ final class PinTrayChassis: UIView {
         AnyView(content.padding(.horizontal, trayContentMargin))
     }
 
-    private func accessoryLeaf(_ tray: PinTray) -> AnyView? {
-        guard tray.standsACommitButton, let commit = tray.commit else {
-            return tray.floating.map(inset)
-        }
-        return inset(AnyView(
+    func accessory(for tray: PinTray) -> PinTrayAccessory {
+        if let floating = tray.floating { return .floating(inset(floating)) }
+        guard let commit = tray.commit else { return .nothing }
+        return .commitButton(inset(AnyView(
             PinButton(commit.title, action: commit.action)
                 .style(.custom(text: .primaryBackground, background: .primaryText))
                 .fullWidth()
-        ))
+        )))
     }
 
     private func assemble(_ tray: PinTray) {
         let contents = PinTrayContentsView(
             titleBar: titleBarLeaf(tray),
             content: inset(tray.content),
-            in: container
+            in: container,
+            reporting: self
         )
 
-        contents.coordinating = self
         contents.translatesAutoresizingMaskIntoConstraints = false
         card.addSubview(contents)
-        if accessory.superview == nil {
-            accessory.translatesAutoresizingMaskIntoConstraints = false
-            card.addSubview(accessory)
+        if accessoryView.superview == nil {
+            accessoryView.translatesAutoresizingMaskIntoConstraints = false
+            card.addSubview(accessoryView)
             NSLayoutConstraint.activate([
-                accessory.leadingAnchor.constraint(equalTo: card.leadingAnchor),
-                accessory.trailingAnchor.constraint(equalTo: card.trailingAnchor),
-                accessory.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -accessoryInset),
+                accessoryView.leadingAnchor.constraint(equalTo: card.leadingAnchor),
+                accessoryView.trailingAnchor.constraint(equalTo: card.trailingAnchor),
+                accessoryView.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -accessoryInset),
             ])
         }
-        card.bringSubviewToFront(accessory)
+        card.bringSubviewToFront(accessoryView)
         NSLayoutConstraint.activate([
             contents.topAnchor.constraint(equalTo: card.topAnchor),
             contents.leadingAnchor.constraint(equalTo: card.leadingAnchor),
@@ -306,9 +305,8 @@ final class PinTrayChassis: UIView {
             contents.bottomAnchor.constraint(equalTo: card.bottomAnchor),
         ])
 
-        accessory.show(
-            accessoryLeaf(tray),
-            isCommitButton: tray.standsACommitButton,
+        accessoryView.show(
+            accessory(for: tray),
             replacing: standing != nil,
             over: trayResizeDuration
         )
@@ -316,7 +314,7 @@ final class PinTrayChassis: UIView {
 
         let width = bounds.width - trayMargin * 2
         let clearanceAboveAccessory = PinTrayGeometry.clearanceAboveAccessory(floats: tray.floating != nil)
-        let accessoryHeight = accessory.height(fitting: width)
+        let accessoryHeight = accessoryView.height(fitting: width)
         contents.clearance = accessoryHeight > 0
             ? accessoryInset + accessoryHeight + clearanceAboveAccessory
             : contentBottomInset

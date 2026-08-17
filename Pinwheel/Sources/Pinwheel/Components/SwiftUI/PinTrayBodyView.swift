@@ -6,13 +6,14 @@ final class PinTrayBodyView: UIView {
     private let scroll = UIScrollView()
     private let hosting: UIHostingController<AnyView>
 
-    weak var coordinating: PinTrayBodyCoordinating?
+    private weak var coordinating: PinTrayBodyCoordinating?
 
     var clearance: CGFloat = 0 {
         didSet { scroll.contentInset.bottom = clearance }
     }
 
-    init(showing content: AnyView, in parent: UIViewController) {
+    init(showing content: AnyView, in parent: UIViewController, reporting to: PinTrayBodyCoordinating) {
+        coordinating = to
         hosting = UIHostingController(rootView: content)
         super.init(frame: .zero)
 

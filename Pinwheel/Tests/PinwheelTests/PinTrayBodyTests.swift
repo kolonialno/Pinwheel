@@ -14,13 +14,16 @@ final class PinTrayBodyTests: XCTestCase {
         )
     }
 
-    private func attachedBody(showing content: AnyView) -> PinTrayBodyView {
+    private func attachedBody(
+        showing content: AnyView,
+        reporting to: PinTrayBodyCoordinating = PinTrayBodyReports()
+    ) -> PinTrayBodyView {
         let parent = UIViewController()
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 400, height: 500))
         window.rootViewController = parent
         window.isHidden = false
 
-        let body = PinTrayBodyView(showing: content, in: parent)
+        let body = PinTrayBodyView(showing: content, in: parent, reporting: to)
         parent.view.addSubview(body)
         body.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
@@ -90,9 +93,8 @@ final class PinTrayBodyTests: XCTestCase {
     }
 
     func testABodyReportsEachSliceOfAPullAndKeepsNoRunningTotal() {
-        let body = attachedBody(showing: rows(60))
         let reports = PinTrayBodyReports()
-        body.coordinating = reports
+        let body = attachedBody(showing: rows(60), reporting: reports)
 
         body.wasPulled(pastTheTop: 10)
         body.wasPulled(pastTheTop: 10)

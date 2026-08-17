@@ -28,15 +28,25 @@ struct PinTrayMachine: Equatable {
     }
 
     enum Phase: Equatable {
-        case arriving
-        case awaitingKeyboard
+        case arriving(Arriving)
+        case awaitingKeyboard(Arriving)
         case standing
         case leaving
 
-        var isResolvingAMove: Bool {
+        var isResolvingAMove: Bool { reported != nil }
+
+        var reported: Arriving? {
             switch self {
-            case .arriving, .awaitingKeyboard: return true
-            case .standing, .leaving: return false
+            case .arriving(let arriving), .awaitingKeyboard(let arriving): arriving
+            case .standing, .leaving: nil
+            }
+        }
+
+        func reporting(_ arriving: Arriving) -> Phase {
+            switch self {
+            case .arriving: .arriving(arriving)
+            case .awaitingKeyboard: .awaitingKeyboard(arriving)
+            case .standing, .leaving: self
             }
         }
     }
@@ -87,10 +97,14 @@ struct PinTrayMachine: Equatable {
     }
 
     private(set) var phase: Phase = .standing
+
+    var isAwaitingKeyboard: Bool {
+        if case .awaitingKeyboard = phase { return true }
+        return false
+    }
     private(set) var keyboard: Keyboard = .closed
     private(set) var contentHeight: CGFloat = 0
     private(set) var fills = false
-    private var arriving: Arriving?
     private(set) var edits = false
     private(set) var pulledSoFar: CGFloat = 0
     var dragOffset: CGFloat { PinTrayGeometry.travel(forDrag: pulledSoFar) }
@@ -133,12 +147,13 @@ struct PinTrayMachine: Equatable {
     }
 
     private mutating func recordForTheArrivingTray(_ event: Event) -> Bool {
+        guard let reported = phase.reported else { return false }
         switch event {
         case .fillsReported(let fills):
-            arriving = Arriving(contentHeight: arriving?.contentHeight ?? contentHeight, fills: fills)
+            phase = phase.reporting(Arriving(contentHeight: reported.contentHeight, fills: fills))
             return true
         case .contentResized(let height):
-            arriving = Arriving(contentHeight: height, fills: arriving?.fills ?? fills)
+            phase = phase.reporting(Arriving(contentHeight: height, fills: reported.fills))
             return true
         default:
             return false
@@ -146,10 +161,9 @@ struct PinTrayMachine: Equatable {
     }
 
     private mutating func adoptWhatArrived() {
-        guard let arriving else { return }
-        contentHeight = arriving.contentHeight
-        fills = arriving.fills
-        self.arriving = nil
+        guard let reported = phase.reported else { return }
+        contentHeight = reported.contentHeight
+        fills = reported.fills
     }
 
     mutating func handle(_ event: Event) -> Reaction {
@@ -167,8 +181,7 @@ struct PinTrayMachine: Equatable {
         }
         switch event {
         case .presented(let height):
-            arriving = Arriving(contentHeight: height, fills: arriving?.fills ?? fills)
-            adoptWhatArrived()
+            contentHeight = height
             phase = .standing
             return Reaction(from: geometry(.arriving), to: geometry(.resting), timeline: .spring(bounce: trayResizeBounce))
 
@@ -177,16 +190,14 @@ struct PinTrayMachine: Equatable {
             let wasEditing = self.edits
             let wasStanding = contentHeight
             let wasFilling = fills
-            let arrivingFills = arriving?.fills ?? fills
+            let arrivingFills = phase.reported?.fills ?? fills
             contentHeight = height
             fills = arrivingFills
-            arriving = nil
             self.edits = edits
             if isPush, edits, !arrivingFills, keyboard == .closed {
                 contentHeight = wasStanding
                 fills = wasFilling
-                arriving = Arriving(contentHeight: height, fills: arrivingFills)
-                phase = .awaitingKeyboard
+                phase = .awaitingKeyboard(Arriving(contentHeight: height, fills: arrivingFills))
                 return Reaction(to: geometry(.resting), timeline: .carriedByKeyboard)
             }
             phase = .standing
@@ -206,10 +217,11 @@ struct PinTrayMachine: Equatable {
             guard phase != .leaving else {
                 return Reaction(to: geometry(.leaving), timeline: .carriedByKeyboard)
             }
-            let waited = phase == .awaitingKeyboard
-            if waited {
-                phase = .standing
+            var waited = false
+            if case .awaitingKeyboard = phase {
+                waited = true
                 adoptWhatArrived()
+                phase = .standing
             }
             return Reaction(
                 to: geometry(.resting),
@@ -222,7 +234,7 @@ struct PinTrayMachine: Equatable {
 
         case .moveBegan:
             guard phase != .leaving else { return Reaction(to: geometry(.leaving), timeline: .carriedByKeyboard) }
-            phase = .arriving
+            phase = .arriving(Arriving(contentHeight: contentHeight, fills: fills))
             return Reaction(to: geometry(.resting), timeline: .carriedByKeyboard)
 
         case .fillsReported(let fills):
