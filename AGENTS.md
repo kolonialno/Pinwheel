@@ -7,6 +7,8 @@ to change, add to it as you learn, and keep *this* file to what a session needs 
 
 ## Working rules
 
+How a session proceeds.
+
 - **Measure and reproduce before fixing.** A cause is something a run showed you, not something the code
   suggests. Guessing costs a build and a launch per round, and a wrong guess looks exactly like a right
   one that changed nothing.
@@ -21,24 +23,14 @@ to change, add to it as you learn, and keep *this* file to what a session needs 
 - **A warning only re-emits on a build that recompiles.** An incremental build skips unchanged files, so a
   clean count comes from a fresh `-derivedDataPath` and nothing less. Five checks in a row read zero off a
   build that compiled nothing.
-- **An optional is a state the type failed to name.** Where `nil` means the value lives in another state,
-  make that state a case and read it by matching, so it can only be read where it exists. Where nothing
-  can supply a value, throw. A fallback is either the answer or a lie standing in for a state — a height
-  quietly keeping what was there before drew a 200-point tray at 794.
-- **Adding or moving a file needs no `project.pbxproj` edit** — both targets are file-system-synchronized
-  groups, so the folder layout *is* the project structure and a new folder is a real decision.
-- **Linear ownership.** Nothing reaches more than one level up or down. Downward is direct; upward is a
-  closure or a protocol. A parent coordinates and its children have one job each and are pure where they
-  can be — the tray's geometry and its machine are pure values, and the chassis that draws them owns
-  nothing else.
-- **A child answers to its own delegate and reports upward in its own words.** The body is its scroll
-  view's delegate; what it tells the tray is "pulled down by 40", never `scrollViewDidScroll`. A parent
-  adopting its child's protocol drags the child's vocabulary a level up where it does not belong.
-- **One file per abstraction.**
-- **A scroll view scrolls only when its content outgrows its room.**
 - **If something should be off, turn it off — don't leave it on and undo what it does.** Undoing hides
   the effect from you, not from the code that reads the flag. And whatever it used to handle is now
   handled by nobody, so say who handles it instead.
+- **Adding or moving a file needs no `project.pbxproj` edit** — both targets are file-system-synchronized
+  groups, so the folder layout *is* the project structure and a new folder is a real decision.
+
+## What a component owes at runtime
+
 - **A container owns the space around and between its children; a child owns only what is inside it.**
   Both axes. Only the thing that can see both sides of a gap can balance it, so the gap between two rows
   belongs to whatever holds them — a section for its items, the tray for its sections — and how far they
@@ -47,6 +39,7 @@ to change, add to it as you learn, and keep *this* file to what a session needs 
 - **A gesture and the animation that follows it are one motion.** It leaves at the speed the finger let
   go at, it stays interruptible until it settles, and what decides where it ends up is where it would
   come to rest if left alone — never how fast it happened to be moving when it was released.
+- **A scroll view scrolls only when its content outgrows its room.**
 - **A value the platform owns is read, never copied.** Read it and the layout is right on hardware and
   OS versions you will never see. Where there is nothing to read, reimplement only what holds still — a
   corner's curve is the same shape on every device, its radius is not.
@@ -61,18 +54,29 @@ These put them there; the section below says where the test then goes.
 - **Behaviour is a value with no views in it; a view draws what that value decided.** Count states, not
   screens — a control that is valid or not and enabled or not already has four. Every rule the value
   holds is then a test, sequences included.
+- **An optional is a state the type failed to name.** Where `nil` means the value lives in another state,
+  make that state a case and read it by matching, so it can only be read where it exists. Where nothing
+  can supply a value, throw. A fallback is either the answer or a lie standing in for a state — a height
+  quietly keeping what was there before drew a 200-point tray at 794.
+- **Dependencies arrive through `init`** — no optionals, no defaults, no two-phase setup. If a thing
+  cannot exist without a container, a clock and something to show, it takes all three at birth. Every
+  protocol ships a real implementation and a stub, so the seam is usable from a test the day it is made.
+- **Linear ownership.** Nothing reaches more than one level up or down. Downward is direct; upward is a
+  closure or a protocol. A parent coordinates and its children have one job each and are pure where they
+  can be — the tray's geometry and its machine are pure values, and the chassis that draws them owns
+  nothing else.
 - **A coordinator composes its children and asks them what they measure. That is its one job, not a
   second one.** What belongs elsewhere is deciding and drawing: a value decides, and the view that is
   drawn and touched draws. Size is not the signal — a coordinator that composes nothing is a
   pass-through, and one that assembles six parts is doing its job at the size that job is.
+- **A child answers to its own delegate and reports upward in its own words.** The body is its scroll
+  view's delegate; what it tells the tray is "pulled down by 40", never `scrollViewDidScroll`. A parent
+  adopting its child's protocol drags the child's vocabulary a level up where it does not belong.
 - **Containment is a UIKit job.** SwiftUI supplies leaves — a row, a title, a field. Anything that holds,
   lays out, scrolls or routes a gesture is a `UIView` we own, which makes it an ordinary object with an
   ordinary frame that a test reads directly, with nothing inferred from a picture. Asking SwiftUI to
   contain is what makes gestures fight across the seam, representables vanish without a scene, and
   children findable only by walking a tree somebody else owns.
-- **Dependencies arrive through `init`** — no optionals, no defaults, no two-phase setup. If a thing
-  cannot exist without a container, a clock and something to show, it takes all three at birth. Every
-  protocol ships a real implementation and a stub, so the seam is usable from a test the day it is made.
 - **No behaviour behind a delay.** A timer is a guess about the world. If something must happen when a
   motion ends, use the animation's completion; if it depends on what the world is doing, ask the world —
   a private API answering outright beats a stopwatch estimating.
@@ -113,9 +117,6 @@ is not one.
 - **A probe must not pass `-UITestingNoAnimations`.** It disables animations, so motion reads as an
   instant snap and the measurement blames the code for the harness.
 - **A comment that explains a behaviour becomes a named test, then the comment dies.**
-- **A comment explains code; a docstring states a contract.** An explanation belongs in a name, a test or
-  `LEARNINGS.md`. A docstring earns its place on a public seam where the signature cannot say what to pass
-  or when to leave it off, and it says nothing about how the code works.
 
 ## Instruments
 
@@ -169,3 +170,7 @@ hook blocks a merge whose tip commit lacks it.
   Unprefixed on our types; `pinwheel`-prefixed only when extending a SwiftUI type.
 - **Catalog ids derive from title + tags** — there is no manual `id:`, and deep links and persistence key
   off them, so a title must be unique within its scope.
+- **One file per abstraction.**
+- **A comment explains code; a docstring states a contract.** An explanation belongs in a name, a test or
+  `LEARNINGS.md`. A docstring earns its place on a public seam where the signature cannot say what to pass
+  or when to leave it off, and it says nothing about how the code works.
