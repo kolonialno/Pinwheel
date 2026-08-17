@@ -3,22 +3,19 @@ import UIKit
 @MainActor
 final class PinTrayCardPlacement {
     private let card: PinTrayCardView
-    private var height = NSLayoutConstraint()
-    private var offset = NSLayoutConstraint()
+    private let height: NSLayoutConstraint
+    private let offset: NSLayoutConstraint
     private var motion: UIViewPropertyAnimator?
 
-    init(card: PinTrayCardView) {
+    init(card: PinTrayCardView, in parent: UIView) {
         self.card = card
-    }
 
-    func install(in parent: UIView) {
-        parent.addSubview(card)
-        parent.keyboardLayoutGuide.usesBottomSafeArea = false
-
-        height = card.heightAnchor.constraint(equalToConstant: 0)
+        let height = card.heightAnchor.constraint(equalToConstant: 0)
         height.priority = .defaultHigh
+        self.height = height
 
-        offset = card.bottomAnchor.constraint(
+        parent.keyboardLayoutGuide.usesBottomSafeArea = false
+        let offset = card.bottomAnchor.constraint(
             equalTo: parent.keyboardLayoutGuide.topAnchor,
             constant: -trayBottomMargin
         )
@@ -28,9 +25,11 @@ final class PinTrayCardPlacement {
         )
         offset.priority = UILayoutPriority(999)
         lifted.priority = UILayoutPriority(999)
+        self.offset = offset
+
+        parent.addSubview(card)
         parent.keyboardLayoutGuide.setConstraints([offset], activeWhenNearEdge: .bottom)
         parent.keyboardLayoutGuide.setConstraints([lifted], activeWhenAwayFrom: .bottom)
-
         NSLayoutConstraint.activate([
             card.leadingAnchor.constraint(equalTo: parent.leadingAnchor, constant: trayMargin),
             card.trailingAnchor.constraint(equalTo: parent.trailingAnchor, constant: -trayMargin),

@@ -10,7 +10,14 @@ final class PinTrayChassisTests: XCTestCase {
         window.rootViewController = root
         window.isHidden = false
 
-        let overlay = PinTrayChassis(in: root, showing: tray)
+        let overlay = PinTrayChassis(
+            showing: tray,
+            nestedIn: UIScreen.main.pinDisplayCornerRadius,
+            covering: root.view.bounds
+        )
+        root.addChild(overlay)
+        root.view.addSubview(overlay.view, filling: .all)
+        overlay.didMove(toParent: root)
         window.layoutIfNeeded()
         return (overlay, window)
     }
@@ -29,8 +36,8 @@ final class PinTrayChassisTests: XCTestCase {
         )
         window.layoutIfNeeded()
 
-        let body = try XCTUnwrap(scrollView(in: overlay), "a tray has a scrolling body")
-        let inCard = body.convert(body.bounds, to: overlay)
+        let body = try XCTUnwrap(scrollView(in: overlay.view), "a tray has a scrolling body")
+        let inCard = body.convert(body.bounds, to: overlay.view)
 
         XCTAssertGreaterThan(inCard.minY, 0, "the title bar stands above it")
         XCTAssertEqual(inCard.maxY, overlay.cardBottom, accuracy: 1, "and it runs to the card's own edge")
@@ -44,7 +51,7 @@ final class PinTrayChassisTests: XCTestCase {
         )
         window.layoutIfNeeded()
 
-        let body = try XCTUnwrap(scrollView(in: overlay), "a tray has a scrolling body")
+        let body = try XCTUnwrap(scrollView(in: overlay.view), "a tray has a scrolling body")
         XCTAssertGreaterThan(body.contentInset.bottom, 48, "the field's own height, and the gaps around it")
     }
 
@@ -64,7 +71,7 @@ final class PinTrayChassisTests: XCTestCase {
         overlay.show(boost, isPush: false)
         window.layoutIfNeeded()
 
-        let buttons = accessories(in: overlay)
+        let buttons = accessories(in: overlay.view)
         let inFlight = buttons.map { Set($0.layer.animationKeys() ?? []) }
         XCTAssertEqual(buttons.count, 2, "the button arriving and the one being left")
         XCTAssertEqual(
@@ -89,7 +96,7 @@ final class PinTrayChassisTests: XCTestCase {
         overlay.show(boost, isPush: false)
         window.layoutIfNeeded()
 
-        let buttons = accessories(in: overlay)
+        let buttons = accessories(in: overlay.view)
         let inFlight = buttons.map { Set($0.layer.animationKeys() ?? []) }
         XCTAssertEqual(buttons.count, 2, "the button arriving and the field being left")
         XCTAssertEqual(
@@ -108,7 +115,7 @@ final class PinTrayChassisTests: XCTestCase {
     func testATrayTakesVoiceOverOffWhatItCovers() {
         let (overlay, _) = standing(PinTray("Boost") { Color.clear.frame(height: 300) })
         XCTAssertTrue(
-            overlay.accessibilityViewIsModal,
+            overlay.view.accessibilityViewIsModal,
             "a tray covers the screen behind it, so VoiceOver must not reach past it"
         )
     }
@@ -133,8 +140,8 @@ final class PinTrayChassisTests: XCTestCase {
         window.layoutIfNeeded()
 
         XCTAssertFalse(
-            dissolvingInFlight(in: overlay).contains("transform"),
-            "the contents cross-dissolve without scaling: \(dissolvingInFlight(in: overlay))"
+            dissolvingInFlight(in: overlay.view).contains("transform"),
+            "the contents cross-dissolve without scaling: \(dissolvingInFlight(in: overlay.view))"
         )
     }
 
@@ -142,7 +149,7 @@ final class PinTrayChassisTests: XCTestCase {
         let (overlay, window) = standing(PinTray("Boost") { Color.clear.frame(height: 300) })
         overlay.dismiss()
         window.layoutIfNeeded()
-        XCTAssertNotNil(overlay.superview, "still on screen for as long as it is travelling")
+        XCTAssertNotNil(overlay.view.superview, "still on screen for as long as it is travelling")
     }
 }
 

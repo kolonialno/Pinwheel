@@ -35,7 +35,14 @@ final class TrayKeyboardCornerTests: XCTestCase {
         let boost = PinTray("Boost") { Color.clear.frame(height: 300) }.commit("Boost Post") {}
         let region = PinTray("Region") { Editable().frame(height: 44) }.detent(.filling)
 
-        let overlay = PinTrayChassis(in: root, showing: boost)
+        let overlay = PinTrayChassis(
+            showing: boost,
+            nestedIn: UIScreen.main.pinDisplayCornerRadius,
+            covering: root.view.bounds
+        )
+        root.addChild(overlay)
+        root.view.addSubview(overlay.view, filling: .all)
+        overlay.didMove(toParent: root)
         window.layoutIfNeeded()
         settle(window) { overlay.bottomCornerRadius > 0 }
 
@@ -46,7 +53,7 @@ final class TrayKeyboardCornerTests: XCTestCase {
 
         overlay.show(region, isPush: true)
         window.layoutIfNeeded()
-        let editable = try XCTUnwrap(field(in: overlay), "the region tray stands something to type in")
+        let editable = try XCTUnwrap(field(in: overlay.view), "the region tray stands something to type in")
         let took = editable.becomeFirstResponder()
         XCTAssertTrue(took, "the field refused first responder")
         XCTAssertTrue(editable.isFirstResponder, "the field is not editing")

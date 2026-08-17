@@ -42,10 +42,19 @@ final class PinTrayPathSync<Item: Hashable> {
         guard var container = presenter.view.window?.rootViewController else { return }
         while let presented = container.presentedViewController { container = presented }
 
-        let created = PinTrayChassis(in: container, showing: description)
+        let screen = container.view.window?.screen ?? UIScreen.main
+        let created = PinTrayChassis(
+            showing: description,
+            nestedIn: screen.pinDisplayCornerRadius,
+            covering: container.view.bounds
+        )
         created.depth = path.count - 1
         created.onBackgroundDismiss = { [weak self] in self?.dismissAll() }
         created.onExit = { [weak self] in self?.exit() }
+
+        container.addChild(created)
+        container.view.addSubview(created.view, filling: .all)
+        created.didMove(toParent: container)
         overlay = created
     }
 }

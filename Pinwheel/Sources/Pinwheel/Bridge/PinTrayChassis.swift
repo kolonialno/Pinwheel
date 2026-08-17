@@ -9,7 +9,8 @@ extension UIScreen {
     }
 }
 
-final class PinTrayChassis: UIView {
+final class PinTrayChassis: UIViewController {
+    private let content: UIView
     private let dimming = UIView()
     private let displayRadius: CGFloat
     private let cardView: PinTrayCardView
@@ -24,43 +25,54 @@ final class PinTrayChassis: UIView {
         func detach() { contents.detach() }
     }
 
-    private lazy var accessoryView = PinTrayAccessoryView(in: container)
+    private lazy var accessoryView = PinTrayAccessoryView(in: self)
 
     private var standing: Standing?
 
-    private unowned let container: UIViewController
-    init(in container: UIViewController, showing tray: PinTray) {
-        self.container = container
-        let radius = (container.view.window?.screen ?? UIScreen.main).pinDisplayCornerRadius
-        displayRadius = radius
-        let card = PinTrayCardView(nestedIn: radius)
+    private let arriving: PinTray
+
+    init(showing tray: PinTray, nestedIn displayCornerRadius: CGFloat, covering frame: CGRect) {
+        let container = UIView(frame: frame)
+        let card = PinTrayCardView(nestedIn: displayCornerRadius)
+        content = container
+        displayRadius = displayCornerRadius
         cardView = card
-        placement = PinTrayCardPlacement(card: card)
-        super.init(frame: container.view.bounds)
-        build()
-        present(tray)
+        placement = PinTrayCardPlacement(card: card, in: container)
+        arriving = tray
+        super.init(nibName: nil, bundle: nil)
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("PinTrayChassis is made in code") }
 
+    override func loadView() {
+        content.translatesAutoresizingMaskIntoConstraints = false
+        view = content
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        build()
+        present(arriving)
+    }
+
     private var room: PinTrayGeometry.Room {
         PinTrayGeometry.Room(
-            containerHeight: bounds.height,
-            safeAreaTop: safeAreaInsets.top,
-            safeAreaBottom: safeAreaInsets.bottom,
+            containerHeight: view.bounds.height,
+            safeAreaTop: view.safeAreaInsets.top,
+            safeAreaBottom: view.safeAreaInsets.bottom,
             displayCornerRadius: displayRadius
         )
     }
 
     private var measuredKeyboardHeight: CGFloat {
-        max(0, bounds.maxY - keyboardLayoutGuide.layoutFrame.minY)
+        max(0, view.bounds.maxY - view.keyboardLayoutGuide.layoutFrame.minY)
     }
 
     private func apply(_ reaction: PinTrayMachine.Reaction) {
         for effect in reaction.effects {
             switch effect {
-            case .dismissKeyboard: endEditing(true)
+            case .dismissKeyboard: view.endEditing(true)
             }
         }
         reaction.from.map { placement.place($0, alongside: dim(to: $0), animated: false) }
@@ -97,7 +109,9 @@ final class PinTrayChassis: UIView {
     private func tearDown() {
         accessoryView.detach()
         standing?.detach()
-        removeFromSuperview()
+        willMove(toParent: nil)
+        view.removeFromSuperview()
+        removeFromParent()
         PinwheelRecorder.stopFollowing()
     }
 
@@ -107,7 +121,7 @@ final class PinTrayChassis: UIView {
 
     var cardHeight: CGFloat { cardView.bounds.height }
     var contentHeight: CGFloat { standing?.contents.bounds.height ?? 0 }
-    var cardBottom: CGFloat { card.convert(card.bounds, to: self).maxY }
+    var cardBottom: CGFloat { card.convert(card.bounds, to: view).maxY }
     var bottomCornerRadius: CGFloat { cardView.layer.cornerRadius }
 
     var onBackgroundDismiss: () -> Void = {}
@@ -132,15 +146,13 @@ final class PinTrayChassis: UIView {
     }
 
     private func build() {
-        autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        accessibilityViewIsModal = true
-        container.view.addSubview(self)
+        view.accessibilityViewIsModal = true
 
-        dimming.frame = bounds
+        dimming.frame = view.bounds
         dimming.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         dimming.backgroundColor = UIColor.black.withAlphaComponent(trayDimming)
         dimming.alpha = 0
-        addSubview(dimming)
+        view.addSubview(dimming)
         dimming.addGestureRecognizer(
             UITapGestureRecognizer(target: self, action: #selector(dismissFromBackground))
         )
@@ -178,14 +190,13 @@ final class PinTrayChassis: UIView {
         }
 
         cardView.reporting = self
-        placement.install(in: self)
     }
 
     private var holdsFirstResponder: Bool {
         func search(_ view: UIView) -> Bool {
             view.isFirstResponder || view.subviews.contains(where: search)
         }
-        return search(self)
+        return search(view)
     }
 
     @objc private func keyboardAnnouncedItsMove(_ notification: Notification) {
@@ -196,8 +207,8 @@ final class PinTrayChassis: UIView {
         machine.keyboardTiming = PinTrayMachine.KeyboardTiming(duration: duration, curve: curve)
     }
 
-    override func layoutSubviews() {
-        super.layoutSubviews()
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
         apply(machine.handle(.roomChanged(room)))
         let measured = measuredKeyboardHeight
         guard machine.keyboard(measuring: measured) != machine.keyboard else { return }
@@ -223,7 +234,7 @@ final class PinTrayChassis: UIView {
         let leaving = standing
         assemble(tray)
         standing?.contents.alpha = 0
-        layoutIfNeeded()
+        view.layoutIfNeeded()
 
         let zoom = CGAffineTransform(scaleX: machine.contentZoom, y: machine.contentZoom)
         standing?.contents.transform = isPush ? .identity : zoom
@@ -285,7 +296,7 @@ final class PinTrayChassis: UIView {
         let contents = PinTrayContentsView(
             titleBar: titleBarLeaf(tray),
             content: inset(tray.content),
-            in: container,
+            in: self,
             reporting: self
         )
 
@@ -313,9 +324,9 @@ final class PinTrayChassis: UIView {
             replacing: standing != nil,
             over: trayResizeDuration
         )
-        layoutIfNeeded()
+        view.layoutIfNeeded()
 
-        let width = bounds.width - trayMargin * 2
+        let width = view.bounds.width - trayMargin * 2
         let clearanceAboveAccessory = PinTrayGeometry.clearanceAboveAccessory(floats: tray.floating != nil)
         let accessoryHeight = accessoryView.height(fitting: width)
         contents.clearance = accessoryHeight > 0
@@ -328,7 +339,7 @@ final class PinTrayChassis: UIView {
 
     private var fittedHeight: CGFloat {
         guard let standing else { return 0 }
-        return standing.contents.height(fitting: bounds.width - trayMargin * 2)
+        return standing.contents.height(fitting: view.bounds.width - trayMargin * 2)
     }
 
     private var accessoryInset: CGFloat { contentBottomInset }
