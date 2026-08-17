@@ -161,3 +161,20 @@ extension PinTrayChassisTests {
         XCTAssertTrue(committing.standsACommitButton, "with nothing floating, the button stands there")
     }
 }
+
+extension PinTrayChassisTests {
+    func testTheLastTrayExitsTheFlowAndADeeperOneGoesBackAStep() {
+        XCTAssertEqual(PinTrayCoordinator<Int>.exited([1]), [], "the last tray standing closes the flow")
+        XCTAssertEqual(PinTrayCoordinator<Int>.exited([1, 2]), [1], "a pushed one goes back a step")
+        XCTAssertEqual(PinTrayCoordinator<Int>.exited([]), [], "with nothing standing there is nothing to exit")
+    }
+
+    func testAPathThatGrowsOrHoldsArrivesLikeAPushAndOneThatShrinksLikeAPop() {
+        XCTAssertTrue(PinTrayCoordinator<Int>.isPush(to: 2, from: 1), "deeper is a push")
+        XCTAssertTrue(
+            PinTrayCoordinator<Int>.isPush(to: 1, from: 1),
+            "and one tray replacing another at the same depth arrives the same way"
+        )
+        XCTAssertFalse(PinTrayCoordinator<Int>.isPush(to: 1, from: 2), "shallower is a pop")
+    }
+}

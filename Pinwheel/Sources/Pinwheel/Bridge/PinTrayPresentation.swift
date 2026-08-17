@@ -33,9 +33,7 @@ private struct PinTrayPresenter<Item: Hashable>: UIViewControllerRepresentable {
     func updateUIViewController(_ controller: UIViewController, context: Context) {
         let coordinator = context.coordinator
         coordinator.dismissAll = { path.removeAll() }
-        coordinator.exit = {
-            if path.count <= 1 { path.removeAll() } else { path.removeLast() }
-        }
+        coordinator.exit = { path = PinTrayCoordinator<Item>.exited(path) }
         coordinator.sync(path: path, from: controller, tray: content)
     }
 }
@@ -46,6 +44,10 @@ final class PinTrayCoordinator<Item: Hashable> {
 
     var dismissAll: () -> Void = {}
     var exit: () -> Void = {}
+
+    static func isPush(to arriving: Int, from standing: Int) -> Bool { arriving >= standing }
+
+    static func exited(_ path: [Item]) -> [Item] { Array(path.dropLast()) }
 
     func sync(
         path: [Item],
@@ -70,7 +72,7 @@ final class PinTrayCoordinator<Item: Hashable> {
 
         if let overlay {
             overlay.depth = path.count - 1
-            overlay.show(description, isPush: path.count >= shown.count)
+            overlay.show(description, isPush: Self.isPush(to: path.count, from: shown.count))
             return
         }
 
