@@ -100,20 +100,11 @@ final class PinTrayOverlay: UIView {
     private struct Standing {
         let description: PinTray
         let contents: PinTrayContentsView
-        let accessory: PinTrayLeafView?
 
-        func detach() {
-            contents.detach()
-            accessory?.detach()
-            accessory?.removeFromSuperview()
-        }
-
-        var views: [UIView] { [contents, accessory].compactMap { $0 } }
-
-        var commitButton: PinTrayLeafView? {
-            description.standsACommitButton ? accessory : nil
-        }
+        func detach() { contents.detach() }
     }
+
+    private lazy var accessory = PinTrayAccessoryView(in: container)
 
     private var standing: Standing?
 
@@ -173,6 +164,7 @@ final class PinTrayOverlay: UIView {
     }
 
     private func tearDown() {
+        accessory.detach()
         standing?.detach()
         removeFromSuperview()
         PinwheelRecorder.stopFollowing()
@@ -409,9 +401,6 @@ final class PinTrayOverlay: UIView {
         guard let standing else { return }
         standing.contents.show(titleBar: titleBarLeaf(tray), content: inset(tray.content))
         settle()
-        if let accessory = standing.accessory, let leaf = accessoryLeaf(tray) {
-            accessory.show(leaf)
-        }
     }
 
     func show(_ tray: PinTray, isPush: Bool) {
@@ -420,23 +409,16 @@ final class PinTrayOverlay: UIView {
 
         let leaving = standing
         assemble(tray)
-        standing?.views.forEach { $0.alpha = 0 }
+        standing?.contents.alpha = 0
         layoutIfNeeded()
 
         let zoom = CGAffineTransform(scaleX: machine.contentZoom, y: machine.contentZoom)
         standing?.contents.transform = isPush ? .identity : zoom
 
-        let arriving = standing?.commitButton
-        let left = leaving?.commitButton
-        if let arriving, let left, left.frame == arriving.frame {
-            arriving.alpha = 1
-            card.bringSubviewToFront(left)
-        }
-
         UIView.animate(springDuration: trayResizeDuration, bounce: trayResizeBounce) {
-            self.standing?.views.forEach { $0.alpha = 1 }
+            self.standing?.contents.alpha = 1
             self.standing?.contents.transform = .identity
-            leaving?.views.forEach { $0.alpha = 0 }
+            leaving?.contents.alpha = 0
             leaving?.contents.transform = isPush ? zoom : .identity
         } completion: { _ in
             leaving?.detach()
@@ -491,34 +473,42 @@ final class PinTrayOverlay: UIView {
             content: inset(tray.content),
             in: container
         )
-        let accessory = accessoryLeaf(tray).map { PinTrayLeafView(showing: $0, in: container) }
 
         contents.coordinating = self
-        for view in [contents, accessory].compactMap({ $0 }) as [UIView] {
-            view.translatesAutoresizingMaskIntoConstraints = false
-            card.addSubview(view)
+        contents.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(contents)
+        if accessory.superview == nil {
+            accessory.translatesAutoresizingMaskIntoConstraints = false
+            card.addSubview(accessory)
+            NSLayoutConstraint.activate([
+                accessory.leadingAnchor.constraint(equalTo: card.leadingAnchor),
+                accessory.trailingAnchor.constraint(equalTo: card.trailingAnchor),
+                accessory.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -accessoryInset),
+            ])
         }
-
-        var constraints: [NSLayoutConstraint] = [
+        card.bringSubviewToFront(accessory)
+        NSLayoutConstraint.activate([
             contents.topAnchor.constraint(equalTo: card.topAnchor),
             contents.leadingAnchor.constraint(equalTo: card.leadingAnchor),
             contents.trailingAnchor.constraint(equalTo: card.trailingAnchor),
             contents.bottomAnchor.constraint(equalTo: card.bottomAnchor),
-        ]
-        if let accessory {
-            constraints += [
-                accessory.leadingAnchor.constraint(equalTo: card.leadingAnchor),
-                accessory.trailingAnchor.constraint(equalTo: card.trailingAnchor),
-                accessory.bottomAnchor.constraint(equalTo: card.bottomAnchor, constant: -accessoryInset),
-            ]
-        }
-        NSLayoutConstraint.activate(constraints)
+        ])
+
+        accessory.show(
+            accessoryLeaf(tray),
+            isCommitButton: tray.standsACommitButton,
+            animated: standing != nil,
+            over: trayResizeDuration
+        )
+        layoutIfNeeded()
 
         let width = bounds.width - trayMargin * 2
         let clearanceAboveAccessory = PinTrayGeometry.clearanceAboveAccessory(floats: tray.floating != nil)
-        contents.clearance = accessory
-            .map { accessoryInset + $0.height(fitting: width) + clearanceAboveAccessory } ?? contentBottomInset
-        standing = Standing(description: tray, contents: contents, accessory: accessory)
+        let accessoryHeight = accessory.height(fitting: width)
+        contents.clearance = accessoryHeight > 0
+            ? accessoryInset + accessoryHeight + clearanceAboveAccessory
+            : contentBottomInset
+        standing = Standing(description: tray, contents: contents)
         apply(machine.handle(.fillsReported(tray.detent == .filling)))
         PinwheelRecorder.note("tray", "assembled, measuring \(Int(fittedHeight))")
     }

@@ -49,7 +49,9 @@ final class PinTrayChassisTests: XCTestCase {
     }
 
     private func accessories(in view: UIView) -> [PinTrayLeafView] {
-        if let leaf = view as? PinTrayLeafView { return leaf.frame.minY > 0 ? [leaf] : [] }
+        if let slot = view as? PinTrayAccessoryView {
+            return slot.subviews.compactMap { $0 as? PinTrayLeafView }
+        }
         return view.subviews.flatMap { accessories(in: $0) }
     }
 
