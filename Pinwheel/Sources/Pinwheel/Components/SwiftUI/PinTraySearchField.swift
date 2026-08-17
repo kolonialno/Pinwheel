@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// The field a search tray floats over its results. Takes focus as it appears.
 public struct PinTraySearchField: SwiftUI.View {
     private let prompt: String
     @SwiftUI.Binding private var text: String

@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// One of a set of mutually exclusive options. Choosing applies at once.
 public struct PinTrayChoice: SwiftUI.View {
     private let label: String
     private let systemImage: String?

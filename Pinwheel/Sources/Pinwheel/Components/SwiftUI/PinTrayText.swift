@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// A paragraph in a tray. Leading unless `centred()`.
 public struct PinTrayText: SwiftUI.View {
     private let text: String
     private var isCentred = false

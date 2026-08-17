@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// A sentence ending in an underlined phrase that opens a web page.
 public struct PinTrayLink: SwiftUI.View {
     private let text: String
     private let phrase: String

@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// A row showing what is currently chosen, which opens the tray that changes it.
 public struct PinTrayValue: SwiftUI.View {
     private let label: String
     private let value: String
