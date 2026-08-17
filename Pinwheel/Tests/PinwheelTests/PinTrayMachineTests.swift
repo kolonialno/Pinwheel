@@ -325,3 +325,21 @@ final class PinTrayMachineTests: XCTestCase {
         XCTAssertTrue(gone.dismisses)
     }
 }
+
+extension PinTrayMachineTests {
+    func testAHeightWithinHalfAPointOfWhereItStandsIsNotAResize() {
+        let machine = machine(standing: 641)
+        XCTAssertFalse(machine.resizes(to: 641), "the height it already stands at changes nothing")
+        XCTAssertFalse(machine.resizes(to: 641.4), "nor does a measurement that lands on the same point")
+        XCTAssertFalse(machine.resizes(to: 0), "and nothing has measured itself yet at zero")
+        XCTAssertTrue(machine.resizes(to: 700), "a real change is one")
+    }
+
+    func testAReducedMotionPreferenceTakesTheZoomOutOfAMove() {
+        var machine = machine()
+        XCTAssertGreaterThan(machine.contentZoom, 1, "a move zooms the content it is leaving behind")
+
+        machine.motionIsReduced = true
+        XCTAssertEqual(machine.contentZoom, 1, "asked for less motion, the content crossfades in place")
+    }
+}

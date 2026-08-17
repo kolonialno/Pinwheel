@@ -101,3 +101,27 @@ final class PinTrayGeometryTests: XCTestCase {
         XCTAssertEqual(noIndicator.contentBottomInset, .spacing4)
     }
 }
+
+extension PinTrayGeometryTests {
+    func testTheBackdropStandsWhileTheTrayDoesAndLeavesWithIt() {
+        let room = PinTrayGeometry.Room(containerHeight: 900)
+        let standing = PinTrayGeometry(contentHeight: 400, room: room)
+        let leaving = PinTrayGeometry(contentHeight: 400, room: room, phase: .leaving)
+        let arriving = PinTrayGeometry(contentHeight: 400, room: room, phase: .arriving)
+
+        XCTAssertEqual(standing.dimming, 1, "a tray on screen is read against a dimmed backdrop")
+        XCTAssertEqual(arriving.dimming, 1, "and one on its way in is arriving against that backdrop")
+        XCTAssertEqual(leaving.dimming, 0, "a tray on its way out takes the backdrop with it")
+    }
+
+    func testContentPassesBehindWhatFloatsAndStandsOffACommitButton() {
+        XCTAssertEqual(
+            PinTrayGeometry.clearanceAboveAccessory(floats: true), .spacing2,
+            "content passes behind something floating, so it needs a hairline"
+        )
+        XCTAssertEqual(
+            PinTrayGeometry.clearanceAboveAccessory(floats: false), traySectionGap,
+            "a button is not floated over, so content stands off it like any other group"
+        )
+    }
+}

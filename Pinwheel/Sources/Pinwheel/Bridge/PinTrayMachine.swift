@@ -5,6 +5,7 @@ import Foundation
 /// whose duration scales with distance, which is a spring rather than a timed curve.
 let trayResizeDuration: TimeInterval = 0.30
 let trayResizeBounce: CGFloat = 0.10
+let trayZoom: CGFloat = 1.08
 
 struct PinTrayMachine: Equatable {
     enum Keyboard: Equatable {
@@ -98,6 +99,13 @@ struct PinTrayMachine: Equatable {
 
     init(room: PinTrayGeometry.Room) {
         self.room = room
+    }
+
+    var motionIsReduced = false
+    var contentZoom: CGFloat { motionIsReduced ? 1 : trayZoom }
+
+    func resizes(to height: CGFloat) -> Bool {
+        height > 0 && abs(height - geometry.height) > 0.5
     }
 
     func keyboard(measuring height: CGFloat) -> Keyboard {

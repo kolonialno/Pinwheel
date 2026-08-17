@@ -2,7 +2,6 @@ import SwiftUI
 import UIKit
 
 private let trayDimming: CGFloat = 0.35
-private let trayZoom: CGFloat = 1.08
 
 extension UIScreen {
     var pinDisplayCornerRadius: CGFloat {
@@ -115,7 +114,7 @@ final class PinTrayOverlay: UIView {
         var dissolving: [UIView] { [titleBar, divider, body] }
 
         var commitButton: PinTrayLeafView? {
-            description.floating == nil && description.commit != nil ? accessory : nil
+            description.standsACommitButton ? accessory : nil
         }
     }
 
@@ -202,7 +201,7 @@ final class PinTrayOverlay: UIView {
             animations: {
                 self.write(geometry)
                 self.tray.transform = CGAffineTransform(translationX: 0, y: geometry.translation)
-                self.dimming.alpha = 0
+                self.dimming.alpha = geometry.dimming
                 self.layoutIfNeeded()
             },
             completion: { _ in finish() }
@@ -220,7 +219,7 @@ final class PinTrayOverlay: UIView {
         let draw = {
             self.write(geometry)
             self.tray.transform = CGAffineTransform(translationX: 0, y: geometry.translation)
-            self.dimming.alpha = geometry.translation > 0 && self.machine.phase == .leaving ? 0 : 1
+            self.dimming.alpha = geometry.dimming
             self.layoutIfNeeded()
         }
         motion?.stopAnimation(true)
@@ -256,21 +255,19 @@ final class PinTrayOverlay: UIView {
 
     var onBackgroundDismiss: () -> Void = {}
     var onExit: () -> Void = {}
-    var motionIsReduced: () -> Bool = { UIAccessibility.isReduceMotionEnabled }
+    /// Reduce Motion is the system's to set, so it arrives as a report the machine holds.
+    var motionIsReduced: Bool {
+        get { machine.motionIsReduced }
+        set { machine.motionIsReduced = newValue }
+    }
+
+    @objc private func motionPreferenceChanged() {
+        machine.motionIsReduced = UIAccessibility.isReduceMotionEnabled
+    }
     var depth = 0
 
     private var contentBottomInset: CGFloat {
         machine.geometry.contentBottomInset
-    }
-
-    private var standingRoom: CGFloat {
-        PinTrayGeometry(
-            contentHeight: 0,
-            fills: true,
-            room: room,
-            keyboardInset: machine.keyboard.height,
-            standsOnKeyboard: machine.edits
-        ).height
     }
 
     override func accessibilityPerformEscape() -> Bool {
@@ -290,6 +287,14 @@ final class PinTrayOverlay: UIView {
         addSubview(dimming)
         dimming.addGestureRecognizer(
             UITapGestureRecognizer(target: self, action: #selector(dismissFromBackground))
+        )
+
+        machine.motionIsReduced = UIAccessibility.isReduceMotionEnabled
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(motionPreferenceChanged),
+            name: UIAccessibility.reduceMotionStatusDidChangeNotification,
+            object: nil
         )
 
         for name in [UIResponder.keyboardWillShowNotification, UIResponder.keyboardWillHideNotification] {
@@ -422,9 +427,7 @@ final class PinTrayOverlay: UIView {
         standing?.views.forEach { $0.alpha = 0 }
         layoutIfNeeded()
 
-        let zoom = motionIsReduced()
-            ? .identity
-            : CGAffineTransform(scaleX: trayZoom, y: trayZoom)
+        let zoom = CGAffineTransform(scaleX: machine.contentZoom, y: machine.contentZoom)
         standing?.dissolving.forEach { $0.transform = isPush ? .identity : zoom }
 
         let arriving = standing?.commitButton
@@ -475,8 +478,9 @@ final class PinTrayOverlay: UIView {
     }
 
     private func accessoryLeaf(_ tray: PinTray) -> AnyView? {
-        if let floating = tray.floating { return inset(floating) }
-        guard let commit = tray.commit else { return nil }
+        guard tray.standsACommitButton, let commit = tray.commit else {
+            return tray.floating.map(inset)
+        }
         return inset(AnyView(
             PinButton(commit.title, action: commit.action)
                 .style(.custom(text: .primaryBackground, background: .primaryText))
@@ -520,7 +524,7 @@ final class PinTrayOverlay: UIView {
         NSLayoutConstraint.activate(constraints)
 
         let width = bounds.width - trayMargin * 2
-        let clearanceAboveAccessory: CGFloat = tray.floating == nil ? traySectionGap : .spacing2
+        let clearanceAboveAccessory = PinTrayGeometry.clearanceAboveAccessory(floats: tray.floating != nil)
         body.clearance = accessory
             .map { accessoryInset + $0.height(fitting: width) + clearanceAboveAccessory } ?? contentBottomInset
         standing = Standing(
@@ -545,9 +549,9 @@ final class PinTrayOverlay: UIView {
     private var accessoryInset: CGFloat { contentBottomInset }
 
     func settle() {
-        let standing = machine.geometry.height
         let measured = fittedHeight
-        guard measured > 0, self.standing != nil, abs(measured - standing) > 0.5 else { return }
+        guard self.standing != nil, machine.resizes(to: measured) else { return }
+        let standing = machine.geometry.height
         PinwheelRecorder.note("reported", "content measures \(Int(measured))  standing=\(Int(standing))")
         apply(machine.handle(.contentResized(measured)))
     }

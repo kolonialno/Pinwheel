@@ -127,7 +127,7 @@ final class PinTrayChassisTests: XCTestCase {
         let deeper = PinTray("How it works") { Color.clear.frame(height: 300) }.commit("Got It") {}
 
         let (overlay, window) = standing(deeper)
-        overlay.motionIsReduced = { true }
+        overlay.motionIsReduced = true
         window.layoutIfNeeded()
         overlay.show(boost, isPush: false)
         window.layoutIfNeeded()
@@ -144,5 +144,20 @@ final class PinTrayChassisTests: XCTestCase {
         overlay.dismiss()
         window.layoutIfNeeded()
         XCTAssertNotNil(overlay.superview, "still on screen for as long as it is travelling")
+    }
+}
+
+extension PinTrayChassisTests {
+    func testATrayThatFloatsSomethingStandsThatRatherThanACommitButton() {
+        let floating = PinTray("Region") { Color.clear }
+            .floating { Color.clear.frame(height: 48) }
+            .commit("Boost Post") {}
+        let committing = PinTray("Boost") { Color.clear }.commit("Boost Post") {}
+
+        XCTAssertFalse(
+            floating.standsACommitButton,
+            "what a tray floats is its own content, and it takes the bottom"
+        )
+        XCTAssertTrue(committing.standsACommitButton, "with nothing floating, the button stands there")
     }
 }

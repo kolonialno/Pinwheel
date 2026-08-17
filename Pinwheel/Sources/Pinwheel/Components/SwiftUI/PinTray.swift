@@ -18,6 +18,8 @@ public struct PinTray {
     private(set) var commit: Commit?
     private(set) var detent: Detent = .fitting
 
+    var standsACommitButton: Bool { floating == nil && commit != nil }
+
     public init<Content: SwiftUI.View>(_ title: String, @ViewBuilder content: () -> Content) {
         self.title = title
         self.content = AnyView(VStack(spacing: traySectionGap) { content() })
