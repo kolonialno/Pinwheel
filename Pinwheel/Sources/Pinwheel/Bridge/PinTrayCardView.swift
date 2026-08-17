@@ -7,6 +7,8 @@ final class PinTrayCardView: UIView {
     /// What the card holds: a tray's contents, and whatever stands at its bottom.
     let surface = UIView()
 
+    weak var reporting: PinTrayCardReporting?
+
     private var height = NSLayoutConstraint()
     private var offset = NSLayoutConstraint()
     private var motion: UIViewPropertyAnimator?
@@ -39,6 +41,9 @@ final class PinTrayCardView: UIView {
     /// `init` because those guides belong to a view that cannot exist until this one does.
     func attach(to parent: UIView) {
         parent.addSubview(self)
+        let pan = UIPanGestureRecognizer(target: self, action: #selector(drag))
+        pan.delegate = self
+        addGestureRecognizer(pan)
         // The keyboard runs out of process and posts its notifications asynchronously, so anything
         // driven off them races its animation; a constraint to this guide is carried by that animation.
         parent.keyboardLayoutGuide.usesBottomSafeArea = false
@@ -147,5 +152,38 @@ final class PinTrayCardView: UIView {
         stands(at: geometry)
         transform = CGAffineTransform(translationX: 0, y: geometry.translation)
         superview?.layoutIfNeeded()
+    }
+}
+
+extension PinTrayCardView {
+    @objc private func drag(_ gesture: UIPanGestureRecognizer) {
+        let travelled = gesture.translation(in: superview).y
+        switch gesture.state {
+        case .began:
+            if isTravelling { reporting?.cardWasCaught(at: self.travelled) }
+            gesture.setTranslation(
+                CGPoint(x: 0, y: reporting?.pulledSoFar ?? 0),
+                in: superview
+            )
+        case .changed:
+            reporting?.cardWasDragged(to: travelled)
+        case .ended, .cancelled:
+            reporting?.cardWasReleased(velocity: gesture.velocity(in: superview).y)
+        default:
+            break
+        }
+    }
+}
+
+extension PinTrayCardView: UIGestureRecognizerDelegate {
+    /// A list that can still scroll keeps the touch; the card takes it only where the list has nowhere
+    /// left to go.
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        var view = touch.view
+        while let candidate = view, candidate !== self {
+            if let scroll = candidate as? UIScrollView, scroll.isScrollEnabled { return false }
+            view = candidate.superview
+        }
+        return true
     }
 }

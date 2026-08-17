@@ -182,11 +182,6 @@ final class PinTrayOverlay: UIView {
         { self.dimming.alpha = geometry.dimming }
     }
 
-    private func catchTheMotion() {
-        guard cardView.isTravelling else { return }
-        apply(machine.handle(.caught(at: cardView.travelled)))
-    }
-
     var cardHeight: CGFloat { cardView.bounds.height }
     var contentHeight: CGFloat { standing?.contents.bounds.height ?? 0 }
     var cardBottom: CGFloat { card.convert(card.bounds, to: self).maxY }
@@ -260,11 +255,8 @@ final class PinTrayOverlay: UIView {
             ]
         }
 
+        cardView.reporting = self
         cardView.attach(to: self)
-
-        let pan = UIPanGestureRecognizer(target: self, action: #selector(drag))
-        pan.delegate = self
-        cardView.addGestureRecognizer(pan)
     }
 
     private var holdsFirstResponder: Bool {
@@ -432,21 +424,6 @@ final class PinTrayOverlay: UIView {
         onBackgroundDismiss()
     }
 
-    @objc private func drag(_ gesture: UIPanGestureRecognizer) {
-        let travelled = gesture.translation(in: self).y
-        switch gesture.state {
-        case .began:
-            catchTheMotion()
-            gesture.setTranslation(CGPoint(x: 0, y: machine.pulledSoFar), in: self)
-        case .changed:
-            apply(machine.handle(.dragged(travelled)))
-        case .ended, .cancelled:
-            release(velocity: gesture.velocity(in: self).y)
-        default:
-            break
-        }
-    }
-
     private func release(velocity: CGFloat) {
         let reaction = machine.handle(.released(velocity: velocity))
         if reaction.dismisses {
@@ -461,7 +438,8 @@ extension PinTrayOverlay: PinTrayBodyCoordinating {
     var cardIsBeingPulled: Bool { machine.cardIsBeingPulled }
 
     func bodyWillBeginPulling() {
-        catchTheMotion()
+        guard cardView.isTravelling else { return }
+        apply(machine.handle(.caught(at: cardView.travelled)))
     }
 
     func bodyWasPulledDown(by amount: CGFloat) {
@@ -473,13 +451,18 @@ extension PinTrayOverlay: PinTrayBodyCoordinating {
     }
 }
 
-extension PinTrayOverlay: UIGestureRecognizerDelegate {
-    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
-        var view = touch.view
-        while let candidate = view, candidate !== cardView {
-            if let scroll = candidate as? UIScrollView, scroll.isScrollEnabled { return false }
-            view = candidate.superview
-        }
-        return true
+extension PinTrayOverlay: PinTrayCardReporting {
+    var pulledSoFar: CGFloat { machine.pulledSoFar }
+
+    func cardWasCaught(at travelled: CGFloat) {
+        apply(machine.handle(.caught(at: travelled)))
+    }
+
+    func cardWasDragged(to travelled: CGFloat) {
+        apply(machine.handle(.dragged(travelled)))
+    }
+
+    func cardWasReleased(velocity: CGFloat) {
+        release(velocity: velocity)
     }
 }
