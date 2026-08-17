@@ -46,15 +46,9 @@ These put them there; the section below says where the test then goes.
 
 - **One place draws, one place decides.** Most bugs here have been the same shape: a second copy of some
   state, or a second path that animates. Delete the copy rather than syncing it.
-- **Behaviour with several things true at once is a value that decides, and views that draw what it
-  decided.** Count states, not screens: one control that is valid or not and enabled or not already has
-  four, and a sequence of screens is the same rule further along. It earns that shape when its states
-  multiply — loading, editing, dragging, waiting, each true or not at the same time; when something
-  outside owns part of the timing, so *which animation carries a change* is itself a value to hold; or
-  when what must hold is true across a whole sequence rather than at any one moment in it. Keep views
-  out of that value and every rule becomes a test, sequences included. When it is a close call, build
-  the value: the cost of doing it early is a little ceremony, and the cost of leaving it is a bug only
-  a video can show you. What one view alone knows, and nothing else reads, stays in that view.
+- **Behaviour is a value with no views in it; a view draws what that value decided.** Count states, not
+  screens — a control that is valid or not and enabled or not already has four. Every rule the value
+  holds is then a test, sequences included.
 - **Containment is a UIKit job.** SwiftUI supplies leaves — a row, a title, a field. Anything that holds,
   lays out, scrolls or routes a gesture is a `UIView` we own, which makes it an ordinary object with an
   ordinary frame that a test reads directly, with nothing inferred from a picture. Asking SwiftUI to
