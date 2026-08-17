@@ -18,6 +18,13 @@ to change, add to it as you learn, and keep *this* file to what a session needs 
   produced contradictory numbers, numbers taken off the home screen, and wrong point scales. Every
   question has an instrument below — reach for it before writing one.
 - **Verify before claiming done**, and report what you actually observed, failures included.
+- **A warning only re-emits on a build that recompiles.** An incremental build skips unchanged files, so a
+  clean count comes from a fresh `-derivedDataPath` and nothing less. Five checks in a row read zero off a
+  build that compiled nothing.
+- **An optional is a state the type failed to name.** Where `nil` means the value lives in another state,
+  make that state a case and read it by matching, so it can only be read where it exists. Where nothing
+  can supply a value, throw. A fallback is either the answer or a lie standing in for a state — a height
+  quietly keeping what was there before drew a 200-point tray at 794.
 - **Adding or moving a file needs no `project.pbxproj` edit** — both targets are file-system-synchronized
   groups, so the folder layout *is* the project structure and a new folder is a real decision.
 - **Linear ownership.** Nothing reaches more than one level up or down. Downward is direct; upward is a
@@ -41,7 +48,8 @@ to change, add to it as you learn, and keep *this* file to what a session needs 
   go at, it stays interruptible until it settles, and what decides where it ends up is where it would
   come to rest if left alone — never how fast it happened to be moving when it was released.
 - **A value the platform owns is read, never copied.** Read it and the layout is right on hardware and
-  OS versions you will never see.
+  OS versions you will never see. Where there is nothing to read, reimplement only what holds still — a
+  corner's curve is the same shape on every device, its radius is not.
 
 ## Built to be tested
 
@@ -105,6 +113,9 @@ is not one.
 - **A probe must not pass `-UITestingNoAnimations`.** It disables animations, so motion reads as an
   instant snap and the measurement blames the code for the harness.
 - **A comment that explains a behaviour becomes a named test, then the comment dies.**
+- **A comment explains code; a docstring states a contract.** An explanation belongs in a name, a test or
+  `LEARNINGS.md`. A docstring earns its place on a public seam where the signature cannot say what to pass
+  or when to leave it off, and it says nothing about how the code works.
 
 ## Instruments
 
