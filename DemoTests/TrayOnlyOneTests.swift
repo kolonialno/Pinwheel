@@ -52,4 +52,42 @@ final class TrayOnlyOneTests: XCTestCase {
             "one tray stands at a time — reopening while the last is still leaving must reuse it, not stack: \(trays.count)"
         )
     }
+
+    func testARescuedTrayNeverTellsTheAppItWent() throws {
+        let scene = try XCTUnwrap(
+            UIApplication.shared.connectedScenes.first as? UIWindowScene,
+            "the host app has no window scene"
+        )
+        let window = UIWindow(windowScene: scene)
+        window.frame = scene.screen.bounds
+        let presenter = UIViewController()
+        window.rootViewController = presenter
+        window.makeKeyAndVisible()
+
+        var cleared = 0
+        let sync = PinTrayPathSync<Int>()
+        sync.dismissAll = { cleared += 1 }
+        sync.sync(path: [0], from: presenter) { _ in
+            PinTray("Boost") { Color.clear.frame(height: 300) }.commit("Boost Post") {}
+        }
+        spin(window, for: 0.6)
+
+        let tray = try XCTUnwrap(
+            presenter.children.compactMap { $0 as? PinTrayChassis }.first,
+            "a tray is standing"
+        )
+
+        // thrown down hard enough to leave, then caught on the way out
+        tray.cardWasDragged(to: 400)
+        tray.cardWasReleased(velocity: 2_000)
+        spin(window, for: 0.05)
+        tray.cardWasTouched()
+        spin(window, for: 0.5)
+
+        XCTAssertEqual(
+            cleared, 0,
+            "a tray caught and stood back up never left, so the path it was opened from still holds it"
+        )
+    }
 }
+

@@ -50,9 +50,11 @@ final class PinTrayPathSync<Item: Hashable> {
             covering: container.view.bounds
         )
         created.depth = path.count - 1
-        created.onBackgroundDismiss = { [weak self] in self?.dismissAll() }
         created.onExit = { [weak self] in self?.exit() }
-        created.onGone = { [weak self] in self?.overlay = nil }
+        created.onGone = { [weak self] in
+            self?.overlay = nil
+            self?.dismissAll()
+        }
 
         container.addChild(created)
         container.view.addSubview(created.view, filling: .all)

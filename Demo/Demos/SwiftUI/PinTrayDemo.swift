@@ -34,7 +34,7 @@ struct PinTrayDemo: View {
             PinLabel("A tray sequence, each one as tall as its own content.")
                 .color(.secondary)
                 .multilineTextAlignment(.center)
-            PinButton("Boost Post") { path = [.boost] }
+            PinButton("Show Tray") { path = [.boost] }
         }
         .padding(.spacing6)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

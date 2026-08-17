@@ -142,7 +142,6 @@ final class PinTrayChassis: UIViewController {
     var cardBottom: CGFloat { card.convert(card.bounds, to: view).maxY }
     var bottomCornerRadius: CGFloat { cardView.layer.cornerRadius }
 
-    var onBackgroundDismiss: () -> Void = {}
     var onGone: () -> Void = {}
     var onExit: () -> Void = {}
     var motionIsReduced: Bool {
@@ -160,7 +159,7 @@ final class PinTrayChassis: UIViewController {
     }
 
     override func accessibilityPerformEscape() -> Bool {
-        onBackgroundDismiss()
+        dismiss()
         return true
     }
 
@@ -374,7 +373,7 @@ final class PinTrayChassis: UIViewController {
 
     @objc private func dismissFromBackground() {
         note("navigation", "backdrop tapped")
-        onBackgroundDismiss()
+        dismiss()
     }
 
     private func catchAnythingInFlight() {
@@ -383,12 +382,7 @@ final class PinTrayChassis: UIViewController {
     }
 
     private func release(velocity: CGFloat) {
-        let reaction = machine.handle(.released(velocity: velocity))
-        if reaction.dismisses {
-            onBackgroundDismiss()
-        } else {
-            apply(reaction)
-        }
+        apply(machine.handle(.released(velocity: velocity)))
     }
 }
 

@@ -121,12 +121,16 @@ final class PinTrayChassisTests: XCTestCase {
     }
 
     func testTheEscapeGestureLeavesATrayTheWayTappingOutsideDoes() {
-        let (overlay, _) = standing(PinTray("Boost") { Color.clear.frame(height: 300) })
-        var left = false
-        overlay.onBackgroundDismiss = { left = true }
+        let (overlay, window) = standing(PinTray("Boost") { Color.clear.frame(height: 300) })
+        var gone = false
+        overlay.onGone = { gone = true }
 
         XCTAssertTrue(overlay.accessibilityPerformEscape(), "the tray answers the escape gesture")
-        XCTAssertTrue(left, "and leaves by the same way out as a tap on the backdrop")
+        for _ in 0..<150 where !gone {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.02))
+            window.layoutIfNeeded()
+        }
+        XCTAssertTrue(gone, "and leaves by the same way out as a tap on the backdrop")
     }
 
     func testAMoveCarriesNoZoomWhenMotionIsReduced() {
