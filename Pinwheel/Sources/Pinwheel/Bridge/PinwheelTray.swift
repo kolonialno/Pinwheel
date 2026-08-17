@@ -14,8 +14,8 @@ private struct PinTrayPresenter<Item: Hashable>: UIViewControllerRepresentable {
     @SwiftUI.Binding var path: [Item]
     let content: (Item) -> PinTray
 
-    func makeCoordinator() -> PinTraySync<Item> {
-        PinTraySync()
+    func makeCoordinator() -> PinTrayPathSync<Item> {
+        PinTrayPathSync()
     }
 
     func makeUIViewController(context: Context) -> UIViewController {
@@ -25,7 +25,7 @@ private struct PinTrayPresenter<Item: Hashable>: UIViewControllerRepresentable {
     func updateUIViewController(_ controller: UIViewController, context: Context) {
         let coordinator = context.coordinator
         coordinator.dismissAll = { path.removeAll() }
-        coordinator.exit = { path = PinTraySync<Item>.exited(path) }
+        coordinator.exit = { path = PinTrayPathSync<Item>.exited(path) }
         coordinator.sync(path: path, from: controller, tray: content)
     }
 }

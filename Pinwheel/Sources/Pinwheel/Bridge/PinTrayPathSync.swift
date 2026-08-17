@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-final class PinTraySync<Item: Hashable> {
+final class PinTrayPathSync<Item: Hashable> {
     private var overlay: PinTrayChassis?
     private var shown: [Item] = []
 
