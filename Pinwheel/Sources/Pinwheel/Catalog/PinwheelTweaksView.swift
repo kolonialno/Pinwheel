@@ -2,39 +2,40 @@ import SwiftUI
 
 struct PinwheelTweaksView: SwiftUI.View {
     let tweaks: [PinwheelTweak]
-    @SwiftUI.Binding var selectedDeviceIndex: Int?
+    let openDevices: () -> Void
+    let close: () -> Void
 
     @Environment(\.pinwheelTheme) private var theme
-    @Environment(\.dismiss) private var dismiss
 
-    var body: some SwiftUI.View {
-        NavigationStack {
-            PinwheelSheet(model: PinwheelSheetModel(title: "Tweaks")) {
-                if tweaks.isEmpty {
-                    PinLabel("No tweaks")
-                        .color(.secondary)
-                        .frame(maxWidth: .infinity, minHeight: .minimumControlHeight * 2)
-                } else {
-                    VStack(alignment: .leading, spacing: 0) {
-                        ForEach(tweaks) { tweak in
-                            tweakRow(tweak)
-                        }
+    var tray: PinTray {
+        PinTray("Tweaks") {
+            if tweaks.isEmpty {
+                PinLabel("No tweaks")
+                    .color(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: .minimumControlHeight * 2)
+            } else {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(tweaks) { tweak in
+                        tweakRow(tweak)
                     }
                 }
-            } trailing: {
-                NavigationLink {
-                    PinwheelDeviceList(selectedIndex: $selectedDeviceIndex)
-                } label: {
-                    Image(systemName: "iphone.gen3")
-                        .font(PinTextStyle.body.font(in: theme))
-                        .symbolRenderingMode(.monochrome)
-                        .imageScale(.large)
-                }
-                .accessibilityLabel("Device")
-                .accessibilityIdentifier("pinwheel.device")
             }
         }
+        .titleAccessory {
+            SwiftUI.Button(action: openDevices) {
+                Image(systemName: "iphone.gen3")
+                    .font(PinTextStyle.body.font(in: theme))
+                    .symbolRenderingMode(.monochrome)
+                    .imageScale(.large)
+                    .foregroundStyle(.primaryText)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Device")
+            .accessibilityIdentifier("pinwheel.device")
+        }
     }
+
+    var body: some SwiftUI.View { EmptyView() }
 
     @ViewBuilder
     private func tweakRow(_ tweak: PinwheelTweak) -> some SwiftUI.View {
@@ -42,10 +43,10 @@ struct PinwheelTweaksView: SwiftUI.View {
         case .action(let action):
             SwiftUI.Button {
                 action()
-                dismiss()
+                close()
             } label: {
                 tweakLabels(tweak)
-                    .padding(.horizontal, .spacing6)
+                    .padding(.horizontal, .spacing3)
                     .padding(.vertical, .spacing3)
                     .frame(maxWidth: .infinity, minHeight: .minimumControlHeight, alignment: .leading)
                     .contentShape(Rectangle())
@@ -54,16 +55,15 @@ struct PinwheelTweaksView: SwiftUI.View {
         case .toggle(let isOn):
             Toggle(isOn: isOn) { tweakLabels(tweak) }
                 .tint(.actionText)
-                .padding(.horizontal, .spacing6)
+                .padding(.horizontal, .spacing3)
                 .padding(.vertical, .spacing3)
                 .frame(maxWidth: .infinity, minHeight: .minimumControlHeight, alignment: .leading)
         case .select(let options, let selection):
             ForEach(Array(options.enumerated()), id: \.offset) { index, option in
-                PickerRow(title: option, isSelected: index == tweak.selectedOption) {
+                PinTrayChoice(option, isChosen: index == tweak.selectedOption) {
                     selection.wrappedValue = index
-                    dismiss()
+                    close()
                 }
-                .padding(.horizontal, .spacing3)
             }
         }
     }
@@ -79,21 +79,27 @@ struct PinwheelTweaksView: SwiftUI.View {
     }
 }
 
-struct PinwheelDeviceList: SwiftUI.View {
+struct PinwheelDeviceList {
     @SwiftUI.Binding var selectedIndex: Int?
-
-    @Environment(\.dismiss) private var dismiss
+    let close: () -> Void
 
     private let devices = Device.all
 
-    var body: some SwiftUI.View {
-        PinwheelSheet(PinwheelSheetModel(title: "Device", leading: .back)) {
-            ForEach(Array(devices.enumerated()), id: \.offset) { index, device in
-                PickerRow(title: device.title, isSelected: isSelected(index, device)) {
-                    selectedIndex = index
-                    dismiss()
+    init(selectedIndex: SwiftUI.Binding<Int?>, close: @escaping () -> Void) {
+        _selectedIndex = selectedIndex
+        self.close = close
+    }
+
+    var tray: PinTray {
+        PinTray("Device") {
+            PinTraySection {
+                ForEach(Array(devices.enumerated()), id: \.offset) { index, device in
+                    PinTrayChoice(device.title, isChosen: isSelected(index, device)) {
+                        selectedIndex = index
+                        close()
+                    }
+                    .disabled(!device.isEnabled)
                 }
-                .disabled(!device.isEnabled)
             }
         }
     }

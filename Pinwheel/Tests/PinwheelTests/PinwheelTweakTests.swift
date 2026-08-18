@@ -76,7 +76,7 @@ final class PinwheelTweakTests: XCTestCase {
         XCTAssertNotEqual(
             before,
             after,
-            "onPreferenceChange only fires on inequality, so a tweak that ignores its selection leaves the sheet showing a stale row"
+            "onPreferenceChange only fires on inequality, so a tweak that ignores its selection leaves the tray showing a stale row"
         )
     }
 }
