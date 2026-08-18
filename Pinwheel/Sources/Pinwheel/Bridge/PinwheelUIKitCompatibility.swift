@@ -37,7 +37,10 @@ extension PinwheelTweak {
                 select.title,
                 description: select.description,
                 options: select.options,
-                selection: Binding(get: select.chosenOption, set: select.action)
+                selection: Binding(
+                    get: { select.chosenOption() },
+                    set: { select.action($0) }
+                )
             )
         } else {
             return nil
