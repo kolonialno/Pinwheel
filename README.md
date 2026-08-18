@@ -219,12 +219,14 @@ Available presentations:
 
 ## Tags
 
-Tag an item with an axis it belongs to. Tags render as a filter of pills under the section picker, and they fold into the item's id — so the SwiftUI and UIKit takes on the same component get distinct ids without a manual one, and share one section:
+Tag an item with an axis it belongs to. Tags render as a filter of pills under the section picker, and they fold into the item's id — so the SwiftUI and UIKit takes on the same component get distinct ids without a manual one, and share one section. SwiftUI is the default, so only the take that departs from it carries a tag:
 
 ```swift
-PinwheelItem("Button") { PinButtonDemo() }.tags(.swiftUI)    // id "swiftui-button"
+PinwheelItem("Button") { PinButtonDemo() }                   // id "button"
 PinwheelItem("Button", view: ButtonView.self).tags(.uiKit)   // id "uikit-button"
 ```
+
+A pill appears for a tag that tells items apart — a lone `UIKit` pill in a section of otherwise untagged items filters down to the UIKit takes, and a tag every item carries earns no pill.
 
 `PinTag` is open — the library ships `.swiftUI`/`.uiKit`, and you add your own axis with a static extension:
 

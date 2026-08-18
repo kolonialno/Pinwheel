@@ -324,15 +324,24 @@ private struct PinwheelIndexView: SwiftUI.View {
             }
         }
         .safeAreaInset(edge: .top, spacing: 0) {
-            if sectionTags.count > 1 {
+            if !tagsWorthFiltering.isEmpty {
                 PinwheelFilterBar(
-                    tags: sectionTags,
+                    tags: tagsWorthFiltering,
                     selectedTag: $selectedTag,
                     scrolledDistance: scrolledDistance
                 )
             }
         }
         .onChange(of: section?.id) { selectedTag = nil }
+    }
+
+    /// A tag earns a pill when filtering by it would leave something out — so a lone tag counts when the
+    /// section also holds untagged items, and a tag every item carries does not.
+    private var tagsWorthFiltering: [PinTag] {
+        guard let section else { return [] }
+        let tags = sectionTags
+        if tags.count == 1, section.items.allSatisfy({ $0.tags == tags }) { return [] }
+        return tags
     }
 
     private var sectionTags: [PinTag] {
