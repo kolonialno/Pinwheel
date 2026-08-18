@@ -32,8 +32,6 @@ final class FillWidthCardPaddingTests: XCTestCase {
         (node.fillToken == "secondaryBackground" && node.layout != nil ? [node] : []) + node.children.flatMap(cards)
     }
 
-    // A full-width left-aligned card must not record the empty space to the right of its content as
-    // trailing padding — the padding stays symmetric (spacing-4 all round) and the card fills its parent.
     func testFullWidthCardHasSymmetricPaddingNotAGiantTrailingGap() throws {
         let document = try XCTUnwrap(PinDisplayListCapture.document(
             Fixture(), name: "Cards", size: CGSize(width: 402, height: 700), screenHeight: 700))

@@ -26,8 +26,6 @@ final class PinTrayPathSync<Item: Hashable> {
         defer { shown = path }
 
         guard let top = path.last else {
-            // The reference stays until it has actually gone: a tray on its way out can be caught and
-            // stood back up, and forgetting it here is what let a second one open over the top.
             overlay?.dismiss()
             return
         }

@@ -134,7 +134,6 @@ struct FigmaToken: Encodable {
     var float: Double? = nil
 }
 
-// Names use the plugin's dashed convention (`spacing-2` → the `spacing/s` Figma variable).
 enum PinFloatTokens {
     static var spacing: [(name: String, value: CGFloat)] {
         [("spacing-1", .spacing1), ("spacing-2", .spacing2), ("spacing-3", .spacing3), ("spacing-4", .spacing4),

@@ -35,11 +35,9 @@ final class TrayOnlyOneTests: XCTestCase {
             "a tray is standing"
         )
 
-        // the path empties, so the tray starts leaving
         sync.sync(path: [], from: presenter) { _ in tray() }
         spin(window, for: 0.05)
 
-        // a finger lands on it mid-flight, which is meant to bring it back
         leaving.cardWasTouched()
         spin(window, for: 0.5)
 
@@ -77,7 +75,6 @@ final class TrayOnlyOneTests: XCTestCase {
             "a tray is standing"
         )
 
-        // thrown down hard enough to leave, then caught on the way out
         tray.cardWasDragged(to: 400)
         tray.cardWasReleased(velocity: 2_000)
         spin(window, for: 0.05)

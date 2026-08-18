@@ -20,9 +20,6 @@ class UIPinTypographyDemo: UIPinView {
         FontItem(font: .captionSemibold, title: "Caption Semibold")
     ]
 
-    // A left-aligned VStack (not a UITableView): eager and in the view tree, so it captures as an
-    // auto-layout column — the UIKit counterpart of the SwiftUI Typography demo. spacing4 horizontal
-    // inset, spacing3 top/bottom, and 2×spacing3 between rows mirror the SwiftUI per-row padding.
     override func setup() {
         let stack = UIStackView(withAutoLayout: true)
         stack.axis = .vertical

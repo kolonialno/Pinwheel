@@ -45,16 +45,17 @@ public enum PinwheelRecorder {
         private var previous: [(String, CGFloat)] = []
         private var watched: [ObjectIdentifier] = []
 
-        override init() {
-            // Appended, never truncated: a session someone drove by hand is the whole point of this
-            // file, and anything that relaunches the app — a test run, a rebuild — would otherwise
-            // destroy it before it could be read. One was lost that way.
-            let path = NSTemporaryDirectory() + "session.log"
+        private static func openForAppending(_ path: String) -> FileHandle? {
             if !FileManager.default.fileExists(atPath: path) {
                 FileManager.default.createFile(atPath: path, contents: nil)
             }
-            handle = FileHandle(forWritingAtPath: path)
+            let handle = FileHandle(forWritingAtPath: path)
             handle?.seekToEndOfFile()
+            return handle
+        }
+
+        override init() {
+            handle = Session.openForAppending(NSTemporaryDirectory() + "session.log")
             super.init()
 
             let screen = UIScreen.main.bounds
@@ -156,12 +157,15 @@ public enum PinwheelRecorder {
         }
 
         private func announce(_ phase: String, _ touches: Set<UITouch>) {
-            // The recogniser is attached to the window itself, and a window's own `window` is nil — which
-            // is why the first recorded session had every state change in it and not one touch.
-            guard let touch = touches.first, let host = view else { return }
-            let point = touch.location(in: host)
-            // Only a down is worth naming: what a drag is over changes constantly and says little.
-            report(phase, point, phase == "down" ? name(host.hitTest(point, with: nil), at: point, under: host) : nil)
+            guard let touch = touches.first, let watchedWindow = view else { return }
+            let point = touch.location(in: watchedWindow)
+            report(
+                phase,
+                point,
+                phase == "down"
+                    ? name(watchedWindow.hitTest(point, with: nil), at: point, under: watchedWindow)
+                    : nil
+            )
         }
 
         /// What a person would call the thing they touched. SwiftUI puts its identifiers in the

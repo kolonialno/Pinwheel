@@ -140,10 +140,14 @@ final class CaptureFidelityTests: XCTestCase {
     }
 
     func testInferredGapBindsTheSpacingTokenDespiteGlyphBearing() {
-        // A gap between rendered leaves reads a hair wider than declared — a glyph sits inset within its
-        // frame — so a ~9-10 label↔icon gap still binds spacing-2 (8).
-        XCTAssertEqual(FigmaLayout(PinCaptureLayout(axis: .row, spacing: 9.33)).gapToken, "spacing-2")
-        XCTAssertEqual(FigmaLayout(PinCaptureLayout(axis: .row, spacing: 10.33)).gapToken, "spacing-2")
+        XCTAssertEqual(
+            FigmaLayout(PinCaptureLayout(axis: .row, spacing: 9.33)).gapToken, "spacing-2",
+            "a rendered gap reads a hair wider than declared, a glyph sitting inset in its frame"
+        )
+        XCTAssertEqual(
+            FigmaLayout(PinCaptureLayout(axis: .row, spacing: 10.33)).gapToken, "spacing-2",
+            "so anything around 9 to 10 still binds spacing-2, which is 8"
+        )
         XCTAssertEqual(FigmaLayout(PinCaptureLayout(axis: .row, spacing: 16)).gapToken, "spacing-4")
         XCTAssertNil(FigmaLayout(PinCaptureLayout(axis: .row, spacing: 28)).gapToken,
                      "a gap that is no token's value binds nothing")
