@@ -40,9 +40,7 @@ struct DemoApp: App {
                     .onPinwheelThemeChange(tintTheApp)
             } else {
                 PinwheelCatalog(themes: DemoThemes.all) {
-                    DemoPinwheelSections.tokens
-                    DemoPinwheelSections.components
-                    DemoPinwheelSections.screens
+                    DemoPinwheelSections.all
                 }
                 .environment(\.pinCaptureSink) { FigmaCatalog.autoPush(id: $0) }
                 .onPinwheelThemeChange(tintTheApp)

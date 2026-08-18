@@ -78,6 +78,15 @@ PinwheelCatalog(themes: [.marine]) {
 }
 ```
 
+A builder takes a list as readily as a literal, so the sections you already hold in one place stay in one
+place:
+
+```swift
+PinwheelCatalog(themes: [.marine]) {
+    MyCatalog.sections
+}
+```
+
 Hand it more than one and a Theme control appears in the bottom bar, so a design system with
 several brands switches between them live — including while a component is open. The choice persists across
 launches, and falls back to the first theme when a persisted name is gone.
