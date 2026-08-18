@@ -83,7 +83,7 @@ struct PinwheelDeviceList {
     @SwiftUI.Binding var selectedIndex: Int?
     let close: () -> Void
 
-    private let devices = Device.all
+    private let devicesThatFit = Device.all.enumerated().filter { $0.element.fitsThisScreen }
 
     init(selectedIndex: SwiftUI.Binding<Int?>, close: @escaping () -> Void) {
         _selectedIndex = selectedIndex
@@ -93,12 +93,11 @@ struct PinwheelDeviceList {
     var tray: PinTray {
         PinTray("Device") {
             PinTraySection {
-                ForEach(Array(devices.enumerated()), id: \.offset) { index, device in
+                ForEach(devicesThatFit, id: \.offset) { index, device in
                     PinTrayChoice(device.title, isChosen: isSelected(index, device)) {
                         selectedIndex = index
                         close()
                     }
-                    .disabled(!device.isEnabled)
                 }
             }
         }

@@ -35,6 +35,25 @@ final class PinwheelTweakTests: XCTestCase {
         XCTAssertEqual(received, true, "flipping the bridged binding forwards to the UIKit tweak's action")
     }
 
+    func testABridgedChoiceReportsTheOptionInForceRatherThanTheOneItWasBuiltWith() throws {
+        var chosen = 0
+        let bridged = try XCTUnwrap(PinwheelTweak(SelectTweak(
+            title: "State",
+            options: ["Loading", "Loaded"],
+            chosenOption: { chosen },
+            action: { chosen = $0 }
+        )))
+
+        bridged.applyAsPreviewVariant(named: "Loaded")
+
+        XCTAssertEqual(chosen, 1, "choosing an option reaches the UIKit tweak's action")
+        XCTAssertEqual(
+            bridged.selectedOption,
+            1,
+            "a UIKit host never rebuilds the bridged tweak, so the option it reports has to be read live"
+        )
+    }
+
     func testUnknownTweakKindBridgesToNil() {
         struct CustomTweak: Tweak {
             var title = "Custom"
