@@ -37,6 +37,7 @@ struct PinwheelCatalogView: SwiftUI.View {
         }
         .environment(chrome)
         .environment(\.pinwheelTheme, chrome.theme)
+        .preference(key: PinwheelSelectedThemeKey.self, value: chrome.theme)
         .preferredColorScheme(chrome.colorScheme)
         .background(PinwheelThemedWindow(theme: chrome.theme))
         .background(PinwheelShakeToShowBuild())

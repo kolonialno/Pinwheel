@@ -21,12 +21,23 @@ struct DemoApp: App {
 
     }
 
+    /// A UIAlertController and anything else the system presents for us draws in the app's tint, which
+    /// no catalog window reaches — so the shake alert's buttons take the chosen brand from here.
+    private func tintTheApp(_ theme: PinwheelTheme) {
+        for case let scene as UIWindowScene in UIApplication.shared.connectedScenes {
+            for window in scene.windows {
+                window.tintColor = theme.colors.actionText
+            }
+        }
+    }
+
     var body: some Scene {
         WindowGroup {
             if let captureID = FigmaCatalog.requestedCaptureID {
                 FigmaCaptureSweepView(id: captureID)
             } else if let previewID = PinwheelPreview.requestedID {
                 PinwheelPreview(previewID, sections: DemoPinwheelSections.all, themes: DemoThemes.all)
+                    .onPinwheelThemeChange(tintTheApp)
             } else {
                 PinwheelCatalog(themes: DemoThemes.all) {
                     DemoPinwheelSections.tokens
@@ -34,6 +45,7 @@ struct DemoApp: App {
                     DemoPinwheelSections.screens
                 }
                 .environment(\.pinCaptureSink) { FigmaCatalog.autoPush(id: $0) }
+                .onPinwheelThemeChange(tintTheApp)
             }
         }
     }
