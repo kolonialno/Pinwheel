@@ -2,28 +2,24 @@ import SwiftUI
 import Pinwheel
 
 struct PinTweakableDemo: SwiftUI.View {
-    @SwiftUI.State private var selection = "Tap the button and choose an option."
+    @SwiftUI.State private var optionIndex = 0
     @SwiftUI.State private var isOn = false
 
+    private let options = ["Option 1", "Option 2"]
+
     var body: some SwiftUI.View {
-        PinLabel(selection)
+        PinLabel(summary)
             .multilineTextAlignment(.center)
             .padding(.spacing8)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(.primaryBackground)
             .pinwheelTweaks {
-                PinwheelTweak("Option 1") {
-                    selection = "You chose Option 1."
-                }
-
-                PinwheelTweak("Option 2", description: "Description 2") {
-                    selection = "You chose Option 2."
-                }
-
+                PinwheelTweak("Option", options: options, selection: $optionIndex)
                 PinwheelTweak("Option 3", description: "Toggle-backed option", isOn: $isOn)
             }
-            .onChange(of: isOn) { _, value in
-                selection = "Option 3 is \(value ? "on" : "off")."
-            }
+    }
+
+    private var summary: String {
+        "You chose \(options[optionIndex]), and Option 3 is \(isOn ? "on" : "off")."
     }
 }

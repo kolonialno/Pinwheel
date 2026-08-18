@@ -2,25 +2,27 @@ import UIKit
 import Pinwheel
 
 class UIPinTweakableDemo: UIPinView, Tweakable {
+    private let options = ["Option 1", "Option 2"]
+    private var optionIndex = 0
+    private var isOn = false
+
     lazy var tweaks: [Tweak] = {
-        let option1 = TextTweak(title: "Option 1") {
-            self.titleLabel.text = "You chose Option 1."
-        }
-
-        let option2 = TextTweak(title: "Option 2", description: "Description 2") {
-            self.titleLabel.text = "You chose Option 2."
-        }
-
-        let option3 = BoolTweak(title: "Option 3", description: "Toggle-backed option") { isOn in
-            self.titleLabel.text = "Option 3 is \(isOn ? "on" : "off")."
-        }
-
-        return [option1, option2, option3]
+        return [
+            SelectTweak(
+                title: "Option",
+                options: options,
+                chosenOption: { self.optionIndex },
+                action: { self.optionIndex = $0; self.reload() }
+            ),
+            BoolTweak(title: "Option 3", description: "Toggle-backed option") { isOn in
+                self.isOn = isOn
+                self.reload()
+            }
+        ]
     }()
 
     lazy var titleLabel: UIPinLabel = {
         let label = UIPinLabel(font: .body)
-        label.text = "Tap the button and choose an option."
         label.textAlignment = .center
         label.numberOfLines = 0
         return label
@@ -39,5 +41,10 @@ class UIPinTweakableDemo: UIPinView, Tweakable {
             stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -.spacing8),
             stack.centerYAnchor.constraint(equalTo: centerYAnchor)
         ])
+        reload()
+    }
+
+    private func reload() {
+        titleLabel.text = "You chose \(options[optionIndex]), and Option 3 is \(isOn ? "on" : "off")."
     }
 }
