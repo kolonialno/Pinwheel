@@ -2,7 +2,8 @@ import SwiftUI
 import UIKit
 
 /// A shake anywhere in the catalog says which build is running, so a handover can be checked rather than
-/// trusted. iOS delivers a shake to the first responder, which is why this controller takes it.
+/// trusted. iOS delivers a shake to the first responder, which is why this controller takes it — and takes
+/// it back, since anything typed into hands the chain to a text field and never returns it.
 struct PinwheelShakeToShowBuild: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> ShakeController { ShakeController() }
 
@@ -13,6 +14,26 @@ struct PinwheelShakeToShowBuild: UIViewControllerRepresentable {
 
         override func viewDidAppear(_ animated: Bool) {
             super.viewDidAppear(animated)
+            listen()
+            becomeFirstResponder()
+        }
+
+        private func listen() {
+            for name in [
+                UIResponder.keyboardDidHideNotification,
+                UIApplication.didBecomeActiveNotification,
+            ] {
+                NotificationCenter.default.addObserver(
+                    self,
+                    selector: #selector(takeItBack),
+                    name: name,
+                    object: nil
+                )
+            }
+        }
+
+        @objc private func takeItBack() {
+            guard view.window != nil, !isFirstResponder else { return }
             becomeFirstResponder()
         }
 
