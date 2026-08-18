@@ -21,8 +21,8 @@ struct DemoApp: App {
 
     }
 
-    /// A UIAlertController and anything else the system presents for us draws in the app's tint, which
-    /// no catalog window reaches — so the shake alert's buttons take the chosen brand from here.
+    /// A UIAlertController and anything else the system presents draws in the app window's tint, which
+    /// no catalog window reaches.
     private func tintTheApp(_ theme: PinwheelTheme) {
         for case let scene as UIWindowScene in UIApplication.shared.connectedScenes {
             for window in scene.windows {

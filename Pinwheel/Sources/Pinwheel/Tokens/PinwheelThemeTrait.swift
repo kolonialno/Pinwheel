@@ -36,8 +36,7 @@ nonisolated struct PinwheelSelectedThemeKey: PreferenceKey {
 }
 
 public extension SwiftUI.View {
-    /// Reports the theme the catalog is showing, so a host above it can carry that selection into
-    /// chrome the catalog has no reach over — a second design system's trait, the app's own tint.
+    /// Fires on first render as well as on every change, so a host needs no initial read of its own.
     func onPinwheelThemeChange(_ action: @escaping @MainActor (PinwheelTheme) -> Void) -> some SwiftUI.View {
         onPreferenceChange(PinwheelSelectedThemeKey.self) { theme in
             guard let theme else { return }
