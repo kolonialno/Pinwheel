@@ -78,7 +78,7 @@ PinwheelCatalog(themes: [.marine]) {
 }
 ```
 
-Hand it more than one and a Theme row appears in the floating settings sheet, so a design system with
+Hand it more than one and a Theme control appears in the bottom bar, so a design system with
 several brands switches between them live — including while a component is open. The choice persists across
 launches, and falls back to the first theme when a persisted name is gone.
 
@@ -168,7 +168,7 @@ beside it on the keyboard's own clock.
 
 ## Tweaks
 
-Attach actions and toggles to any SwiftUI demo with `pinwheelTweaks`. They appear in Pinwheel's floating settings sheet.
+Attach commands, switches and choices to any SwiftUI demo with `pinwheelTweaks`. They appear in the tray behind the wrench.
 
 ```swift
 struct PrimaryButtonDemo: View {
@@ -323,7 +323,7 @@ Components that already ship a UIKit-friendly shell — `UIPinButton`, `UIPinSta
 
 ## Device Simulation
 
-Pinwheel can preview a demo in known iPhone and iPad sizes from the floating settings sheet. SwiftUI demos receive the simulated horizontal and vertical size classes through the SwiftUI environment while the content frame is resized to the selected device.
+Pinwheel can preview a demo in known iPhone sizes from the device list in the tweaks tray. SwiftUI demos receive the simulated horizontal and vertical size classes through the SwiftUI environment while the content frame is resized to the selected device.
 
 ## Figma Capture
 

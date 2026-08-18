@@ -14,7 +14,7 @@ struct PinwheelTweaksView: SwiftUI.View {
                     .color(.secondary)
                     .frame(maxWidth: .infinity, minHeight: .minimumControlHeight * 2)
             } else {
-                VStack(alignment: .leading, spacing: 0) {
+                PinTraySection {
                     ForEach(tweaks) { tweak in
                         tweakRow(tweak)
                     }
@@ -47,7 +47,6 @@ struct PinwheelTweaksView: SwiftUI.View {
             } label: {
                 tweakLabels(tweak)
                     .padding(.horizontal, .spacing3)
-                    .padding(.vertical, .spacing3)
                     .frame(maxWidth: .infinity, minHeight: .minimumControlHeight, alignment: .leading)
                     .contentShape(Rectangle())
             }
@@ -56,7 +55,6 @@ struct PinwheelTweaksView: SwiftUI.View {
             Toggle(isOn: isOn) { tweakLabels(tweak) }
                 .tint(.actionText)
                 .padding(.horizontal, .spacing3)
-                .padding(.vertical, .spacing3)
                 .frame(maxWidth: .infinity, minHeight: .minimumControlHeight, alignment: .leading)
         case .select(let options, let selection):
             ForEach(Array(options.enumerated()), id: \.offset) { index, option in
