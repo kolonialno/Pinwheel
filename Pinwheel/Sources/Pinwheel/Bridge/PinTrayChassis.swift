@@ -378,7 +378,11 @@ final class PinTrayChassis: UIViewController {
 
     private func catchAnythingInFlight() {
         guard placement.isTravelling else { return }
-        apply(machine.handle(.caught(at: placement.travelled)))
+        // Catching is what stops the travel. Leaving that to whether the reaction happens to differ from
+        // what is drawn once let an exit run on under a finger that had already caught it.
+        let caughtAt = placement.travelled
+        placement.stopTravelling()
+        apply(machine.handle(.caught(at: caughtAt)))
     }
 
     private func release(velocity: CGFloat) {

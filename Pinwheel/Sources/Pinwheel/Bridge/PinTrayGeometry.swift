@@ -45,8 +45,16 @@ struct PinTrayGeometry: Equatable {
     let translation: CGFloat
     let contentBottomInset: CGFloat
     let bottomCornerRadius: CGFloat
-    let dimming: CGFloat
     let clearanceAboveGuide: CGFloat
+
+    /// How much the backdrop under the card holds. Derived from where the card is rather than stored
+    /// beside it: the backdrop is a different view, and what places the card is what decides whether a
+    /// reaction has anything to animate.
+    var dimming: CGFloat {
+        let travelToGone = height + bottomInset
+        let gone = travelToGone > 0 ? translation / travelToGone : 0
+        return 1 - min(1, max(0, gone))
+    }
 
     static func clearanceAboveAccessory(floats: Bool) -> CGFloat {
         floats ? .spacing2 : traySectionGap
@@ -64,7 +72,6 @@ struct PinTrayGeometry: Equatable {
         let lifted = keyboardInset > 0 && standsOnKeyboard
         bottomInset = max(trayBottomMargin, lifted ? keyboardInset + trayKeyboardMargin : 0)
         bottomCornerRadius = lifted ? trayTopRadius : room.displayCornerRadius
-        dimming = phase == .leaving ? 0 : 1
         clearanceAboveGuide = bottomInset - keyboardInset
 
         let available = room.containerHeight - room.safeAreaTop - trayBackdropReach - bottomInset
@@ -78,6 +85,7 @@ struct PinTrayGeometry: Equatable {
         case .resting:
             translation = dragOffset
         }
+
     }
 }
 

@@ -103,14 +103,14 @@ final class PinTrayGeometryTests: XCTestCase {
 }
 
 extension PinTrayGeometryTests {
-    func testTheBackdropStandsWhileTheTrayDoesAndLeavesWithIt() {
+    func testTheBackdropArrivesAndLeavesWithTheTray() {
         let room = PinTrayGeometry.Room(containerHeight: 900)
         let standing = PinTrayGeometry(contentHeight: 400, room: room)
         let leaving = PinTrayGeometry(contentHeight: 400, room: room, phase: .leaving)
         let arriving = PinTrayGeometry(contentHeight: 400, room: room, phase: .arriving)
 
         XCTAssertEqual(standing.dimming, 1, "a tray on screen is read against a dimmed backdrop")
-        XCTAssertEqual(arriving.dimming, 1, "and one on its way in is arriving against that backdrop")
+        XCTAssertEqual(arriving.dimming, 0, "one on its way in brings the backdrop up with it")
         XCTAssertEqual(leaving.dimming, 0, "a tray on its way out takes the backdrop with it")
     }
 
@@ -163,3 +163,33 @@ extension PinTrayGeometryTests {
         )
     }
 }
+
+extension PinTrayGeometryTests {
+    func testTheBackdropDimsInStepWithHowFarTheTrayStillHasToGo() {
+        let standing = geometry()
+        XCTAssertEqual(standing.dimming, 1, accuracy: 0.001, "a tray standing still dims what it covers fully")
+
+        let travel = standing.height + standing.bottomInset
+        let halfWayOut = geometry(dragOffset: travel / 2)
+        XCTAssertEqual(
+            halfWayOut.dimming, 0.5, accuracy: 0.01,
+            "dragged half of the way out, it dims half as much: \(halfWayOut.dimming)"
+        )
+    }
+
+    func testTheBackdropIsClearOnceTheTrayHasGone() {
+        XCTAssertEqual(geometry(phase: .leaving).dimming, 0, accuracy: 0.001, "nothing left to dim behind")
+        XCTAssertEqual(
+            geometry(phase: .arriving).dimming, 0, accuracy: 0.001,
+            "and builds from nothing as the tray comes up, rather than snapping on"
+        )
+    }
+
+    func testStretchingATrayUpwardsNeverDimsDeeperThanStandingStill() {
+        XCTAssertEqual(
+            geometry(dragOffset: -120).dimming, 1, accuracy: 0.001,
+            "the rubber band is not a way to darken the screen further"
+        )
+    }
+}
+
