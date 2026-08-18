@@ -2,20 +2,26 @@ import UIKit
 import Pinwheel
 
 class UIPinTweakableDemo: UIPinView, Tweakable {
-    private let options = ["Option 1", "Option 2"]
-    private var optionIndex = 0
-    private var isOn = false
+    private let text = "Tweak this label."
+    private let alignmentTitles = ["Leading", "Center", "Trailing"]
+    private var alignmentIndex = 1
+    private var isUppercase = false
 
     lazy var tweaks: [Tweak] = {
         return [
             SelectTweak(
-                title: "Option",
-                options: options,
-                chosenOption: { self.optionIndex },
-                action: { self.optionIndex = $0; self.reload() }
+                title: "Alignment",
+                options: alignmentTitles,
+                chosenOption: { self.alignmentIndex },
+                action: { self.alignmentIndex = $0; self.reload() }
             ),
-            BoolTweak(title: "Option 3", description: "Toggle-backed option") { isOn in
-                self.isOn = isOn
+            BoolTweak(title: "Uppercase") { isUppercase in
+                self.isUppercase = isUppercase
+                self.reload()
+            },
+            TextTweak(title: "Reset") {
+                self.alignmentIndex = 1
+                self.isUppercase = false
                 self.reload()
             }
         ]
@@ -23,7 +29,6 @@ class UIPinTweakableDemo: UIPinView, Tweakable {
 
     lazy var titleLabel: UIPinLabel = {
         let label = UIPinLabel(font: .body)
-        label.textAlignment = .center
         label.numberOfLines = 0
         return label
     }()
@@ -44,7 +49,13 @@ class UIPinTweakableDemo: UIPinView, Tweakable {
         reload()
     }
 
+    private var alignments: [NSTextAlignment] {
+        let trailing: NSTextAlignment = effectiveUserInterfaceLayoutDirection == .rightToLeft ? .left : .right
+        return [.natural, .center, trailing]
+    }
+
     private func reload() {
-        titleLabel.text = "You chose \(options[optionIndex]), and Option 3 is \(isOn ? "on" : "off")."
+        titleLabel.text = isUppercase ? text.uppercased() : text
+        titleLabel.textAlignment = alignments[alignmentIndex]
     }
 }
