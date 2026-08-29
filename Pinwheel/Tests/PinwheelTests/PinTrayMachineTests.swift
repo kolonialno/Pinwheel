@@ -410,7 +410,6 @@ extension PinTrayMachineTests {
     }
 }
 
-
 extension PinTrayMachineTests {
     func testMeasuringAFillingTrayDoesNotStandItBackUpOnceItIsLeaving() {
         var machine = machine(standing: 546)
@@ -427,6 +426,23 @@ extension PinTrayMachineTests {
         XCTAssertEqual(
             resized.timeline, .carriedByKeyboard,
             "and it starts nothing, so whatever is carrying it out keeps its completion"
+        )
+    }
+
+    func testATrayToldItFillsDifferentlyOnItsWayOutLeavesAtTheSizeItStoodAt() {
+        var machine = machine(standing: 546)
+        _ = machine.handle(.fillsReported(true))
+        _ = machine.handle(.dismissed)
+        let onItsWayOut = machine.geometry
+
+        let reported = machine.handle(.fillsReported(false))
+        XCTAssertEqual(
+            reported.to.height, onItsWayOut.height, accuracy: 1,
+            "a tray on its way out holds its size: \(reported.to.height) against \(onItsWayOut.height)"
+        )
+        XCTAssertEqual(
+            reported.to.translation, onItsWayOut.translation, accuracy: 1,
+            "and clears the same edge: \(reported.to.translation) against \(onItsWayOut.translation)"
         )
     }
 }

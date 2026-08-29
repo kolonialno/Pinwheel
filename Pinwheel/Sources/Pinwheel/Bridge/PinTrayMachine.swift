@@ -246,8 +246,8 @@ struct PinTrayMachine: Equatable {
             return Reaction(to: geometry(.resting), timeline: .carriedByKeyboard)
 
         case .fillsReported(let fills):
-            self.fills = fills
             guard phase != .leaving else { return Reaction(to: geometry(.leaving), timeline: .carriedByKeyboard) }
+            self.fills = fills
             return Reaction(to: geometry(.resting), timeline: .spring(bounce: 0, initialVelocity: 0))
 
         case .contentResized(let height):
