@@ -410,3 +410,23 @@ extension PinTrayMachineTests {
     }
 }
 
+
+extension PinTrayMachineTests {
+    func testMeasuringAFillingTrayDoesNotStandItBackUpOnceItIsLeaving() {
+        var machine = machine(standing: 546)
+        _ = machine.handle(.fillsReported(true))
+        _ = machine.handle(.dismissed)
+        let onItsWayOut = machine.geometry.translation
+
+        let resized = machine.handle(.contentResized(387))
+        XCTAssertEqual(machine.phase, .leaving, "measuring a filling tray does not cancel its exit")
+        XCTAssertEqual(
+            resized.to.translation, onItsWayOut, accuracy: 1,
+            "it keeps answering with where it is going: \(resized.to.translation) against \(onItsWayOut)"
+        )
+        XCTAssertEqual(
+            resized.timeline, .carriedByKeyboard,
+            "and it starts nothing, so whatever is carrying it out keeps its completion"
+        )
+    }
+}
