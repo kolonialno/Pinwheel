@@ -38,10 +38,10 @@ need when you are about to change the thing they are about. Append, never rewrit
   everything inside inset `.spacingXL`, a 64pt header band (which Pinwheel
   already had), a 1pt hairline, and a 48pt commit button whose bottom lands 32pt off the screen. Ours
   matches every one of those.
-- **The type scale is 20/18/16, taken from the reference.** `DefaultFontProvider` was 23/20/17; measuring
+- **The type scale is 20/18/16, taken from the reference.** `PinwheelDefaultFontProvider` was 23/20/17; measuring
   X's tray gave an ~18pt semibold title, ~16pt body and row text, and a 20pt semibold price, which is a
   cleaner three-step scale and is what the default theme now ships (footnote 13 and caption 11 unchanged).
-  `FontProvider`'s semibold defaults hardcode their sizes rather than deriving them from the regular
+  `PinwheelFontProvider`'s semibold defaults hardcode their sizes rather than deriving them from the regular
   variants, so a scale change has to be made in both files or the weights drift apart.
 - **The card's bottom corners take the display's own radius, and the top pair does not.** A
   bottom-anchored card reads as continuous with the hardware only when its bottom corners carry the
@@ -319,7 +319,7 @@ need when you are about to change the thing they are about. Append, never rewrit
 ## Theme & shared vocabularies
 
 
-- **Theme is law.** Every surface resolves provider-backed tokens (a `PinwheelTheme`'s `ColorProvider`/`FontProvider`), never Apple's system styles. API is designed so the wrong (system-style) path is unrepresentable.
+- **Theme is law.** Every surface resolves provider-backed tokens (a `PinwheelTheme`'s `PinwheelColorProvider`/`PinwheelFontProvider`), never Apple's system styles. API is designed so the wrong (system-style) path is unrepresentable.
 - **A theme is a named value in the environment, plural by default.** `PinwheelTheme` is a `struct` (name + the two providers), supplied as `PinwheelCatalog(themes:)` and resolved through `EnvironmentValues.pinwheelTheme`, bridged to a `PinwheelThemeTrait` (`UITraitDefinition`) so UIKit-hosted items and the FAB's own window resolve the same selection. It replaced the single static `Config.colorProvider`/`Config.fontProvider` pair, which nothing observed — assigning it re-rendered nothing, so one catalog could only ever show one brand. Two or more themes put a palette picker in the toolbar beside the appearance menu; the selection persists (`Pinwheel.SelectedThemeName`) and a deep-link preview honours `-PinwheelPreviewTheme <name>` so a sweep captures each brand. Themes are `Equatable` **by name** — the providers are a theme's contents, not its identity.
 - **A theme carries component shape, not only tokens.** `PinwheelTheme.buttonShape` (`.rounded` / `.capsule`) exists because a silhouette is as much a brand's signature as its palette, and a capsule is half the button's height — a `CGFloat` corner radius cannot express one, which is why `RoundedRectangle(cornerRadius: .spacingM)` was hard-coded in `PinButtonStyle` before. The case stores *intent* and `PinButtonShape.shape` resolves the token at render, so a theme states what it wants and the render decides what that measures. It stays a lone property rather than a `components` bag until a second component needs one.
 - **Spacing and radius are constants, and stay global rather than per-theme.** `CGFloat.spacing*` / `.radius*` are `static let`. They were `static var`s forwarding to mutable `SpacingValues`/`RadiusValues` backing structs — the package's only mutable static state, publicly settable, observed by nothing, and assigned by nothing in the package, the Demo, or the tests. The whole indirection was dead configuration, so both backing structs went. They stay global on purpose: the design system Pinwheel is being built for generates one spacing scale across its brands and varies only *component* metrics, which is what `buttonShape` is for.
@@ -401,7 +401,7 @@ Durable design decisions and why they were made.
 ## Bridging
 
 - **The UIKit twin of a `Pin*` component is `UIPin*`, not `UIKitPin*`.** Mirrors Apple's own prefix — it's `UILabel`, never `UIKitLabel` — and next to the SwiftUI `PinLabel` reads as "the UIKit one" to any iOS dev; the `Pin` brand token right after `UI` keeps it from colliding with Apple's `UI*` namespace. The spelled-out `UIKit` survives only as a *descriptive qualifier*, never a component prefix: `PinUIKitCapture`/`PinUIKitListCapture` (which capture path), `PinwheelUIKit*` (the hosting bridge), `isUIKitHosted` (what an item hosts). A raw-control demo with no `Pin` token to disambiguate keeps a non-`UI` name (`CollectionViewGridDemo`, not `UICollectionViewDemo`) so it can't be read as an Apple type.
-- **One implementation per bridgeable component.** A `Pin*` SwiftUI source plus a thin `UIPin*` shell that hosts it (via `PinHostView`), never two parallel reimplementations. Theming, light/dark, and Dynamic Type cross the bridge for free because both worlds read the same `Config` providers.
+- **One implementation per bridgeable component.** A `Pin*` SwiftUI source plus a thin `UIPin*` shell that hosts it (via `PinHostView`), never two parallel reimplementations. Theming, light/dark, and Dynamic Type cross the bridge for free because both worlds read the same theme providers.
 - **Bridged: Button, StateView.** `UIPinButton` / `UIPinStateView` host the SwiftUI implementation. Trade-off: one `UIHostingController` per instance — acceptable for these leaf/overlay components; revisit for dense reused contexts (e.g. table cells).
 - **State overlay centers via `centerY` in the shell**, not by filling. `PinHostView` sizes to intrinsic content, so a fill approach collapses to the top; centering lives in the shell, mirroring the old UIKit layout.
 - **UIKit `view:` catalog items host at full bounds** via `PinwheelUIKitContainerViewController` (a `UIViewControllerRepresentable` handed the full proposed size), not a bare `UIViewRepresentable` (which sized to the fitting size and collapsed edge-pinned / table-backed examples to the top-left).

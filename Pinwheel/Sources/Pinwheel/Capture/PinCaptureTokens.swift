@@ -9,22 +9,22 @@ public struct PinCaptureTokens {
         let name: String
         let light: RGBA
         let dark: RGBA
-        let textEligible: Bool
+        let isEligibleForText: Bool
 
         /// A text color binds only to a text-eligible token — a background/surface token matched purely by
         /// value (a literal white == a light background) would flip the text dark on a dark-mode import.
-        public init(name: String, light: UIColor, dark: UIColor, textEligible: Bool = true) {
+        public init(name: String, light: UIColor, dark: UIColor, isEligibleForText: Bool = true) {
             self.name = name
             self.light = RGBA(light)
             self.dark = RGBA(dark)
-            self.textEligible = textEligible
+            self.isEligibleForText = isEligibleForText
         }
 
-        init(name: String, light: RGBA, dark: RGBA, textEligible: Bool) {
+        init(name: String, light: RGBA, dark: RGBA, isEligibleForText: Bool) {
             self.name = name
             self.light = light
             self.dark = dark
-            self.textEligible = textEligible
+            self.isEligibleForText = isEligibleForText
         }
     }
 
@@ -73,7 +73,7 @@ public struct PinCaptureTokens {
         PinCaptureTokens(
             colors: PinColorToken.allCases.map {
                 ColorToken(name: $0.rawValue, light: RGBA($0.color, style: .light), dark: RGBA($0.color, style: .dark),
-                           textEligible: !$0.rawValue.hasSuffix("Background"))
+                           isEligibleForText: !$0.rawValue.hasSuffix("Background"))
             },
             spacings: PinFloatTokens.spacing.map { FloatToken(name: $0.name, value: Double($0.value)) },
             radii: PinFloatTokens.radius.map { FloatToken(name: $0.name, value: Double($0.value)) },
@@ -89,7 +89,7 @@ public struct PinCaptureTokens {
     func colorName(for color: UIColor, textRoleOnly: Bool = false) -> String? {
         let target = RGBA(color)
         return colors.first { token in
-            (!textRoleOnly || token.textEligible) && close(token.light, target)
+            (!textRoleOnly || token.isEligibleForText) && close(token.light, target)
         }?.name
     }
 

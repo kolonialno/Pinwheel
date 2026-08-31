@@ -40,7 +40,7 @@ final class TrayDimTape: XCTestCase {
 
         var tape: [(CGFloat, CGFloat)] = []
         for pulled in stride(from: CGFloat(0), through: 400, by: 50) {
-            tray.cardWasDragged(to: pulled)
+            tray.cardDragged(to: pulled)
             RunLoop.current.run(until: Date().addingTimeInterval(0.02))
             window.layoutIfNeeded()
             tape.append((tray.cardBottom, dim.alpha))

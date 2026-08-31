@@ -16,7 +16,7 @@ class UIPinTableViewDemo: UIPinView, Tweakable {
     }()
 
     lazy var tableView: UIPinTableView = {
-        let view = UIPinTableView(items: items, usingShadowWhenScrolling: true)
+        let view = UIPinTableView(items: items, showsShadowWhenScrolling: true)
         view.delegate = self
         return view
     }()

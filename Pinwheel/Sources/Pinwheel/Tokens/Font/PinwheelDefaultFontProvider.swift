@@ -1,6 +1,6 @@
 import UIKit
 
-public nonisolated struct DefaultFontProvider: FontProvider {
+public nonisolated struct PinwheelDefaultFontProvider: PinwheelFontProvider {
     public var title: UIFont {
         let font = UIFont.systemFont(ofSize: 20, weight: .medium)
         return font.scaledFont(forTextStyle: .headline)

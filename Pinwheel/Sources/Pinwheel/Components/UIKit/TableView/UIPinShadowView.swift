@@ -1,6 +1,6 @@
 import UIKit
 
-public class ShadowView: UIView {
+public class UIPinShadowView: UIView {
     public init() {
         super.init(frame: .zero)
         backgroundColor = .primaryBackground

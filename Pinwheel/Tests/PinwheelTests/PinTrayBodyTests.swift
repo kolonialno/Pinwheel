@@ -100,6 +100,6 @@ final class PinTrayBodyTests: XCTestCase {
         body.wasPulled(pastTheTop: 10)
         body.wasPulled(pastTheTop: 10)
 
-        XCTAssertEqual(reports.pulls, [10, 10, 10], "each frame's own slice, added up by whoever holds it")
+        XCTAssertEqual(reports.drags, [10, 10, 10], "each frame's own slice, added up by whoever holds it")
     }
 }

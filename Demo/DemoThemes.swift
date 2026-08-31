@@ -1,7 +1,7 @@
 import UIKit
 import Pinwheel
 
-struct DemoFontProvider: FontProvider {
+struct DemoFontProvider: PinwheelFontProvider {
     var title: UIFont {
         let font = UIFont.rounded(ofSize: 23, weight: .medium)
         return font.scaledFont(forTextStyle: .headline)
@@ -37,7 +37,7 @@ struct DemoFontProvider: FontProvider {
     }
 }
 
-struct DemoColorProvider: ColorProvider {
+struct DemoColorProvider: PinwheelColorProvider {
     var primaryText: UIColor {
         let defaultColor: UIColor = .init(hex: "021622")
         let darkColor: UIColor = .init(hex: "FFFFFF")
@@ -91,7 +91,7 @@ struct DemoColorProvider: ColorProvider {
     }
 }
 
-struct EmberFontProvider: FontProvider {
+struct EmberFontProvider: PinwheelFontProvider {
     var title: UIFont { serif(23, .bold).scaledFont(forTextStyle: .headline) }
     var subtitle: UIFont { serif(20, .semibold).scaledFont(forTextStyle: .subheadline) }
     var subtitleSemibold: UIFont { serif(20, .bold).scaledFont(forTextStyle: .subheadline) }
@@ -110,7 +110,7 @@ struct EmberFontProvider: FontProvider {
     }
 }
 
-struct EmberColorProvider: ColorProvider {
+struct EmberColorProvider: PinwheelColorProvider {
     var primaryText: UIColor { dynamic("2B1707", "FFF3E6") }
     var secondaryText: UIColor { dynamic("9A7B5E", "C4A98C") }
     var tertiaryText: UIColor { dynamic("E8D9C7", "5A4633") }

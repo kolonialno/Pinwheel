@@ -12,7 +12,7 @@ nonisolated extension UIColor {
     public class var actionBackground: UIColor { themed { $0.actionBackground } }
     public class var criticalBackground: UIColor { themed { $0.criticalBackground } }
 
-    private static func themed(_ token: @escaping @Sendable (ColorProvider) -> UIColor) -> UIColor {
+    private static func themed(_ token: @escaping @Sendable (PinwheelColorProvider) -> UIColor) -> UIColor {
         UIColor { traits in token(traits[PinwheelThemeTrait.self].colors) }
     }
 }

@@ -1,7 +1,7 @@
 import Foundation
 import UIKit
 
-public struct KeyboardNotificationInfo {
+public struct PinKeyboardNotification {
     public enum KeyboardAction {
         case willShow
         case willHide
@@ -45,7 +45,7 @@ public struct KeyboardNotificationInfo {
 }
 
 private extension Notification {
-    var keyboardNotificationAction: KeyboardNotificationInfo.KeyboardAction? {
+    var keyboardNotificationAction: PinKeyboardNotification.KeyboardAction? {
         switch self.name {
         case UIResponder.keyboardWillHideNotification:
             return .willHide

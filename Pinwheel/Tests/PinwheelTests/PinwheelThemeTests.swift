@@ -5,7 +5,7 @@ import UIKit
 
 @MainActor
 final class PinwheelThemeTests: XCTestCase {
-    private struct FlatColorProvider: ColorProvider {
+    private struct FlatColorProvider: PinwheelColorProvider {
         let color: UIColor
         var primaryText: UIColor { color }
         var secondaryText: UIColor { color }
@@ -18,7 +18,7 @@ final class PinwheelThemeTests: XCTestCase {
         var criticalBackground: UIColor { color }
     }
 
-    private struct FixedSizeFontProvider: FontProvider {
+    private struct FixedSizeFontProvider: PinwheelFontProvider {
         let size: CGFloat
         var title: UIFont { font(ofSize: size, weight: .regular) }
         var subtitle: UIFont { font(ofSize: size, weight: .regular) }

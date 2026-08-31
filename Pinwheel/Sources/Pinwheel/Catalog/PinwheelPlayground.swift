@@ -5,7 +5,7 @@ struct PinwheelPlayground: SwiftUI.View {
     let selection: PinwheelSelection
     let onClose: () -> Void
 
-    var previewMode: Bool = false
+    var isPreviewing: Bool = false
     var autoApplyTweak: String?
 
     @SwiftUI.State private var didApplyPreviewTweak = false
@@ -25,13 +25,13 @@ struct PinwheelPlayground: SwiftUI.View {
             // The pill rides the playground rather than the FAB window, so its transition scales in
             // place instead of collapsing.
             .overlay(alignment: .top) {
-                PinwheelDevicePill(previewMode: previewMode)
+                PinwheelDevicePill(isPreviewing: isPreviewing)
                     .padding(.top, .spacing2)
             }
             .onAppear {
                 // Preview renders skip device restore/persistence so a saved
                 // simulation can't leak into a snapshot or clobber a real pick.
-                if !previewMode {
+                if !isPreviewing {
                     chrome.selectedDeviceIndex = PinwheelStateStore.selectedDeviceIndex(for: selection)
                 }
                 chrome.onClose = onClose
@@ -41,7 +41,7 @@ struct PinwheelPlayground: SwiftUI.View {
                 chrome.componentVariant = autoApplyTweak
             }
             .onChange(of: chrome.selectedDeviceIndex) { _, newValue in
-                guard !previewMode else { return }
+                guard !isPreviewing else { return }
                 PinwheelStateStore.setSelectedDeviceIndex(newValue, for: selection)
             }
             .onDisappear {
@@ -91,7 +91,7 @@ struct PinwheelPlayground: SwiftUI.View {
     }
 
     private func handlePreviewTweaks(_ tweaks: [PinwheelTweak]) {
-        guard previewMode else { return }
+        guard isPreviewing else { return }
 
         if !didDumpPreviewTweaks {
             didDumpPreviewTweaks = true
@@ -142,14 +142,14 @@ struct PinwheelPlayground: SwiftUI.View {
 }
 
 private struct PinwheelDevicePill: SwiftUI.View {
-    let previewMode: Bool
+    let isPreviewing: Bool
     @Environment(PinwheelChrome.self) private var chrome
     @SwiftUI.State private var versionFaded = false
     @SwiftUI.State private var showingBuild = false
 
     private var isVisible: Bool {
         guard chrome.isPresentingItem, chrome.componentName != nil else { return false }
-        if previewMode || chrome.simulatedDevice != nil { return true }
+        if isPreviewing || chrome.simulatedDevice != nil { return true }
         return !versionFaded
     }
 

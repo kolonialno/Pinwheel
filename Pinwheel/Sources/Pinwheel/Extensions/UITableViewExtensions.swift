@@ -1,8 +1,8 @@
 import UIKit
 
-extension UITableViewCell: ReuseIdentifiable {}
+extension UITableViewCell: PinReuseIdentifiable {}
 
-extension UITableViewHeaderFooterView: ReuseIdentifiable {}
+extension UITableViewHeaderFooterView: PinReuseIdentifiable {}
 
 public extension UITableView {
     func register(_ cellClass: UITableViewCell.Type) {

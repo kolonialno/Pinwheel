@@ -380,7 +380,7 @@ final class PinTrayChassis: UIViewController {
         guard placement.isTravelling else { return }
         let caughtAt = placement.travelled
         placement.stopTravelling()
-        apply(machine.handle(.caught(at: caughtAt)))
+        apply(machine.handle(.caughtInFlight(at: caughtAt)))
     }
 
     private func release(velocity: CGFloat) {
@@ -389,33 +389,33 @@ final class PinTrayChassis: UIViewController {
 }
 
 extension PinTrayChassis: PinTrayBodyCoordinating {
-    var cardIsBeingPulled: Bool { machine.cardIsBeingPulled }
+    var cardIsBeingDraggedDown: Bool { machine.cardIsBeingDraggedDown }
 
-    func bodyWillBeginPulling() {
+    func bodyWillBeginDragging() {
         catchAnythingInFlight()
     }
 
-    func bodyWasPulledDown(by amount: CGFloat) {
-        apply(machine.handle(.pulledFurther(amount)))
+    func bodyDragged(by amount: CGFloat) {
+        apply(machine.handle(.bodyDragged(by: amount)))
     }
 
-    func bodyStoppedBeingPulled(velocity: CGFloat) {
+    func bodyEndedDragging(withVelocity velocity: CGFloat) {
         release(velocity: velocity)
     }
 }
 
 extension PinTrayChassis: PinTrayCardReporting {
-    var pulledSoFar: CGFloat { machine.pulledSoFar }
+    var dragInProgress: CGFloat { machine.drag }
 
-    func cardWasTouched() {
+    func cardWillBeginDragging() {
         catchAnythingInFlight()
     }
 
-    func cardWasDragged(to travelled: CGFloat) {
-        apply(machine.handle(.dragged(travelled)))
+    func cardDragged(to drag: CGFloat) {
+        apply(machine.handle(.cardDragged(to: drag)))
     }
 
-    func cardWasReleased(velocity: CGFloat) {
+    func cardEndedDragging(withVelocity velocity: CGFloat) {
         release(velocity: velocity)
     }
 }

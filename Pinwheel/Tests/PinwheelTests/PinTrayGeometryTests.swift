@@ -13,7 +13,7 @@ final class PinTrayGeometryTests: XCTestCase {
     private func geometry(
         contentHeight: CGFloat = 300,
         keyboardInset: CGFloat = 0,
-        dragOffset: CGFloat = 0,
+        travel: CGFloat = 0,
         phase: PinTrayGeometry.Phase = .resting,
         standsOnKeyboard: Bool = true
     ) -> PinTrayGeometry {
@@ -21,7 +21,7 @@ final class PinTrayGeometryTests: XCTestCase {
             contentHeight: contentHeight,
             room: screen,
             keyboardInset: keyboardInset,
-            dragOffset: dragOffset,
+            travel: travel,
             phase: phase,
             standsOnKeyboard: standsOnKeyboard
         )
@@ -42,7 +42,7 @@ final class PinTrayGeometryTests: XCTestCase {
     }
 
     func testADragDownCarriesTheTrayWithIt() {
-        XCTAssertEqual(geometry(dragOffset: 120).translation, 120)
+        XCTAssertEqual(geometry(travel: 120).translation, 120)
     }
 
     func testAPullUpResistsAndIsBounded() {
@@ -170,7 +170,7 @@ extension PinTrayGeometryTests {
         XCTAssertEqual(standing.dimming, 1, accuracy: 0.001, "a tray standing still dims what it covers fully")
 
         let travel = standing.height + standing.bottomInset
-        let halfWayOut = geometry(dragOffset: travel / 2)
+        let halfWayOut = geometry(travel: travel / 2)
         XCTAssertEqual(
             halfWayOut.dimming, 0.5, accuracy: 0.01,
             "dragged half of the way out, it dims half as much: \(halfWayOut.dimming)"
@@ -187,7 +187,7 @@ extension PinTrayGeometryTests {
 
     func testStretchingATrayUpwardsNeverDimsDeeperThanStandingStill() {
         XCTAssertEqual(
-            geometry(dragOffset: -120).dimming, 1, accuracy: 0.001,
+            geometry(travel: -120).dimming, 1, accuracy: 0.001,
             "the rubber band is not a way to darken the screen further"
         )
     }

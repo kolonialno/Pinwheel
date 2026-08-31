@@ -103,9 +103,9 @@ enum PinVariadicExpander {
 
     private struct ProbeRow: SwiftUI.View {
         let title: String
-        let extra: Bool
+        let hasExtraLabel: Bool
         var body: some SwiftUI.View {
-            HStack { PinLabel(title); if extra { PinLabel("extra") } }
+            HStack { PinLabel(title); if hasExtraLabel { PinLabel("extra") } }
         }
     }
 
@@ -113,7 +113,7 @@ enum PinVariadicExpander {
         guard getValue != nil else { return false }
         // Two rows, one with a conditional child — verifies expansion, deref, load, and per-row conditional
         // resolution all at once. A layout/ABI change breaks the recovered structure and trips this.
-        let probe = ForEach([true, false], id: \.self) { flag in ProbeRow(title: "row", extra: flag) }
+        let probe = ForEach([true, false], id: \.self) { flag in ProbeRow(title: "row", hasExtraLabel: flag) }
         guard let rows = rawExpand(probe), rows.count == 2 else { return false }
         func leafCount(_ node: ReflectedNode?) -> Int {
             switch node {

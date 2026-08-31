@@ -65,7 +65,7 @@ struct PinTrayGeometry: Equatable {
         fills: Bool = false,
         room: Room,
         keyboardInset: CGFloat = 0,
-        dragOffset: CGFloat = 0,
+        travel: CGFloat = 0,
         phase: Phase = .resting,
         standsOnKeyboard: Bool = true
     ) {
@@ -83,7 +83,7 @@ struct PinTrayGeometry: Equatable {
         case .arriving, .leaving:
             translation = height + bottomInset
         case .resting:
-            translation = dragOffset
+            translation = travel
         }
 
     }

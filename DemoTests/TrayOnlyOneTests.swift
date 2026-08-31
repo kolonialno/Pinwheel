@@ -38,7 +38,7 @@ final class TrayOnlyOneTests: XCTestCase {
         sync.sync(path: [], from: presenter) { _ in tray() }
         spin(window, for: 0.05)
 
-        leaving.cardWasTouched()
+        leaving.cardWillBeginDragging()
         spin(window, for: 0.5)
 
         sync.sync(path: [0], from: presenter) { _ in tray() }
@@ -75,10 +75,10 @@ final class TrayOnlyOneTests: XCTestCase {
             "a tray is standing"
         )
 
-        tray.cardWasDragged(to: 400)
-        tray.cardWasReleased(velocity: 2_000)
+        tray.cardDragged(to: 400)
+        tray.cardEndedDragging(withVelocity: 2_000)
         spin(window, for: 0.05)
-        tray.cardWasTouched()
+        tray.cardWillBeginDragging()
         spin(window, for: 0.5)
 
         XCTAssertEqual(
