@@ -2,8 +2,8 @@ import CoreGraphics
 
 @MainActor
 protocol PinTrayCardReporting: AnyObject {
-    var pulledSoFar: CGFloat { get }
-    func cardWasTouched()
-    func cardWasDragged(to travelled: CGFloat)
-    func cardWasReleased(velocity: CGFloat)
+    var dragInProgress: CGFloat { get }
+    func cardWillBeginDragging()
+    func cardDragged(to drag: CGFloat)
+    func cardEndedDragging(withVelocity velocity: CGFloat)
 }

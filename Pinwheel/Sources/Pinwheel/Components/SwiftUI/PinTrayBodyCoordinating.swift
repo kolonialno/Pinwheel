@@ -2,19 +2,19 @@ import CoreGraphics
 
 @MainActor
 protocol PinTrayBodyCoordinating: AnyObject {
-    var cardIsBeingPulled: Bool { get }
-    func bodyWillBeginPulling()
-    func bodyWasPulledDown(by amount: CGFloat)
-    func bodyStoppedBeingPulled(velocity: CGFloat)
+    var cardIsBeingDraggedDown: Bool { get }
+    func bodyWillBeginDragging()
+    func bodyDragged(by amount: CGFloat)
+    func bodyEndedDragging(withVelocity velocity: CGFloat)
 }
 
 @MainActor
 final class PinTrayBodyReports: PinTrayBodyCoordinating {
-    private(set) var pulls: [CGFloat] = []
+    private(set) var drags: [CGFloat] = []
     private(set) var releases: [CGFloat] = []
-    var cardIsBeingPulled = false
+    var cardIsBeingDraggedDown = false
 
-    func bodyWillBeginPulling() {}
-    func bodyWasPulledDown(by amount: CGFloat) { pulls.append(amount) }
-    func bodyStoppedBeingPulled(velocity: CGFloat) { releases.append(velocity) }
+    func bodyWillBeginDragging() {}
+    func bodyDragged(by amount: CGFloat) { drags.append(amount) }
+    func bodyEndedDragging(withVelocity velocity: CGFloat) { releases.append(velocity) }
 }

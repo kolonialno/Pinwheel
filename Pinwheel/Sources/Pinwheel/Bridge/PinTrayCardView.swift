@@ -44,18 +44,18 @@ final class PinTrayCardView: UIView {
 
 extension PinTrayCardView {
     @objc private func drag(_ gesture: UIPanGestureRecognizer) {
-        let travelled = gesture.translation(in: superview).y
+        let translation = gesture.translation(in: superview).y
         switch gesture.state {
         case .began:
-            reporting?.cardWasTouched()
+            reporting?.cardWillBeginDragging()
             gesture.setTranslation(
-                CGPoint(x: 0, y: reporting?.pulledSoFar ?? 0),
+                CGPoint(x: 0, y: reporting?.dragInProgress ?? 0),
                 in: superview
             )
         case .changed:
-            reporting?.cardWasDragged(to: travelled)
+            reporting?.cardDragged(to: translation)
         case .ended, .cancelled:
-            reporting?.cardWasReleased(velocity: gesture.velocity(in: superview).y)
+            reporting?.cardEndedDragging(withVelocity: gesture.velocity(in: superview).y)
         default:
             break
         }

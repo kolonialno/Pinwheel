@@ -93,21 +93,21 @@ extension PinTrayBodyView {
     }
 
     func wasPulled(pastTheTop past: CGFloat) {
-        coordinating?.bodyWasPulledDown(by: past)
+        coordinating?.bodyDragged(by: past)
     }
 }
 
 extension PinTrayBodyView: UIScrollViewDelegate {
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
         let past = -(scrollView.contentOffset.y + scrollView.contentInset.top)
-        let alreadyPulling = coordinating?.cardIsBeingPulled ?? false
+        let alreadyPulling = coordinating?.cardIsBeingDraggedDown ?? false
         guard scrollView.isTracking, Self.cardTakes(past, alreadyPulling: alreadyPulling) else { return }
         scrollView.contentOffset.y = -scrollView.contentInset.top
         wasPulled(pastTheTop: past)
     }
 
     func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
-        coordinating?.bodyWillBeginPulling()
+        coordinating?.bodyWillBeginDragging()
     }
 
     func scrollViewWillEndDragging(
@@ -115,7 +115,7 @@ extension PinTrayBodyView: UIScrollViewDelegate {
         withVelocity velocity: CGPoint,
         targetContentOffset: UnsafeMutablePointer<CGPoint>
     ) {
-        guard coordinating?.cardIsBeingPulled == true else { return }
-        coordinating?.bodyStoppedBeingPulled(velocity: -velocity.y * 1_000)
+        guard coordinating?.cardIsBeingDraggedDown == true else { return }
+        coordinating?.bodyEndedDragging(withVelocity: -velocity.y * 1_000)
     }
 }
