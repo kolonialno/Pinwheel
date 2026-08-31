@@ -98,7 +98,10 @@ PinwheelCatalog(themes: [.marine, .ember]) { /* ... */ }
 The theme reaches UIKit as well as SwiftUI: it is an `EnvironmentValues.pinwheelTheme` bridged to a
 `PinwheelThemeTrait`, so a `UIColor` token resolves the selected theme wherever it is read — including
 inside a `PinwheelItem(_:view:)` and inside the floating-controls window, which sits outside the SwiftUI
-tree. `UIFont` has no dynamic counterpart, so a UIKit view that caches a font re-reads it on a trait change.
+tree. `UIFont` has no dynamic counterpart, so a UIKit view that caches a font re-reads it on a
+trait change. The window takes the theme's `actionText` as its `tintColor` as well, so the chrome
+the system presents for you — a `UIAlertController` and its kind, which read no trait of ours —
+comes out in the brand with no tinting code of your own.
 
 A theme also decides its buttons' silhouette, since that is a brand's signature as much as its palette:
 
