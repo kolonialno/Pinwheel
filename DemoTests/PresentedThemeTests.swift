@@ -7,8 +7,8 @@ import UIKit
 final class PresentedThemeTests: XCTestCase {
     private let ember = PinwheelTheme(
         name: "Ember",
-        colors: DefaultColorProvider(),
-        fonts: DefaultFontProvider()
+        colors: PinwheelDefaultColorProvider(),
+        fonts: PinwheelDefaultFontProvider()
     )
 
     private struct Fixture: SwiftUI.View {

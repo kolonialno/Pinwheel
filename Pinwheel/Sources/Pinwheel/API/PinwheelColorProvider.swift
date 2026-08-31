@@ -1,6 +1,6 @@
 import UIKit
 
-public nonisolated protocol ColorProvider: Sendable {
+public nonisolated protocol PinwheelColorProvider: Sendable {
     var primaryText: UIColor { get }
     var secondaryText: UIColor { get }
     var tertiaryText: UIColor { get }

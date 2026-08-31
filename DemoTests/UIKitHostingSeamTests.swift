@@ -57,7 +57,7 @@ final class UIKitHostingSeamTests: XCTestCase {
             item: item,
             selection: PinwheelSelection(sectionID: "components", itemID: item.id),
             onClose: {},
-            previewMode: true
+            isPreviewing: true
         )
         .environment(chrome)
 

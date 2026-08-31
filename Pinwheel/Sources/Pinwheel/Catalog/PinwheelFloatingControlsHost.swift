@@ -4,8 +4,8 @@ import UIKit
 struct PinwheelFloatingControlsHost: UIViewRepresentable {
     let chrome: PinwheelChrome
     let tweakCount: Int
-    let fabVisible: Bool
-    // The FAB lives in its own window, which neither `.preferredColorScheme` nor the bridged theme trait reaches.
+    let showsFloatingControls: Bool
+    // The floating controls live in their own window, which neither `.preferredColorScheme` nor the bridged theme trait reaches.
     var colorScheme: ColorScheme?
     var theme: PinwheelTheme
 
@@ -22,7 +22,7 @@ struct PinwheelFloatingControlsHost: UIViewRepresentable {
         probe.onMoveToScene = { scene in
             context.coordinator.attach(scene: scene, chrome: chrome)
             context.coordinator.update(
-                fabVisible: chrome.isFloatingControlsVisible,
+                showsFloatingControls: chrome.isFloatingControlsVisible,
                 tweakCount: chrome.tweakCount,
                 colorScheme: chrome.colorScheme,
                 theme: chrome.theme
@@ -35,7 +35,7 @@ struct PinwheelFloatingControlsHost: UIViewRepresentable {
         if let scene = uiView.window?.windowScene {
             context.coordinator.attach(scene: scene, chrome: chrome)
         }
-        context.coordinator.update(fabVisible: fabVisible, tweakCount: tweakCount, colorScheme: colorScheme, theme: theme)
+        context.coordinator.update(showsFloatingControls: showsFloatingControls, tweakCount: tweakCount, colorScheme: colorScheme, theme: theme)
     }
 
     static func dismantleUIView(_ uiView: ProbeView, coordinator: Coordinator) {
@@ -56,7 +56,7 @@ struct PinwheelFloatingControlsHost: UIViewRepresentable {
     @MainActor
     final class Coordinator {
         private var window: PinwheelFloatingControlsWindow?
-        private var fabShown = false
+        private var floatingControlsAreShown = false
 
         func attach(scene: UIWindowScene, chrome: PinwheelChrome) {
             guard window == nil else { return }
@@ -67,7 +67,7 @@ struct PinwheelFloatingControlsHost: UIViewRepresentable {
             self.window = window
         }
 
-        func update(fabVisible: Bool, tweakCount: Int, colorScheme: ColorScheme?, theme: PinwheelTheme) {
+        func update(showsFloatingControls: Bool, tweakCount: Int, colorScheme: ColorScheme?, theme: PinwheelTheme) {
             guard let window else { return }
             window.controller.itemsCount = tweakCount
             window.controller.theme = theme
@@ -78,113 +78,22 @@ struct PinwheelFloatingControlsHost: UIViewRepresentable {
             default: window.overrideUserInterfaceStyle = .unspecified
             }
 
-            if fabVisible { window.isHidden = false }
+            if showsFloatingControls { window.isHidden = false }
 
-            if fabVisible != fabShown {
-                fabShown = fabVisible
-                window.controller.anchoringView.setControlsHidden(!fabVisible, animated: true) {
-                    if !fabVisible { window.isHidden = true }
+            if showsFloatingControls != floatingControlsAreShown {
+                floatingControlsAreShown = showsFloatingControls
+                window.controller.anchoringView.setControlsHidden(!showsFloatingControls, animated: true) {
+                    if !showsFloatingControls { window.isHidden = true }
                 }
-            } else if !fabVisible {
+            } else if !showsFloatingControls {
                 window.isHidden = true
             }
         }
 
         func teardown() {
-            fabShown = false
+            floatingControlsAreShown = false
             window?.isHidden = true
             window = nil
         }
-    }
-}
-
-final class PinwheelFloatingControlsWindow: UIWindow {
-    let controller = PinwheelFloatingControlsViewController()
-
-    override init(windowScene: UIWindowScene) {
-        super.init(windowScene: windowScene)
-        windowLevel = .normal + 1
-        backgroundColor = .clear
-        rootViewController = controller
-        isHidden = true
-    }
-
-    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
-
-    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
-        // Over empty areas `UIWindow.hitTest` returns the window itself (or the
-        // pass-through container); only deeper interactive views capture the touch.
-        guard let hit = super.hitTest(point, with: event), hit !== self, hit !== controller.view else {
-            return nil
-        }
-        return hit
-    }
-}
-
-final class PinwheelFloatingControlsViewController: UIViewController, CornerAnchoringViewDelegate {
-    let anchoringView = CornerAnchoringView()
-    var onSettings: (() -> Void)?
-    var onClose: (() -> Void)?
-
-    var theme: PinwheelTheme = .standard {
-        didSet { refreshButtons() }
-    }
-
-    var itemsCount: Int {
-        get { anchoringView.itemsCount }
-        set { anchoringView.itemsCount = newValue }
-    }
-
-    private lazy var buttonsController = UIHostingController(rootView: buttons)
-
-    private var buttons: PinwheelFloatingButtons {
-        PinwheelFloatingButtons(
-            theme: theme,
-            tweakCount: anchoringView.itemsCount,
-            onTweaks: { [weak self] in self?.onSettings?() },
-            onClose: { [weak self] in self?.onClose?() }
-        )
-    }
-
-    private func refreshButtons() {
-        buttonsController.rootView = buttons
-    }
-
-    override func loadView() {
-        let container = PinwheelPassthroughView()
-        anchoringView.delegate = self
-        anchoringView.onItemsCountChange = { [weak self] _ in self?.refreshButtons() }
-        container.addSubview(anchoringView)
-        NSLayoutConstraint.activate([
-            anchoringView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            anchoringView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            anchoringView.topAnchor.constraint(equalTo: container.topAnchor),
-            anchoringView.bottomAnchor.constraint(equalTo: container.bottomAnchor)
-        ])
-        view = container
-
-        buttonsController.view.backgroundColor = .clear
-        addChild(buttonsController)
-        anchoringView.setButtonsContent(buttonsController.view)
-        buttonsController.didMove(toParent: self)
-    }
-
-    func cornerAnchoringViewDidSelectTweakButton(_ cornerAnchoringView: CornerAnchoringView) {
-        onSettings?()
-    }
-
-    func cornerAnchoringViewDidSelectCloseButton(_ cornerAnchoringView: CornerAnchoringView) {
-        onClose?()
-    }
-}
-
-final class PinwheelPassthroughView: UIView {
-    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
-        for subview in subviews where !subview.isHidden && subview.isUserInteractionEnabled && subview.alpha > 0.01 {
-            if subview.point(inside: convert(point, to: subview), with: event) {
-                return true
-            }
-        }
-        return false
     }
 }

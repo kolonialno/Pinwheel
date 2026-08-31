@@ -36,7 +36,7 @@ public struct PinwheelPreview: SwiftUI.View {
                 item: match.item,
                 selection: PinwheelSelection(sectionID: match.section.id, itemID: match.item.id),
                 onClose: {},
-                previewMode: true,
+                isPreviewing: true,
                 autoApplyTweak: Self.requestedTweak
             )
             .environment(chrome)
@@ -47,7 +47,7 @@ public struct PinwheelPreview: SwiftUI.View {
                 PinwheelFloatingControlsHost(
                     chrome: chrome,
                     tweakCount: chrome.tweakCount,
-                    fabVisible: chrome.isFloatingControlsVisible,
+                    showsFloatingControls: chrome.isFloatingControlsVisible,
                     theme: chrome.theme
                 )
             )

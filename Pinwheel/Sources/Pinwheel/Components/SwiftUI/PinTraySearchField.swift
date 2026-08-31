@@ -6,7 +6,7 @@ public struct PinTraySearchField: SwiftUI.View {
     @SwiftUI.Binding private var text: String
 
     @Environment(\.pinwheelTheme) private var theme
-    @FocusState private var focused: Bool
+    @FocusState private var isFocused: Bool
 
     public init(_ prompt: String, text: SwiftUI.Binding<String>) {
         self.prompt = prompt
@@ -20,7 +20,7 @@ public struct PinTraySearchField: SwiftUI.View {
             TextField(prompt, text: $text)
                 .font(PinTextStyle.body.font(in: theme))
                 .foregroundStyle(.primaryText)
-                .focused($focused)
+                .focused($isFocused)
                 .accessibilityIdentifier("pinwheel.tray.search")
         }
         .padding(.horizontal, .spacing4)
@@ -29,6 +29,6 @@ public struct PinTraySearchField: SwiftUI.View {
             RoundedRectangle(cornerRadius: .radiusL)
                 .fill(Color.secondaryBackground)
         )
-        .onAppear { focused = true }
+        .onAppear { isFocused = true }
     }
 }

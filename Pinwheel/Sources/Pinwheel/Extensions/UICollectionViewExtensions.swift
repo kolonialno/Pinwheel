@@ -1,6 +1,6 @@
 import UIKit
 
-extension UICollectionReusableView: ReuseIdentifiable {}
+extension UICollectionReusableView: PinReuseIdentifiable {}
 
 public extension UICollectionView {
     func register(_ cellClass: UICollectionViewCell.Type) {

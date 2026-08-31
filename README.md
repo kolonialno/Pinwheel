@@ -65,7 +65,7 @@ Sections and items derive a stable id from their title — an item also folds in
 ## Theming
 
 Every Pinwheel surface resolves its colors and fonts from a `PinwheelTheme` — a named pairing of a
-`ColorProvider` and a `FontProvider`. Supply your own and the catalog, the floating controls, and every
+`PinwheelColorProvider` and a `PinwheelFontProvider`. Supply your own and the catalog, the floating controls, and every
 `Pin*` component render in it:
 
 ```swift

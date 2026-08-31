@@ -26,6 +26,9 @@ public struct FigmaDocument: Encodable {
     }
 }
 
+/// These types encode straight to the JSON the Figma plugin imports, so each property name is a
+/// wire key. `w`, `h`, `pad` and `r`/`g`/`b` are the plugin's spelling — expanding them breaks the
+/// import silently, since nothing here declares `CodingKeys`.
 struct FigmaNode: Encodable {
     var tag: String
     var x: Double

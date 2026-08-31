@@ -25,7 +25,7 @@ public enum UIPinTableViewState {
 
 /// Stays UIKit: cell recycling, the dataSource/delegate contract, `UISwitch` items
 /// and the A–Z section indexer have no `List` equivalent with comparable perf.
-open class UIPinTableView: ShadowScrollView {
+open class UIPinTableView: UIPinShadowScrollView {
     public static let estimatedRowHeight: CGFloat = 60.0
     open var selectedIndexPath: IndexPath?
 
@@ -40,7 +40,7 @@ open class UIPinTableView: ShadowScrollView {
         return tableView
     }()
 
-    private var usingShadowWhenScrolling: Bool = false
+    private var showsShadowWhenScrolling: Bool = false
 
     public weak var delegate: UIPinTableViewDelegate?
     private weak var dataSource: UIPinTableViewDataSource?
@@ -79,17 +79,17 @@ open class UIPinTableView: ShadowScrollView {
         return view
     }()
 
-    public init(dataSource: UIPinTableViewDataSource, usingShadowWhenScrolling: Bool = false) {
-        self.usingShadowWhenScrolling = usingShadowWhenScrolling
+    public init(dataSource: UIPinTableViewDataSource, showsShadowWhenScrolling: Bool = false) {
+        self.showsShadowWhenScrolling = showsShadowWhenScrolling
         self.dataSource = dataSource
         super.init(frame: .zero)
         setup()
     }
 
     private var items = [UIPinTableViewItem]()
-    public init(items: [UIPinTableViewItem] = [UIPinTableViewItem](), usingShadowWhenScrolling: Bool = false) {
+    public init(items: [UIPinTableViewItem] = [UIPinTableViewItem](), showsShadowWhenScrolling: Bool = false) {
         self.items = items
-        self.usingShadowWhenScrolling = usingShadowWhenScrolling
+        self.showsShadowWhenScrolling = showsShadowWhenScrolling
         super.init(frame: .zero)
         setup()
     }
@@ -108,7 +108,7 @@ open class UIPinTableView: ShadowScrollView {
         tableView.register(UIPinTableViewCell.self)
         addSubview(stateView, filling: .all)
 
-        if usingShadowWhenScrolling {
+        if showsShadowWhenScrolling {
             insertSubview(tableView, belowSubview: topShadowView, filling: .all)
             let anchor = topShadowView.bottomAnchor.constraint(equalTo: topAnchor)
             anchor.isActive = true

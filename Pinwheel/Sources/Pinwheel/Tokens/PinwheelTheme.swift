@@ -36,15 +36,15 @@ public enum PinTextStyle {
 
 public nonisolated struct PinwheelTheme: Sendable {
     public let name: String
-    public let colors: ColorProvider
-    public let fonts: FontProvider
+    public let colors: PinwheelColorProvider
+    public let fonts: PinwheelFontProvider
     public let buttonShape: PinButtonShape
 
-    public init(name: String, colors: ColorProvider, fonts: FontProvider) {
+    public init(name: String, colors: PinwheelColorProvider, fonts: PinwheelFontProvider) {
         self.init(name: name, colors: colors, fonts: fonts, buttonShape: .rounded)
     }
 
-    public init(name: String, colors: ColorProvider, fonts: FontProvider, buttonShape: PinButtonShape) {
+    public init(name: String, colors: PinwheelColorProvider, fonts: PinwheelFontProvider, buttonShape: PinButtonShape) {
         self.name = name
         self.colors = colors
         self.fonts = fonts
@@ -65,8 +65,8 @@ nonisolated extension PinwheelTheme: Equatable {
 public nonisolated extension PinwheelTheme {
     static let standard = PinwheelTheme(
         name: "Standard",
-        colors: DefaultColorProvider(),
-        fonts: DefaultFontProvider()
+        colors: PinwheelDefaultColorProvider(),
+        fonts: PinwheelDefaultFontProvider()
     )
 }
 
